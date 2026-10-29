@@ -1,0 +1,12 @@
+{# Aba Servidor (PN-T60; PN-54, PN-43). Contexto: lines (linhas JSON ja redigidas, a mais nova
+   por ultimo), max_lines. Guardadas em memoria pelo processo; zeram ao reiniciar. #}
+{% from "_macros.html" import empty_box %}
+<div id="logs-servidor" class="bg-white rounded-2xl border border-ink-200 p-3">
+  <p class="text-xs text-ink-500 mb-2">Últimas {{ max_lines or 500 }} linhas do log, já com telefones, e-mails e segredos ocultos. Ficam só na memória e zeram quando o servidor reinicia.</p>
+  {% if lines %}
+  <pre class="text-xs font-mono bg-ink-50 rounded-xl p-3 overflow-x-auto max-h-[32rem] overflow-y-auto whitespace-pre-wrap break-words">{% for line in lines %}{{ line }}
+{% endfor %}</pre>
+  {% else %}
+  {{ empty_box('Nenhuma linha de log guardada desde o último início do servidor.') }}
+  {% endif %}
+</div>

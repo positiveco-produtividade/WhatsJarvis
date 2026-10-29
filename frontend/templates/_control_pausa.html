@@ -1,0 +1,34 @@
+{# Controle de pausa do Jarvis (PN-T43; PN-45, PN-48). Parcial incluido pela pagina de Alertas
+   com "ignore missing". Slots: bar (botao + aviso de pausa; contexto: state) e modal
+   (confirmacao com o estado atual; contexto: paused, csrf_token, action). O POST envia o estado
+   DESEJADO (pause|resume), nunca "alternar". Sem janela nativa do navegador. #}
+{% from "_macros.html" import csrf_field, modal_head %}
+{% if slot == 'bar' %}
+{% set paused = state.paused if state else false %}
+<div id="control-pausa" class="flex flex-wrap items-center gap-2">
+  <button type="button" hx-get="/dashboard/control/pausa" hx-target="#modal-body" hx-swap="innerHTML"
+          class="font-medium px-4 py-2 rounded-lg transition text-white {{ 'bg-mint-500 hover:bg-mint-600' if paused else 'bg-ink-900 hover:bg-ink-700' }}">{{ '▶ Retomar operação' if paused else 'Pausar Jarvis' }}</button>
+</div>
+{% if paused %}
+<div role="alert" class="mb-4 w-full rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"><strong>Jarvis pausado.</strong> As mensagens continuam chegando e ficam guardadas; ninguém recebe resposta até retomar. As mensagens de consentimento (boas-vindas, lembrete, confirmação e recusa) continuam saindo.</div>
+{% endif %}
+{% elif slot == 'modal' %}
+{{ modal_head('Retomar operação?' if paused else 'Pausar o Jarvis?') }}
+<form method="post" action="{{ action }}" hx-post="{{ action }}" hx-swap="none" hx-disabled-elt="find button"
+      class="px-4 py-4 space-y-3" data-control-form>
+  {{ csrf_field(csrf_token) }}
+  <input type="hidden" name="desired" value="{{ 'resume' if paused else 'pause' }}">
+  <p class="text-xs font-semibold text-ink-500">Agora: {{ 'Jarvis pausado' if paused else 'Jarvis em operação' }}</p>
+  {% if paused %}
+  <p class="text-sm text-ink-700">O Jarvis volta a responder as mensagens novas.</p>
+  {% else %}
+  <p class="text-sm text-ink-700">O Jarvis para de responder em todas as marcas. As mensagens continuam chegando e ficam guardadas. As mensagens de consentimento (boas-vindas, lembrete, confirmação e recusa) continuam saindo.</p>
+  {% endif %}
+  <p class="text-xs text-ink-500">A mudança fica registrada com o seu nome.</p>
+  <div class="flex gap-2 pt-1">
+    <button type="submit" data-control-confirm class="rounded-lg px-3 py-1.5 text-xs font-semibold text-white {{ 'bg-mint-600 hover:bg-mint-700' if paused else 'bg-ink-900 hover:bg-ink-700' }}">{{ 'Retomar' if paused else 'Pausar' }}</button>
+    <button type="button" data-overlay-close class="rounded-lg border border-ink-300 bg-white px-3 py-1.5 text-xs font-medium text-ink-700 hover:bg-ink-50">Cancelar</button>
+  </div>
+</form>
+<script src="{{ static_v('js/controls.js') }}"></script>
+{% endif %}

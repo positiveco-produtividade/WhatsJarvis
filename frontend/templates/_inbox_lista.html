@@ -1,0 +1,79 @@
+{# Lista do Inbox (PN-T21; PN-10, PN-43). Fragmento trocado em #inbox-lista (HTMX) e incluido
+   por inbox.html. Contexto: inbox (InboxPage), q, selected, pages, filters_qs, tab_*_qs,
+   toggle_qs, awaiting_in_tab. Telefone nao aparece na lista (so no cabecalho do chat, T22).
+   O chat, "Concluir" e o lote sao da tarefa PN-T22: aqui so os links/botao que os chamam. #}
+{% from "_macros.html" import class_chip, pagination %}
+<div class="p-3 border-b border-ink-100">
+  <form method="get" action="/dashboard/inbox" hx-get="/dashboard/inbox" hx-target="#inbox-lista"
+        hx-push-url="true" hx-trigger="input changed delay:300ms, submit" role="search">
+    <input type="hidden" name="aba" value="{{ inbox.tab }}">
+    {% if inbox.awaiting_only %}<input type="hidden" name="so_aguardando" value="1">{% endif %}
+    <div class="relative">
+      <svg class="absolute left-3 top-2.5 w-4 h-4 text-ink-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input id="inbox-q" type="search" name="q" value="{{ q }}" maxlength="100" autocomplete="off"
+             placeholder="Buscar por nome ou telefone…" aria-label="Buscar por nome ou telefone"
+             class="w-full pl-9 pr-3 py-2 bg-ink-50 border border-transparent focus:bg-white rounded-lg text-sm">
+    </div>
+  </form>
+  <div class="mt-2 grid grid-cols-2 gap-1 bg-ink-50 rounded-lg p-1" role="group" aria-label="Tipo de conversa">
+    {% for key, label, qs in [('conversas', 'Conversas', tab_conversas_qs), ('midias', 'Mídias', tab_midias_qs)] %}
+    <a href="/dashboard/inbox?{{ qs }}" hx-get="/dashboard/inbox?{{ qs }}" hx-target="#inbox-lista" hx-push-url="true"
+       {% if inbox.tab == key %}aria-current="true"{% endif %}
+       class="text-center text-xs font-medium py-1.5 rounded-md transition {{ 'bg-white text-ink-900 shadow-sm' if inbox.tab == key else 'text-ink-500 hover:text-ink-700' }}">{{ label }}</a>
+    {% endfor %}
+  </div>
+  <div class="mt-2 text-[11px] text-ink-400">
+    {% if inbox.awaiting_only %}
+    <span class="font-semibold text-amber-700">Só aguardando ({{ awaiting_in_tab }})</span>
+    <a href="/dashboard/inbox?{{ toggle_qs }}" hx-get="/dashboard/inbox?{{ toggle_qs }}" hx-target="#inbox-lista" hx-push-url="true"
+       class="hover:text-ink-700 underline">← todas</a>
+    {% else %}
+    <a href="/dashboard/inbox?{{ toggle_qs }}" hx-get="/dashboard/inbox?{{ toggle_qs }}" hx-target="#inbox-lista" hx-push-url="true"
+       class="hover:text-ink-700 underline">Só aguardando ({{ awaiting_in_tab }})</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="px-3 py-2 border-b border-ink-100 bg-ink-50/60 flex items-center gap-2">
+  <input type="checkbox" data-select-all class="w-4 h-4 rounded border-ink-300" aria-label="Selecionar todas as conversas aguardando">
+  <span class="text-[11px] text-ink-400">{{ inbox.total }} conversa{{ '' if inbox.total == 1 else 's' }}</span>
+  <span x-text="selectedLabel" class="text-[11px] text-ink-500"></span>
+  <button type="button" hx-post="/dashboard/inbox/concluir-lote" hx-include="[data-select-item]:checked" hx-swap="none"
+          :disabled="noSelection"
+          class="ml-auto text-[11px] font-semibold px-2.5 py-1 rounded-full bg-ink-900 text-white disabled:opacity-50 disabled:cursor-not-allowed">Concluir</button>
+</div>
+
+<div class="flex-1 overflow-y-auto">
+  {% for r in inbox.rows %}
+  <div class="flex items-stretch border-b border-ink-100 hover:bg-ink-50 {{ 'bg-ink-100' if r.user_id == selected else '' }}">
+    {% if r.awaiting_count %}
+    <label class="flex items-start pl-3 pt-[0.875rem] shrink-0">
+      <input type="checkbox" name="user_ids" value="{{ r.user_id }}" data-select-item class="w-4 h-4 rounded border-ink-300" aria-label="Selecionar {{ r.name }}">
+    </label>
+    {% else %}
+    <span class="shrink-0" style="width:1.75rem"></span>
+    {% endif %}
+    <a href="/dashboard/inbox?{{ filters_qs }}&page={{ inbox.page }}&u={{ r.user_id }}"
+       hx-get="/dashboard/inbox/{{ r.user_id }}" hx-target="#chat-pane"
+       hx-push-url="/dashboard/inbox?{{ filters_qs }}&page={{ inbox.page }}&u={{ r.user_id }}"
+       {% if r.user_id == selected %}aria-current="true"{% endif %}
+       class="flex-1 min-w-0 flex gap-3 pl-2 pr-3 py-3">
+      <div class="shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-lavender-200 to-sky-200 text-ink-700 flex items-center justify-center font-bold text-sm" aria-hidden="true">{{ r.initial }}</div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center justify-between gap-2">
+          <div class="text-sm font-medium text-ink-800 truncate">{{ r.name }}</div>
+          <div class="text-[10px] text-ink-400 shrink-0">{{ r.last_time }}</div>
+        </div>
+        <div class="text-xs text-ink-500 truncate mt-0.5">{{ (r.last_text | truncate(90)) if r.last_text else 'Sem mensagens ainda.' }}</div>
+        <div class="flex items-center gap-1.5 mt-1.5">
+          {% if r.classification %}{{ class_chip(r.classification) }}{% endif %}
+          {% if r.awaiting_count and r.awaiting_label %}<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">⏳ {{ r.awaiting_label }}</span>{% endif %}
+        </div>
+      </div>
+    </a>
+  </div>
+  {% else %}
+  <div class="text-center text-ink-400 text-sm py-20">Nada aguardando aqui.</div>
+  {% endfor %}
+  {% if inbox.rows %}<div class="px-3 pb-3">{{ pagination(inbox.page, pages, inbox.total, '/dashboard/inbox', '#inbox-lista', filters_qs) }}</div>{% endif %}
+</div>

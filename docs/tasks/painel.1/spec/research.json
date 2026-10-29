@@ -1,0 +1,199 @@
+{
+  "task_id": "PAINEL-1",
+  "phase": "2-design",
+  "date": "2026-10-23",
+  "exploration_summary": "Lidos: PRD (incl. Decision Log de 2026-10-22: escalado e desconhecido nao sao alertas, e-mail so para alerta, sem modo conservador, Jarvis coordenador, tela Dados Nielsen/GMR), architecture/overview.md (ADRs de 2026-10-19/20 e os dois de 2026-10-23), STATE.md, historia painel.1, spec e requirements aprovados do painel (64 AC), spec/complexity/research de porta-fechada.1 (dona do modelo de dados), prototipo docs/designs/painel-prototipo.html (funcoes de render, STATUS_META/CLASS_META, importacao, pessoas, controles, assistente) e o AUTO-1 (backend/app: main, config, paths, core/security, services/iam, services/faq, faq_planilha, assistant, monitor, api/dashboard (lista de rotas), api/admin (FAQ e importacao), api/assistant; migrations/007_faq_uploads; frontend/templates, static/js, package.json, tailwind.config.js; backend/requirements.txt; testes test_admin_gating e nomes de testes). Nenhum arquivo .env foi lido. O AUTO-1 cobre quase toda a mecanica (IAM, CSRF por Origin, FAQ, importacao, alertas, e-mail, widget) mas: (a) concentra rotas em dashboard.py (~2.700 linhas), (b) CSRF sem token, (c) sessao = cache de whoami de 30 s (nao cumpre PN-3), (d) carrega htmx/Alpine/Chart.js de CDN com SRI, (e) a FAQ e lida a cada chamada do bot sem cache (propagacao imediata), (f) o assistente usa Anthropic/Gemini por SDK e protege escrita por uma flag de codigo, (g) usa fuso de Fortaleza, (h) a conferencia de importacao e sem estado (JSON em campo oculto). Nao existe codigo do Jarvis ainda (greenfield); os caminhos de backend/app citados no design sao propostos.",
+  "existing_patterns": [
+    {
+      "pattern": "Auth por cookie iam_session -> whoami (cache LRU 30 s, single-flight, disjuntor 3 falhas/10 s, timeout 3 s), redirecionamento HTML ao IAM com next restrito a hosts permitidos, 401 JSON, 503 com Retry-After",
+      "location": "AUTO-1 backend/app/core/security.py; services/iam.py",
+      "applies_to_this_task": true,
+      "notes": "Copiar o cliente IAM e o redirecionamento (next sempre https e restrito a lista de hosts; ha licao de loop de login de 2026-05-20). Acrescentar sessao propria (ops.panel_sessions) porque o cache de 30 s derruba o painel quando o IAM cai (PN-3) e a autoridade e a lista de e-mails, nao is_superadmin."
+    },
+    {
+      "pattern": "CSRF por Origin/Referer em todo POST (_check_csrf), sem token",
+      "location": "AUTO-1 backend/app/api/dashboard.py:447",
+      "applies_to_this_task": true,
+      "notes": "Manter como segunda camada e somar token HMAC por sessao (PN-4 exige token). Falta de Origin e Referer = 403."
+    },
+    {
+      "pattern": "Headers de seguranca e CSP em middleware; Cache-Control no-store so em algumas rotas",
+      "location": "AUTO-1 backend/app/main.py",
+      "applies_to_this_task": true,
+      "notes": "Copiar os headers; trocar hashes de CDN por script-src 'self' servindo vendor localmente; no-store em todo o painel (PII)."
+    },
+    {
+      "pattern": "Jinja2Templates + StaticFiles + static_v (mtime) como cache-buster; filtros de data; handlers 403/404/500 com paginas HTML",
+      "location": "AUTO-1 backend/app/main.py, paths.py",
+      "applies_to_this_task": true,
+      "notes": "Copiar paths.py e static_v; filtro sp_dt em America/Sao_Paulo (AUTO-1 usa Fortaleza)."
+    },
+    {
+      "pattern": "Rotas do dashboard: /dashboard, /inbox, /inbox/{id}, /tickets/{n} (drawer), /reclamacoes (kanban), /reclamacoes/{n}/urgency|move, /inbox/concluir-lote, /marca, /alerts, /alerts/{id}/ack, /control/*, /logs, /assistente-perguntas, /relatorios, /metrics; admin: /faq, /faq/nova, /faq/{id}/edit|desativar|reativar, /faq/importar, /faq/importar/modelo, /faq/importar/confirmar",
+      "location": "AUTO-1 backend/app/api/dashboard.py, admin.py, assistant.py, control.py",
+      "applies_to_this_task": true,
+      "notes": "Mapa de rotas do painel (spec 4.5) segue os mesmos nomes onde o conceito existe (alerts, metrics, logs, relatorios, assistente-perguntas), com um roteador por tela. Rotas do AUTO-1 sem equivalente aqui: customers, social-listening, shortlinks, control HMAC por link."
+    },
+    {
+      "pattern": "Importacao de FAQ: leitura xlsx/csv (openpyxl), limites 2 MB / 300 linhas (AUTO-1) -> 200 aqui, analise com situacoes entra/ja_existe/repetida/erro, previa sem gravar, confirmar revalidando tudo dentro de transacao",
+      "location": "AUTO-1 services/faq_planilha.py; api/admin.py:708-844",
+      "applies_to_this_task": true,
+      "notes": "Reusar regras e o modelo de planilha. Mudancas: lote no servidor (ops.import_batches) em vez de JSON em campo oculto; UPDATE condicional do lote para idempotencia (PN-29); leitura em thread; limite 200."
+    },
+    {
+      "pattern": "FAQ lida do banco a cada chamada do bot (faq_items, active, brand IN (marca,'todas')), sem cache",
+      "location": "AUTO-1 services/faq.py get_faq_for_classification",
+      "applies_to_this_task": true,
+      "notes": "Propagacao imediata. Para o Jarvis o leitor ganha cache por revisao (faq_revision) com teto de 60 s, para nao consultar a tabela inteira por mensagem e ainda cumprir PN-25 (<=5 min)."
+    },
+    {
+      "pattern": "Validacao de FAQ na escrita (host autorizado, contato proibido) e variacoes seguras",
+      "location": "AUTO-1 services/faq.py, faq_edicao.py",
+      "applies_to_this_task": true,
+      "notes": "Mesma ideia, regra do Jarvis: proibir telefone, e-mail e link (expressao do prototipo); variacoes vazias descartadas; duplicata por chave normalizada."
+    },
+    {
+      "pattern": "Widget do assistente: POST /api/assistant/chat com historico no navegador (max 40 turnos, 4000 chars), timeout 60 s, Origin check; ferramentas do assistente com flag somente_leitura; tabela de uso/perguntas",
+      "location": "AUTO-1 api/assistant.py; services/assistant.py (TOOLS, TOOLS_LEITURA, FERRAMENTAS_DE_ESCRITA); frontend/static/js/alpine-components.js (assistantWidget)",
+      "applies_to_this_task": true,
+      "notes": "Copiar o contrato HTTP e o widget. Diferencas: provedor Gemini atras de interface, sem ferramentas de escrita (a garantia e o papel de banco, PN-52), estado desligado sem chave, agentes por marca."
+    },
+    {
+      "pattern": "Monitor de alertas em laco com lock consultivo (check_error_rate, check_api_failures, check_spam, check_injection_attempts) e dedup por INSERT ... WHERE NOT EXISTS",
+      "location": "AUTO-1 services/monitor.py",
+      "applies_to_this_task": true,
+      "notes": "Reusar o formato (laco de 10 min, lock, dedup) e chamar alerts.raise_alert de PF, que ja cria entrega de e-mail/grupo. Liçao: parametro repetido em INSERT/WHERE precisa de cast (PF 4.2.1)."
+    },
+    {
+      "pattern": "Alertas por e-mail via Resend e grupo via WAHA",
+      "location": "AUTO-1 services/notifications.py, waha.py (adaptados em PF)",
+      "applies_to_this_task": true,
+      "notes": "Reuso total via servicos de PF (deliveries). O painel so cria alertas e o link."
+    },
+    {
+      "pattern": "Frontend: Tailwind 3.4 compilado (npm run build:css), Alpine CSP build, HTMX 1.9, componentes Alpine.data em alpine-components.js unico",
+      "location": "AUTO-1 frontend/package.json, tailwind.config.js, static/js, templates",
+      "applies_to_this_task": true,
+      "notes": "Manter stack. Mudar: JS por tela (escopos disjuntos), vendor local, tailwind.config derivado do prototipo."
+    },
+    {
+      "pattern": "Testes: pytest + stubs de libs; test_admin_gating (403 HTML/JSON, 302 sem login); test_a11y_templates; test_htmx_redirect",
+      "location": "AUTO-1 backend/tests/",
+      "applies_to_this_task": true,
+      "notes": "Mesmo estilo, mas com Postgres real (padrao de PF) em vez de stubs de asyncpg; teste de renderizacao de todos os templates e varredura de rotas."
+    },
+    {
+      "pattern": "Deploy PM2 + nginx, rsync, /health",
+      "location": "AUTO-1 deploy/ecosystem.config.js; .claude/commands/deploy.md; PF spec 4.10",
+      "applies_to_this_task": true,
+      "notes": "Sem processo novo: o painel roda no processo jarvis de PF; so acrescenta locations do nginx e variaveis de ambiente."
+    }
+  ],
+  "porta_fechada_reuse": {
+    "tables_read": ["access.users", "access.optin_requests", "access.access_attempts", "access.unknown_first_messages", "chat.message_trace", "chat.outbound_messages", "ops.alerts", "ops.deliveries", "ops.security_counters", "ops.system_state", "ops.audit_log", "ops.ticket_seq"],
+    "services_called_for_writes": ["users.register/revoke/resend/validate_row", "attempts.dismiss", "flags (paused, brand_enabled:*, team_group_enabled)", "audit.record", "alerts.raise_alert", "deliveries/outbox (envio e e-mail)"],
+    "panel_additions": ["content.faq_items", "content.faq_item_versions", "chat.tickets (+ ops.v_tickets)", "ops.panel_sessions", "ops.import_batches", "ops.assistant_questions", "access.users.search_key", "indices de audit_log e alerts", "papel jarvis_assistant + schema assistant"],
+    "requests_to_pf": ["R1 tickets de midia em chat.tickets", "R2 validate_row puro e register reutilizavel", "R3 raise_alert(email=bool)", "R4 flags estendido e ReplyPolicy instalado em main.py"]
+  },
+  "alternatives_considered": [
+    {
+      "decision": "Painel no mesmo processo ou em processo separado",
+      "chosen": "Mesmo processo (app/panel isolado), 1 worker",
+      "rejected": [{"option": "Dois processos PM2", "reason": "Dobra operacao e memoria no servidor compartilhado; pausa e chave levam ate 30 s em vez de efeito imediato; o varredor passa a ser o unico caminho de envio das acoes do painel. Fica como evolucao por configuracao."}],
+      "trigger_to_revisit": "p95 do webhook > 1 s por causa do painel, ou segundo administrador com uso intenso"
+    },
+    {
+      "decision": "Sessao do painel",
+      "chosen": "Tabela ops.panel_sessions sobre o cookie do IAM, revalidacao a cada 5 min, tolerante a IAM fora",
+      "rejected": [
+        {"option": "Somente whoami com cache de 30 s (AUTO-1)", "reason": "Com IAM fora, o painel cai em 30 s: viola PN-3."},
+        {"option": "Cache em memoria com tolerancia longa", "reason": "Perde-se no restart do PM2; sem logout nem trilha."},
+        {"option": "JWT proprio assinado", "reason": "Nao revogavel sem lista; duplica o IAM."}
+      ]
+    },
+    {
+      "decision": "Autoridade de admin",
+      "chosen": "Lista de e-mails em configuracao (PANEL_ADMIN_EMAILS)",
+      "rejected": [{"option": "is_superadmin do IAM (AUTO-1)", "reason": "Admite qualquer superadmin do IAM, nao so o Caio; modelo de papeis por app nao documentado (Q-P1)."}]
+    },
+    {
+      "decision": "CSRF",
+      "chosen": "Token HMAC por sessao + checagem de Origin/Referer",
+      "rejected": [{"option": "So Origin/Referer (AUTO-1)", "reason": "PN-4 exige token; Origin ausente em alguns clientes."}, {"option": "SameSite=Strict apenas", "reason": "Nao protege contra subdominios e nao e verificavel por teste de servidor."}]
+    },
+    {
+      "decision": "Entidade de ticket",
+      "chosen": "chat.tickets unica + ops.v_tickets",
+      "rejected": [
+        {"option": "Duas tabelas (ops.escalation_tickets + nova) sem visao", "reason": "Telas e escritas duplicadas."},
+        {"option": "Derivar tudo de message_trace", "reason": "Sem lugar para classificacao, urgencia, autor da conclusao e reclassificacao (PN-16, 18, 63)."},
+        {"option": "Adicionar colunas a ops.escalation_tickets", "reason": "Nome e CHECKs de PF so cobrem midia escalada; nao modela 'Respondido pelo bot' nem 'Erro no envio'. Vira o plano B (visao UNION)."}
+      ]
+    },
+    {
+      "decision": "Propagacao da FAQ ao bot em <=5 min",
+      "chosen": "Leitura direta do banco com cache por revisao (faq_revision incrementada por gatilho) e teto de 60 s",
+      "rejected": [
+        {"option": "Sync por planilha/n8n (AUTO-1 antigo)", "reason": "Atraso e duas fontes de verdade; a edicao e no painel."},
+        {"option": "Cache TTL de 5 min", "reason": "Sem folga para o limite do PRD."},
+        {"option": "LISTEN/NOTIFY", "reason": "Conexao dedicada e reconexao; ganho irrelevante a esta escala."},
+        {"option": "Sem cache (AUTO-1)", "reason": "Viavel; so recusado pelo custo de reler a FAQ inteira por mensagem a 20 mil/dia. Valido como configuracao: FAQ_CACHE_MAX_AGE_SECONDS=0."}
+      ]
+    },
+    {
+      "decision": "Conferencia de importacao",
+      "chosen": "Lote no servidor (ops.import_batches) com UPDATE condicional na gravacao",
+      "rejected": [{"option": "JSON em campo oculto (AUTO-1)", "reason": "Para pessoas poe PII no HTML, permite adulteracao (mitigada por revalidar) e nao e idempotente; serviria so a FAQ."}]
+    },
+    {
+      "decision": "Busca sem acento",
+      "chosen": "Coluna gerada search_key com lower(translate(...))",
+      "rejected": [{"option": "unaccent + pg_trgm", "reason": "Extensoes nao verificadas no Postgres compartilhado; ficam como otimizacao opcional (migration 107)."}, {"option": "Filtrar em Python", "reason": "Serve para Pessoas (2.000) mas nao para tickets (milhoes)."}]
+    },
+    {
+      "decision": "Provedor do assistente",
+      "chosen": "Interface AssistantProvider; Gemini por REST com httpx; ferramentas somente leitura sobre views, papel de banco SELECT-only",
+      "rejected": [
+        {"option": "SDK google-generativeai (AUTO-1)", "reason": "Dependencia nova sem necessidade; interface isola a escolha Vertex x API key."},
+        {"option": "Flag somente_leitura no codigo (AUTO-1)", "reason": "Garantia so em codigo; PN-52 pede conta sem escrita."},
+        {"option": "Leitura direta das tabelas", "reason": "Exporia corpo de mensagem, telefone e 1a mensagem de desconhecido ao modelo (PN-37)."}
+      ]
+    },
+    {
+      "decision": "PDF mensal",
+      "chosen": "ReportLab (dependencia nova explicita)",
+      "rejected": [{"option": "Pagina com CSS de impressao + Salvar como PDF", "reason": "Zero dependencia, mas nao e download de PDF e nao e testavel como PN-42 pede. Candidata se Q-P7 preferir."}, {"option": "WeasyPrint", "reason": "Bibliotecas de sistema pesadas no servidor compartilhado."}]
+    },
+    {
+      "decision": "Numeracao das migrations do painel",
+      "chosen": "Bloco 101-107",
+      "rejected": [{"option": "Continuar de 005", "reason": "Colide com a emenda de PF em paralelo."}]
+    },
+    {
+      "decision": "Organizacao do codigo web",
+      "chosen": "Pacote app/panel com um roteador, servicos e JS por tela",
+      "rejected": [{"option": "dashboard.py monolitico (AUTO-1, ~2.700 linhas)", "reason": "Impede ondas paralelas e dificulta teste."}]
+    }
+  ],
+  "integration_points": [
+    "Webhook de PF e painel compartilham: pool asyncpg, flags (cache invalidado na escrita), ReplyPolicy, faq_reader e relogio injetavel.",
+    "users.* de PF e a unica via de escrita sobre access.users (revogacao <=1 min vem da leitura sem cache do pipeline e da rechecagem antes do envio).",
+    "alerts.raise_alert de PF cria a entrega de e-mail; o painel nao fala com Resend nem WAHA.",
+    "Assistente le somente schema assistant pelo papel jarvis_assistant; grava perguntas pelo pool normal."
+  ],
+  "assumptions_for_open_questions": [
+    {"q": "Q-P1", "assumption": "Autoridade = PANEL_ADMIN_EMAILS; host registrado no IAM; cookie do dominio pai", "if_different": "Papel 'jarvis' no IAM: current_admin exige o papel; cookie fora do dominio pai: login proprio do painel (escopo maior)"},
+    {"q": "Q-P2/Q12", "assumption": "Sessao ociosa 2 h, absoluta 12 h, revalidacao 5 min; 2FA do IAM", "if_different": "Variaveis de configuracao"},
+    {"q": "Q-P3/Q10", "assumption": "Auditoria e retencao como abas de Logs", "if_different": "Item de menu e template proprios"},
+    {"q": "Q-P4", "assumption": "Pausa nao bloqueia boas-vindas, aceite e recusa", "if_different": "Constante PAUSE_BLOCKS"},
+    {"q": "Q-P6/Q14", "assumption": "Gemini por chave de API; 200 perguntas/dia; views sem corpo nem telefone", "if_different": "Vertex: so gemini.py; mais leitura: nova view e revisao LGPD"},
+    {"q": "Q-P7", "assumption": "ReportLab", "if_different": "Pagina de impressao: menos 1 dependencia, teste muda para HTML"},
+    {"q": "Q-P8", "assumption": "Sem pg_trgm/unaccent", "if_different": "Migration 107 ativa o GIN"},
+    {"q": "Q-P9", "assumption": "PF aceita R1-R4", "if_different": "Plano B de tickets (+6 h); R3 sem efeito se Q17 mantiver o e-mail"},
+    {"q": "Q3", "assumption": "30 dias; denominador = usuarios ativos; PDF com KPIs, tickets por marca/classificacao, top 10 perguntas e tempo de resposta", "if_different": "Consultas e gerador do PDF"},
+    {"q": "Q7", "assumption": "Anonimizar", "if_different": "Trocar UPDATE por DELETE na ordem das FKs"},
+    {"q": "Q17", "assumption": "E-mail tambem para acoes do proprio Caio (PN-65 aprovado)", "if_different": "R3 e flag em raise_alert"},
+    {"q": "Q15", "assumption": "Listas e separador de PF 4.9; gestor texto livre", "if_different": "FK e seletor de gestor"}
+  ],
+  "media_ack_note": "2026-10-23: Caio confirmou que audio/foto de usuario autorizado recebem a resposta curta 'equipe avisada' (PF AC-36 vale; MEDIA_ACK_ENABLED=true). O Inbox mostra media_ack como Bot; a pausa bloqueia esse aviso."
+}

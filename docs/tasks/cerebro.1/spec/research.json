@@ -1,0 +1,180 @@
+{
+  "task_id": "CEREBRO-1",
+  "phase": "2-design",
+  "date": "2026-10-27",
+  "exploration_summary": "Lidos: PRD (completo, Decision Log), STATE.md, historia/epico/spec/requirements de cerebro.1 (Fase 1 aprovada), specs de porta-fechada.1 e painel.1 (trechos de answering, tickets, R1-R4), e o codigo: backend/app/services (answering, pipeline, access, inbound, outbox, channel, replies, reply_policy, flags, trace, limits, tickets, faq_reader, workers), core/values, config, main, migrations 001-005 e 101-107, painel (assistant/gemini+provider, metrics_read, api/metrics, api/escalados, api/alerts, values, faq_validation, lgpd, retention, inbox_read, monitor), testes de arquitetura e zero custo, piloto/faq.js. Nenhum .env nem dado licenciado foi lido. Nada foi executado. Premissas de API externa (Gemini, WhatsApp) que NAO foram verificadas no codigo estao em unverified_assumptions.",
+  "existing_patterns": [
+    {
+      "pattern": "Ponto de extensao do cerebro: AnswerProvider.answer(ctx) -> Answer(kind, text); answer_and_enqueue chama o provedor FORA de transacao e grava saida + troca reply_kind pending->kind numa transacao curta. Falha do provedor deixa o rastro pending (recuperacao marca abandoned apos 5 min).",
+      "location": "backend/app/services/answering.py:35-57 (dataclasses/Protocol), 93-126 (answer_and_enqueue), 28-31 (_SET_REPLY_KIND com guarda reply_kind='pending')",
+      "applies_to_this_task": true,
+      "notes": "A guarda 'WHERE reply_kind = pending' ja da idempotencia: segunda execucao da mesma mensagem levanta InvalidValue e desfaz a transacao inteira (inclusive ticket e saida). Answer precisa ganhar campos opcionais (varias partes, efeitos) sem quebrar Answer(kind, text) usado em testes (tests/integration/test_answering.py, tests/security/test_zero_cost.py:35-41)."
+    },
+    {
+      "pattern": "O provedor e instalado em main._install_services e roda como tarefa de fundo (AppProcessor._answer) depois do 200; o despachante envia na ordem da tupla de ids.",
+      "location": "backend/app/main.py:179-224 (AppProcessor), 237-248 (UnderConstructionProvider + FlagsReplyPolicy)",
+      "applies_to_this_task": true,
+      "notes": "answer_and_enqueue devolve int|None e o despachante recebe (outbound_id,). Para ate 3 partes (D9) o retorno vira tuple[int, ...] (mudanca interna: so main.py e testes chamam)."
+    },
+    {
+      "pattern": "Texto de usuario ativo: decisao ALLOWED, corpo guardado, reply_kind='pending', counted_in_limit=true, devolve AnswerRequest com AnswerContext(user_id, profile, ufs, channels, brands, text, inbound_wa_message_id, received_at).",
+      "location": "backend/app/services/pipeline.py:501-520 (_text), 418-439 (_on_active), 103-114 (_User)",
+      "applies_to_this_task": true,
+      "notes": "AnswerContext nao leva trace_id; AnswerRequest sim (answering.py:61-66). O cerebro recebe o trace_id pelo AnswerRequest (a assinatura do Protocol so recebe ctx: ver decisao de design na spec 4.2)."
+    },
+    {
+      "pattern": "Botao (button_reply) de usuario ACTIVE hoje cai em IGNORED_TYPE: _decide_active so conhece TEXT e midia. IGNORED_TYPE e tratado ANTES do limite de 60/h e grava counted_in_limit=false.",
+      "location": "backend/app/services/access.py:74-79; backend/app/services/pipeline.py:420-424; backend/app/services/inbound.py:210-226 (_button_content: kind=BUTTON, ButtonReply(payload, text)); AD-003 em docs/STATE.md",
+      "applies_to_this_task": true,
+      "notes": "Tratar o toque de avaliacao dentro do ramo IGNORED_TYPE de _on_active (sem novo AccessDecision) ja cumpre 'nao conta nas 60 msg/h' e nao mexe na tabela 4.4.2 nem em enums do painel. O payload de botao ja tem precedente: OPTIN_ACCEPT:<id> (values.py:159-179) e notice_buttons (replies.py:47-52)."
+    },
+    {
+      "pattern": "Fila de saida: kind validado por OutboundKind e pelo CHECK de chat.outbound_messages; REQUIRED_STATUS por kind; _send_once escolhe template/botoes/texto pelo kind; politica de resposta e consultada no despacho.",
+      "location": "backend/app/services/outbox.py:41-50, 84-111, 167-175, 178-187, 247-265; backend/app/core/values.py:67-77 (OutboundKind), 89-101 (ReplyKind); backend/migrations/003_chat.sql:29-35 (CHECK de kind)",
+      "applies_to_this_task": true,
+      "notes": "Novos kinds exigem: enum OutboundKind e ReplyKind, REQUIRED_STATUS=ACTIVE, ampliar o CHECK (migration) e, para botoes, uma coluna que guarde os botoes (hoje so optin_request_id alimenta notice_buttons). Channel.send_reply_buttons ja existe (channel.py:54-56)."
+    },
+    {
+      "pattern": "A politica de resposta e chamada no despacho SEM marca: policy.allow(conn, recipient, kind, None). Portanto marca desligada nunca descarta uma resposta ja enfileirada; pausa vale (nao isenta).",
+      "location": "backend/app/services/outbox.py:260; backend/app/services/reply_policy.py:18-25 (isentos), 56-67 (brand_allows/allow)",
+      "applies_to_this_task": true,
+      "notes": "O cerebro precisa consultar FlagsReplyPolicy.brand_allows(brand) (ou Flags.brand_enabled) ANTES de gerar a resposta de conteudo; o proprio docstring de brand_allows diz 'usado tambem pelo futuro modulo de resposta' (spec PF 4.3.2). Kinds novos nao entram em PAUSE_EXEMPT_KINDS: pausa cala respostas e agradecimentos, como a spec pede."
+    },
+    {
+      "pattern": "FaqReader.snapshot(brand, conn=): itens ativos da marca e de 'todas', inclusive bot_responde=false; cache em memoria por revisao (ops.system_state['faq_revision']) com teto de 60 s. Nao importa app.panel.",
+      "location": "backend/app/services/faq_reader.py:16-24 (SQL e constantes), 27-36 (FaqItem), 68-76 (snapshot), 78-93 (_load); content.faq_items em migrations/101_content_faq.sql:7-27 (origin: manual|import|seed|nielsen|gmr; version)",
+      "applies_to_this_task": true,
+      "notes": "Sem marca na pergunta e preciso juntar snapshot de cada marca do cadastro do vendedor + 'todas' (cache por marca; no maximo 6 chaves). 'Fonte (...)' dos itens Nielsen/GMR ja vem dentro do texto da resposta (piloto/faq.js:31, 52)."
+    },
+    {
+      "pattern": "Busca sem IA do piloto: normaliza (NFD, minusculas), tokens sem stopwords, sinonimos, singular simples, F1 simetrico entre tokens da pergunta cadastrada e da mensagem, limiar 0,55; filtro de marca quando a mensagem cita exatamente uma; filtro de UF (itens de estado so casam se a mensagem cita o estado; itens 'no Brasil' nao casam quando cita estado).",
+      "location": "piloto/faq.js:63-130; piloto/README.md",
+      "applies_to_this_task": true,
+      "notes": "Portar para Python em app/services/brain/matching.py, usando as variacoes do FaqItem como formas extras da pergunta. Deteccao de marca do piloto cobre nomes de produto da Plant Power (ultracoffee|nitro|fibergut|defense|the one|protein|creatin|creapower)."
+    },
+    {
+      "pattern": "Cliente Gemini do painel por REST/httpx sem SDK: allow-list de host, sem redirect, chave no cabecalho x-goog-api-key, timeout 60 s, usageMetadata (promptTokenCount/candidatesTokenCount), nunca loga prompt/resposta/corpo de erro. Interface AssistantProvider.chat(system, messages, tools, call_tool).",
+      "location": "backend/app/panel/assistant/gemini.py:20-35, 53-75, 100-102, 143-173; backend/app/panel/assistant/provider.py:12-62",
+      "applies_to_this_task": true,
+      "notes": "NAO reaproveitar importando: tests/panel/unit/test_architecture.py:31-44 falha se qualquer arquivo fora de app/panel (e de main/cli) importar app.panel, e o teste :47-61 exige que app.services.pipeline nao carregue app.panel. O cerebro precisa de saida JSON, temperatura baixa e timeout curto (5 s), que o chat() do painel nao oferece (generationConfig ausente). Decisao: cliente proprio e pequeno em app/services/brain/llm.py replicando o padrao (allow-list, sem redirect, sem log de conteudo)."
+    },
+    {
+      "pattern": "Settings: gemini_api_key (SecretStr), gemini_model ('gemini-3.8-flash'), assistant_daily_limit=200 (contador do Assistente por dia). O painel DEFAULT_MODEL em gemini.py e 'gemini-2.5-flash' (so fallback).",
+      "location": "backend/app/config.py:122-125; backend/app/panel/assistant/gemini.py:34; backend/app/panel/assistant/service.py:228-235",
+      "applies_to_this_task": true,
+      "notes": "O Assistente tem limite e log proprios (ops.assistant_questions com tokens, migrations/103_ops_panel.sql:33-46); o gasto do cerebro fica em tabela propria, o que satisfaz 'contadores separados' (D11). Preco por token nao existe em nenhum lugar do repo: vira configuracao a preencher (nao inventado)."
+    },
+    {
+      "pattern": "Tickets: chat.tickets com kind IN (question, media), classification fixa (PRODUTO, PRECO, ARGUMENTO, MATERIAL, CAMPANHA, MIDIA, NAO_IDENTIFICADO), status, escalated+urgency obrigatoria, meta jsonb; ticket_number via ops.ticket_seq; entrega 'group' unica (CHECK ticket_never_emails). create_media_ticket e o modelo.",
+      "location": "backend/migrations/005_chat_tickets.sql:4-32; backend/app/services/tickets.py:23-69; migration 102 (search_key gerada de ticket_number+message)",
+      "applies_to_this_task": true,
+      "notes": "NAO ha coluna de avaliacao em chat.tickets (a hipotese 'colunas anulaveis reservadas' do CB-26 nao se confirma: 005 e 102 nao as criam). Resolve: tabela chat.answer_ratings. LGPD zera so message e summary (lgpd.py:238-243), nao meta: texto de pergunta/resposta do ticket deve ir em message/summary."
+    },
+    {
+      "pattern": "O painel deriva classificacoes de uma tupla unica: CLASSIFICATIONS; a FAQ usa essa tupla menos MIDIA e NAO_IDENTIFICADO. Classificacao sem coluna propria no quadro cai em 'Sem classificacao'.",
+      "location": "backend/app/panel/values.py:83-101; backend/app/panel/services/faq_validation.py:41-43; backend/app/panel/api/escalados.py:56, 60-73, 122-124; frontend/templates/_macros.html:17-18; content.faq_items.category CHECK (101_content_faq.sql:10)",
+      "applies_to_this_task": true,
+      "notes": "ARMADILHA: acrescentar uma classificacao nova (ex. ACESSO) em CLASSIFICATIONS a incluiria automaticamente nas categorias de FAQ aceitas pela validacao, mas o CHECK do banco da FAQ a recusaria. Por isso o pedido de acesso e o 👎 NAO criam classificacao nova: usam kind='question', classification existente/NAO_IDENTIFICADO e escalation_reason como codigo."
+    },
+    {
+      "pattern": "Metricas: useful_pct sempre None ('sem avaliacoes'); KPI 'Avaliados como uteis' montado em api/metrics.py; tickets lidos por ops.v_tickets com escopo de marca e periodo.",
+      "location": "backend/app/panel/services/metrics_read.py:14, 77-85, 191-201, 234-244; backend/app/panel/api/metrics.py:48, 110-117; frontend/templates/_metrics_kpis.html:8-11 (so fallback sem view)",
+      "applies_to_this_task": true,
+      "notes": "O template ja renderiza os cards de view.kpis; basta preencher useful_pct (e hint de cobertura) em metrics_read/api.metrics com consulta a chat.answer_ratings. Cache de 60 s por (marca, periodo) ja existe."
+    },
+    {
+      "pattern": "Alertas: services/alerts.raise_alert(conn, kind, severity, message, payload, user_id, dedup_key, dedup_window, email=True, flags, settings, clock). dedup_window=None: qualquer alerta anterior com a chave suprime. Rotulos de tipo no painel: injection_attempt e api_failure ja existem; tipo desconhecido nao tem rotulo/filtro.",
+      "location": "backend/app/services/alerts.py:128-140; backend/app/panel/api/alerts.py:59-74; backend/app/services/pipeline.py:294-305 (exemplo de uso com dedup); backend/app/panel/services/monitor.py:134-152 (api_failure vem de falhas de ENVIO na Meta, nao do Gemini)",
+      "applies_to_this_task": true,
+      "notes": "Falha do Gemini nao tem alerta pronto: 'api_failure' do monitor conta envios. O cerebro levanta alerta proprio (kind 'brain_api_failure' ou reaproveita 'api_failure' com payload service=gemini): decisao na spec 4.9. Um tipo novo de alerta (brain_budget) exige rotulo em ALERT_LABELS (alerts.py:60-73)."
+    },
+    {
+      "pattern": "LGPD: exclusao anonimiza usuario, zera message_trace.body, outbound_messages.body/template, tickets.message/summary; retencao de 12 meses apaga tickets -> outbound_messages -> message_trace (ordem de FKs) em lotes.",
+      "location": "backend/app/panel/services/lgpd.py:218-257; backend/app/panel/services/retention.py:88-105",
+      "applies_to_this_task": true,
+      "notes": "Memoria de conversa lida de message_trace.body + outbound_messages.body desaparece sozinha na exclusao (sem nova copia). Tabelas novas que referenciam trace/ticket DEVEM usar ON DELETE CASCADE (ou SET NULL), senao a rotina de retencao falha por FK sem precisar mudar retention.py."
+    },
+    {
+      "pattern": "Inbox mostra rastro de entrada com corpo ou rotulo do tipo; toque de botao sem corpo aparece como '[button]'.",
+      "location": "backend/app/panel/services/inbox_read.py:65-72, 173-176, 371-376",
+      "applies_to_this_task": true,
+      "notes": "Rotulo cosmetico: mapear 'button' para '[avaliacao]' em _MEDIA_PLACEHOLDER. Metricas 'mensagens por dia' e 'usuarios ativos' contam todos os rastros do usuario (metrics_read.py:185-188, 211-216): os toques inflam levemente; aceitavel, registrado como risco."
+    },
+    {
+      "pattern": "Migrations: SQL puro, IF NOT EXISTS, imutaveis, PG 16; PF usa 001-099, painel 101-107; runner recusa prefixo duplicado; migrations nao tem GRANT para jarvis_app (so a 105 tem, para jarvis_assistant).",
+      "location": "backend/migrations/*.sql; docs/tasks/porta-fechada.1/spec/spec.md 4.2.6; CLAUDE.md (compat. PG16)",
+      "applies_to_this_task": true,
+      "notes": "Reservar o bloco 201-209 para o cerebro. Permissoes das tabelas novas seguem o padrao das existentes (nenhum GRANT explicito nas migrations); confirmar no deploy."
+    },
+    {
+      "pattern": "Testes: pytest com marcadores db/integration/security; SpyAnswerProvider; FakeChannel; httpx.MockTransport; relogio FakeClock; fixtures de factories do painel; testes de arquitetura por AST.",
+      "location": "backend/tests/integration/test_answering.py:40-50; backend/tests/security/test_zero_cost.py:35-60; backend/tests/fakes.py; backend/tests/panel/unit/test_architecture.py",
+      "applies_to_this_task": true,
+      "notes": "Novos testes em backend/tests/brain/{unit,integration,security}; um teste de arquitetura novo garante que o cerebro nao importa app.panel e que so app/services/brain/llm.py fala com o Gemini."
+    }
+  ],
+  "alternatives_considered": [
+    {
+      "decision": "Cliente Gemini do cerebro",
+      "chosen": "Cliente REST proprio e pequeno em app/services/brain/llm.py (padrao do painel replicado)",
+      "rejected": [
+        "Importar app.panel.assistant.gemini: viola test_architecture.py e acopla o webhook ao painel",
+        "Extrair um cliente comum para app/services/llm e refatorar o painel: toca codigo de painel.1 ja entregue e ampliaria o raio da mudanca; fica como refactor futuro (divida registrada)",
+        "SDK oficial do Google: dependencia nova, proibida sem estar na spec"
+      ]
+    },
+    {
+      "decision": "Onde fica a avaliacao 👍/👎",
+      "chosen": "Tabela propria chat.answer_ratings (UNIQUE por ticket)",
+      "rejected": [
+        "Colunas em chat.tickets: tocaria tabela de PF e a regra 'primeira avaliacao vale' precisaria de logica de aplicacao",
+        "meta jsonb: nao indexavel/consultavel com seguranca e nao garante unicidade"
+      ]
+    },
+    {
+      "decision": "Tipo do ticket de pedido de acesso e do 👎",
+      "chosen": "kind='question', classification herdada (👎) ou NAO_IDENTIFICADO (acesso), escalation_reason como codigo, texto legivel em summary",
+      "rejected": [
+        "Classificacao nova ACESSO: cai na armadilha de CLASSIFICATIONS/FAQ e exige coluna nova no quadro Escalados",
+        "kind novo (access_request): ampliaria o CHECK de PF e a logica baseada em kind='media' do painel"
+      ]
+    },
+    {
+      "decision": "Tratar o toque de avaliacao",
+      "chosen": "Dentro do ramo IGNORED_TYPE de Pipeline._on_active, antes do limite de 60/h",
+      "rejected": [
+        "Novo AccessDecision 'rating': mexe na tabela 4.4.2, em values, em testes de enumeracao e na semantica de metricas",
+        "Tratar fora do pipeline (endpoint/worker): perderia a transacao unica, a idempotencia por wa_message_id e a trava da linha do usuario"
+      ]
+    },
+    {
+      "decision": "Forma da resposta gerada",
+      "chosen": "IA devolve JSON (intent, item_ids, answer_text); verificador deterministico confere ids e numeros; chave de configuracao permite modo 'verbatim' (texto do item sem reescrita)",
+      "rejected": [
+        "Resposta livre com RAG sem verificador: arrisca o gate de 100% em preco",
+        "IA so escolhe o id e nunca escreve (sempre verbatim): mais seguro, mas fere a decisao D1 (IA responde fundamentada) e piora follow-ups; mantido apenas como modo de seguranca"
+      ]
+    }
+  ],
+  "unverified_assumptions": [
+    "Gemini REST: suporte a generationConfig.responseMimeType='application/json' (e responseSchema) e temperature no modelo configurado. O codigo do painel nao usa generationConfig. Verificar na documentacao oficial (context7) ANTES de implementar; plano B: pedir JSON no prompt e validar/parsear com tolerancia.",
+    "O modelo 'gemini-3.8-flash' (Settings.gemini_model) existe e o preco por milhao de tokens nao esta em nenhum arquivo do repo. A tabela de preco (entrada/saida) vira configuracao; o implementador preenche a partir da pagina oficial de precos.",
+    "WhatsApp Cloud API: titulo de botao de resposta aceita emoji; limite de 20 caracteres no titulo (ja assumido em replies.py) e 1024 caracteres no corpo da mensagem interativa; id do botao ate 256 caracteres. Verificar na documentacao da Meta e no numero de teste.",
+    "O nome da constraint de CHECK de kind em chat.outbound_messages e o padrao do PostgreSQL (outbound_messages_kind_check); confirmar no teste de migration.",
+    "Permissoes (GRANT) das tabelas novas para jarvis_app: nenhuma migration existente concede; confirmar como e feito hoje no banco do droplet.",
+    "Os workers existentes varrem ops.deliveries pendentes (services/workers.py), entao o e-mail do alerta criado dentro da transacao do cerebro e despachado pelo laco existente; confirmado apenas pelos nomes e comentarios do arquivo, nao por teste."
+  ],
+  "integration_points": [
+    "services/answering.py (Answer, answer_and_enqueue)",
+    "services/pipeline.py (_on_active: ramo de avaliacao)",
+    "services/outbox.py + core/values.py + migration 201 (kinds e botoes)",
+    "main.py (_install_services: BrainProvider no lugar de UnderConstructionProvider; AppProcessor._answer despacha tupla)",
+    "services/faq_reader.py (leitura; sem mudanca)",
+    "services/flags.py / reply_policy.py (brand_enabled)",
+    "services/alerts.py (injection_attempt, brain_budget, brain_api_failure)",
+    "services/tickets.py (padrao do ticket; novo modulo ratings/brain_tickets)",
+    "panel/services/metrics_read.py e panel/api/metrics.py (KPI)",
+    "panel/api/alerts.py (rotulo do novo tipo de alerta)",
+    "panel/services/inbox_read.py (rotulo do toque)"
+  ]
+}

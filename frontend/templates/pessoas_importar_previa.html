@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{# Conferencia da importacao de pessoas (PN-T38; PN-40). Contexto: batch, state (preview | committed |
+   cancelled | expired), is_open, rows (telefone ja mascarado), n_entra, n_fora, n_erro,
+   situation_labels, error, result (so na resposta do gravar), report, people_url, action,
+   csrf_token. As linhas so existem enquanto o lote esta aberto; depois de gravar o relatorio das
+   que ficaram de fora aparece uma unica vez. js/pessoas_importar.js evita envio duplo. #}
+{% from "_macros.html" import kpi, csrf_field, notice_ok %}
+{% block title %}Importar pessoas{% endblock %}
+{% block content %}
+{% set badge = {'entra': 'bg-mint-100 text-mint-700', 'fica_de_fora': 'bg-ink-100 text-ink-600', 'erro': 'bg-red-100 text-red-700'} %}
+<section>
+  <div class="mb-5">
+    <a href="{{ people_url }}" class="text-sm text-ink-500 hover:text-ink-900 hover:underline">← Voltar para Pessoas</a>
+    <h1 class="mt-2 text-3xl font-bold tracking-tight">Importar pessoas</h1>
+    {% if batch %}<p class="text-sm text-ink-500 mt-1"><strong>{{ batch.filename }}</strong></p>{% endif %}
+  </div>
+
+  {% if state == 'committed' %}
+    {% if result %}
+      {{ notice_ok((result.imported ~ (' pessoa cadastrada' if result.imported == 1 else ' pessoas cadastradas') ~ '. Elas recebem a mensagem de boas-vindas com o aviso de privacidade.') if result.imported else 'Ninguém novo foi cadastrado.') }}
+      {% if report %}
+      <div class="mb-4 bg-white rounded-2xl border border-ink-200 overflow-x-auto">
+        <p class="px-4 py-2 text-xs font-medium text-ink-600">{{ report|length }} {{ 'linha ficou' if report|length == 1 else 'linhas ficaram' }} de fora. Este relatório aparece só agora: corrija no arquivo e envie de novo.</p>
+        <table class="w-full text-sm min-w-[560px]">
+          <thead class="bg-ink-50 text-ink-500 text-xs uppercase tracking-wide">
+            <tr>
+              <th class="px-4 py-2 text-left font-medium w-14">Linha</th>
+              <th class="px-4 py-2 text-left font-medium">Nome</th>
+              <th class="px-4 py-2 text-left font-medium">Situação</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in report %}
+            <tr class="border-t border-ink-100 align-top">
+              <td class="px-4 py-2.5 font-mono text-xs text-ink-500">{{ r.linha }}</td>
+              <td class="px-4 py-2.5 text-ink-800">{% if r.nome %}{{ r.nome }}{% else %}<span class="text-ink-300">—</span>{% endif %}</td>
+              <td class="px-4 py-2.5"><span class="px-2 py-0.5 rounded-full text-xs font-semibold {{ badge.get(r.situacao, 'bg-ink-100 text-ink-600') }}">{{ r.label }}</span>{% if r.motivo %}<span class="block mt-1 text-[11px] text-ink-500">{{ r.motivo }}</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    {% else %}
+      {{ notice_ok('Esta importação já foi gravada. Nada mais a fazer aqui.') }}
+    {% endif %}
+    <a href="{{ people_url }}" class="inline-block rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-ink-800">Ver as pessoas</a>
+  {% elif state == 'cancelled' or state == 'expired' %}
+    <div role="status" class="mb-4 rounded-lg border border-ink-200 bg-white px-4 py-3">
+      <p class="text-sm text-ink-700">{% if state == 'cancelled' %}Esta importação foi cancelada. Nada foi gravado.{% else %}Esta conferência venceu (1 hora) e nada foi gravado. Envie o arquivo de novo.{% endif %}</p>
+    </div>
+    <a href="{{ people_url }}" class="inline-block rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-ink-800">Voltar para Pessoas</a>
+  {% elif is_open %}
+  {% if error %}<div role="alert" class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{{ error }}</div>{% endif %}
+  <div class="mb-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+    {{ kpi(n_entra, 'vão ser cadastradas', 'mint') }}
+    {{ kpi(n_fora, 'já cadastradas ou repetidas, ficam de fora', 'ink') }}
+    {{ kpi(n_erro, 'com erro, ficam de fora', 'red' if n_erro else 'ink') }}
+  </div>
+
+  <div class="mb-5 rounded-lg border border-ink-200 bg-white px-4 py-3">
+    {% if n_entra %}
+    <p class="text-sm text-ink-700"><strong>Nada foi gravado ainda.</strong> Confirmando, {{ n_entra }} {{ 'pessoa é cadastrada' if n_entra == 1 else 'pessoas são cadastradas' }} e {{ 'recebe' if n_entra == 1 else 'recebem' }} a mensagem de boas-vindas.{% if n_erro %} As {{ n_erro }} com erro não entram: corrija no arquivo e envie de novo depois.{% endif %}</p>
+    <div class="mt-3 flex items-center gap-2">
+      <form method="post" action="{{ action }}/gravar" data-pessoas-import-review>
+        {{ csrf_field(csrf_token) }}
+        <button type="submit" class="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-ink-800">Gravar {{ n_entra }} {{ 'pessoa' if n_entra == 1 else 'pessoas' }}</button>
+      </form>
+      <form method="post" action="{{ action }}/cancelar">{{ csrf_field(csrf_token) }}<button type="submit" class="rounded-lg border border-ink-300 bg-white px-3 py-1.5 text-xs font-medium text-ink-700 hover:bg-ink-50">Cancelar</button></form>
+    </div>
+    {% else %}
+    <p class="text-sm text-ink-700"><strong>Ninguém novo para cadastrar.</strong> {% if n_erro %}Corrija as linhas com erro no arquivo e envie de novo.{% else %}Todas já estão cadastradas.{% endif %}</p>
+    <form class="mt-3" method="post" action="{{ action }}/cancelar">{{ csrf_field(csrf_token) }}<button type="submit" class="rounded-lg border border-ink-300 bg-white px-3 py-1.5 text-xs font-medium text-ink-700 hover:bg-ink-50">Descartar</button></form>
+    {% endif %}
+  </div>
+
+  <div class="bg-white rounded-2xl border border-ink-200 overflow-x-auto">
+    <table class="w-full text-sm min-w-[800px]">
+      <thead class="bg-ink-50 text-ink-500 text-xs uppercase tracking-wide">
+        <tr>
+          <th class="px-4 py-2 text-left font-medium w-14">Linha</th>
+          <th class="px-4 py-2 text-left font-medium">Nome</th>
+          <th class="px-4 py-2 text-left font-medium">Telefone</th>
+          <th class="px-4 py-2 text-left font-medium">Perfil</th>
+          <th class="px-4 py-2 text-left font-medium">Empresa</th>
+          <th class="px-4 py-2 text-left font-medium w-48">Situação</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in (rows or []) %}
+        <tr class="border-t border-ink-100 align-top">
+          <td class="px-4 py-2.5 font-mono text-xs text-ink-500">{{ row.linha }}</td>
+          <td class="px-4 py-2.5 text-ink-800">{% if row.nome %}{{ row.nome }}{% else %}<span class="text-ink-300">—</span>{% endif %}</td>
+          <td class="px-4 py-2.5 font-mono text-xs text-ink-600">{{ row.telefone }}</td>
+          <td class="px-4 py-2.5 text-ink-600">{% if row.perfil %}{{ row.perfil }}{% else %}<span class="text-ink-300">—</span>{% endif %}</td>
+          <td class="px-4 py-2.5 text-ink-600">{% if row.empresa %}{{ row.empresa }}{% else %}<span class="text-ink-300">—</span>{% endif %}</td>
+          <td class="px-4 py-2.5">
+            <span class="px-2 py-0.5 rounded-full text-xs font-semibold {{ badge.get(row.situacao, 'bg-ink-100 text-ink-600') }}">{{ (situation_labels or {}).get(row.situacao, row.situacao) }}</span>
+            {% if row.motivo %}<span class="block mt-1 text-[11px] text-ink-500">{{ row.motivo }}</span>{% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="px-4 py-12 text-center text-ink-400">O arquivo não tem linhas.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <script src="{{ static_v('js/pessoas_importar.js') }}" defer></script>
+  {% endif %}
+</section>
+{% endblock %}

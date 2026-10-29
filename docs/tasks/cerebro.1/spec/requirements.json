@@ -1,0 +1,311 @@
+{
+  "task_id": "CEREBRO-1",
+  "title": "Cérebro do Jarvis: responder o vendedor autorizado a partir da fonte de conhecimento (FAQ hoje, banco depois)",
+  "story": "docs/stories/cerebro.1.md",
+  "epic": "docs/epics/cerebro.md",
+  "phase": "1-requirements",
+  "status": "draft",
+  "revision": "2026-10-27 (3ª versão: D1..D16 e respostas às perguntas abertas incorporadas; aguardando aprovação da Fase 1)",
+  "user_story": {
+    "as_a": "vendedor autorizado",
+    "i_want": "mandar uma pergunta de texto e receber a resposta aprovada, só com o que existe na base de conhecimento",
+    "so_that": "eu responda o comprador na hora; e quando o Jarvis não souber, a equipe seja acionada"
+  },
+  "conventions": {
+    "ears": "GIVEN/WHEN/THEN. IDs CB-n, para não colidir com PF AC-n e PN-n.",
+    "defaults_note": "As decisões D1..D16 e as respostas às perguntas abertas foram tomadas pelo Caio em 2026-10-27 (spec.md, seção 'Decisões do Caio'). Cada AC cita a decisão de origem.",
+    "terms": {
+      "fonte de conhecimento": "interface trocável de onde o cérebro lê o que pode dizer. Hoje: a FAQ do painel (Guia, Nielsen, GMR). Depois: um banco de dados com todas as informações. O cérebro nunca responde com algo que não saiu dela (D1).",
+      "item": "unidade recuperada da fonte (hoje um item da FAQ; depois um registro do banco).",
+      "casamento": "correspondência entre a mensagem e um item da fonte acima do limiar de confiança (busca por palavras do piloto: F1 de tokens, 0,55).",
+      "fundamentada": "resposta cujo conteúdo factual (números, valores, medidas, códigos, datas, claims) existe nos itens recuperados.",
+      "sem resposta": "nenhum item acima do limiar, item com bot_responde=false, tema bloqueado ou marca desligada. A marca fora do cadastro do vendedor NÃO é 'sem resposta': tem fluxo próprio (CB-4).",
+      "ticket de pergunta": "linha de chat.tickets com kind='question' (tabela e visão já existem em porta-fechada.1, migration 005).",
+      "assinatura": "agente da marca: Duda=Jungle, Léo=Plant Power, Nico=Possible, Rita=A Tal da Castanha, Tati=Zaya, Jarvis=sem marca única.",
+      "janela de contexto": "as últimas 2 a 3 trocas (pergunta e resposta) do mesmo vendedor, usadas só para entender follow-ups (D13). Tamanho exato e limite de tempo: Fase 2.",
+      "limite de 60 msg/h": "regra do PRD §7 mantida como está (o Caio confirmou em 2026-10-27); toques em botão de avaliação não contam nele."
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "id": "CB-1",
+      "title": "Resposta a partir da fonte de conhecimento",
+      "given": "vendedor active e item ativo da fonte cujo conteúdo casa com a mensagem acima do limiar",
+      "when": "o AnswerProvider recebe o texto",
+      "then": "devolve uma Answer montada a partir desse item e o vendedor recebe essa resposta pelo outbox",
+      "testable": "integration",
+      "test_notes": "Fonte FAQ com fixture; perguntas do Guia e variações; conferir outbound_messages. D1."
+    },
+    {
+      "id": "CB-2",
+      "title": "Resposta fundamentada, nada inventado",
+      "given": "itens recuperados da fonte para a pergunta",
+      "when": "a resposta é montada (com ou sem IA)",
+      "then": "todo fato da resposta (número, valor, medida, código, data, claim) existe nos itens recuperados; a IA pode reescrever o texto, mas nunca acrescentar fato; se uma verificação determinística achar fato fora dos itens, a resposta é trocada pelo texto do item ou por 'não sei' (D3); termina com a assinatura do agente da marca",
+      "testable": "unit",
+      "test_notes": "Propriedade: todo número/R$/% da resposta existe no item. Teste com IA simulada que inventa um número. D1."
+    },
+    {
+      "id": "CB-3",
+      "title": "Marca citada filtra a base",
+      "given": "mensagem que cita exatamente uma marca",
+      "when": "a busca roda",
+      "then": "só concorrem itens daquela marca e de 'todas'; marca não citada ou citada mais de uma vez não filtra",
+      "testable": "unit",
+      "test_notes": "Casos do piloto (marcaDaPergunta): Jungle, Plant Power (produtos), A Tal da Castanha, duas marcas."
+    },
+    {
+      "id": "CB-4",
+      "title": "Marca fora do cadastro: pede acesso à equipe",
+      "given": "vendedor que pergunta sobre uma marca que não está no seu cadastro",
+      "when": "o provider decide",
+      "then": "nenhum item dessa marca é lido, usado, enviado ao Gemini nem revelado (filtro na consulta, não no prompt); o vendedor recebe a resposta de que ainda não tem acesso às informações dessa marca e que a equipe foi acionada para liberar; é aberto um ticket de pedido de acesso (classificação/tipo a definir na Fase 2, direcionado ao administrador do cadastro, PRD §7), sem alerta e sem e-mail; perguntar de novo não duplica o ticket aberto do mesmo vendedor e marca",
+      "testable": "integration",
+      "test_notes": "Usuário só Jungle pergunta sobre Zaya: texto fixo, ticket de acesso, nada de Zaya no payload ao Gemini. D6. Hoje chat.tickets só aceita kind question|media: exige migration aditiva e ajuste no painel (Escalados)."
+    },
+    {
+      "id": "CB-5",
+      "title": "Item que o bot não responde",
+      "given": "item casado com bot_responde=false (ou sem texto de resposta)",
+      "when": "a resposta seria montada",
+      "then": "nada do item é enviado; o caso segue como sem resposta (CB-6)",
+      "testable": "unit",
+      "test_notes": "Ex.: item de creatina/Anvisa sem resposta."
+    },
+    {
+      "id": "CB-6",
+      "title": "Sem resposta: avisa e escala",
+      "given": "mensagem sem casamento, bot_responde=false, tema bloqueado ou marca desligada",
+      "when": "o provider decide",
+      "then": "o vendedor recebe exatamente 'Ainda não sei responder isso. Anotei a pergunta para a equipe.' e é criado ticket kind='question', escalated=true, status='awaiting', classification e urgency preenchidas, trace_id do rastro; sem alerta e sem e-mail (D3)",
+      "testable": "integration",
+      "test_notes": "Pergunta fora da base; conferir texto, ticket, ausência de ops.alerts e de deliveries de e-mail."
+    },
+    {
+      "id": "CB-7",
+      "title": "Ticket de pergunta respondida e idempotência",
+      "given": "pergunta respondida a partir da fonte",
+      "when": "a resposta é gravada",
+      "then": "existe um ticket kind='question', status='answered_bot', escalated=false, com brand, classification, confidence e id/versão do item em meta; reprocessar a mesma mensagem não duplica ticket nem resposta",
+      "testable": "integration",
+      "test_notes": "Chamar o fluxo duas vezes com o mesmo inbound_wa_message_id."
+    },
+    {
+      "id": "CB-8",
+      "title": "Preço só da fonte, nunca gerado",
+      "given": "vendedor autorizado pergunta preço de um produto",
+      "when": "a mensagem é tratada",
+      "then": "se o valor estiver na fonte de conhecimento (FAQ agora, banco depois), a resposta repete esse valor fielmente, com o mesmo texto/unidade da fonte; o valor nunca é calculado, estimado ou escrito pela IA; sem valor na fonte, segue como sem resposta (D3) com classification='PRECO' (decisão D4, Caio, 2026-10-27)",
+      "testable": "unit",
+      "test_notes": "'Quanto está o Proteico pro atacarejo em PE?' deve escalar; é caso do gate (CB-21), 100% exigido."
+    },
+    {
+      "id": "CB-9",
+      "title": "Cumprimento e agradecimento",
+      "given": "mensagem que é só cumprimento ('oiii', 'olá, tudo bem?') ou agradecimento",
+      "when": "o provider decide",
+      "then": "responde uma saudação curta com o próximo passo ('pode perguntar sobre produto, argumento...'), sem ticket escalado, sem botões de avaliação e sem consulta ao Gemini",
+      "testable": "unit",
+      "test_notes": "Normalização aprendida no piloto (variações de cumprimento)."
+    },
+    {
+      "id": "CB-10",
+      "title": "Pergunta ambígua entre marcas",
+      "given": "mensagem sem marca (e sem contexto que a defina, CB-23) cujos melhores candidatos são de marcas diferentes com notas muito próximas",
+      "when": "o provider decide",
+      "then": "pergunta em texto, uma única vez, de qual marca se trata e não responde com chute; sem ticket escalado (D8)",
+      "testable": "unit",
+      "test_notes": "Margem entre 1º e 2º a definir na Fase 2."
+    },
+    {
+      "id": "CB-11",
+      "title": "Tamanho da mensagem, sem corte",
+      "given": "resposta maior que 700 caracteres",
+      "when": "a resposta é preparada",
+      "then": "a resposta sai inteira, dividida por frase em quantas mensagens forem precisas, nenhuma com mais de 700 caracteres e sem cortar frase no meio; nenhum trecho é descartado ou truncado (D9, revisto em 2026-10-28); os botões de avaliação (CB-24) ficam só na última",
+      "testable": "unit",
+      "test_notes": "Itens longos do Guia e da Nielsen/GMR; teste com resposta de 3.000+ caracteres: a junção das partes é igual ao texto original (fora a assinatura)."
+    },
+    {
+      "id": "CB-12",
+      "title": "Prompt injection",
+      "given": "mensagem (ou trecho da janela de contexto) que tenta mudar regras, perfil, permissões ou pede o prompt/outros usuários",
+      "when": "o provider processa",
+      "then": "as instruções são ignoradas, nenhuma resposta muda de escopo, o vendedor recebe recusa curta em uma frase, é criado alerta 'injection_attempt' (com e-mail, como definido no painel) e o ticket é registrado sem escalar",
+      "testable": "integration",
+      "test_notes": "Corpus de ataques em PT-BR, inclusive ataque que tenta usar o histórico; texto do atacante não aparece no alerta (sem PII)."
+    },
+    {
+      "id": "CB-13",
+      "title": "Privacidade no envio ao Gemini",
+      "given": "qualquer chamada ao Gemini",
+      "when": "o corpo da requisição é montado",
+      "then": "não contém telefone, BSUID, nome, empresa, gestor ou id do vendedor; só o texto da pergunta, a janela de contexto (CB-23, só texto de pergunta e resposta do próprio vendedor, sem sinais óbvios de identificação) e os itens da fonte permitidos ao cadastro do vendedor (D12)",
+      "testable": "unit",
+      "test_notes": "Interceptar o cliente HTTP; varrer o payload por telefone e nome do usuário fixture, também no histórico."
+    },
+    {
+      "id": "CB-14",
+      "title": "Falha do Gemini não derruba a resposta",
+      "given": "Gemini sem chave, com erro, timeout ou resposta inválida",
+      "when": "o provider precisa dele",
+      "then": "cai para o caminho só com busca por palavras (sem IA e sem janela de contexto) e responde ou escala normalmente; falha repetida gera alerta 'api_failure' deduplicado",
+      "testable": "integration",
+      "test_notes": "httpx.MockTransport com 500, timeout e JSON inválido."
+    },
+    {
+      "id": "CB-15",
+      "title": "Teto de custo: US$ 100 por mês, só do cérebro",
+      "given": "gasto estimado do Gemini no mês corrente com o cérebro (contador próprio, separado do Assistente do painel)",
+      "when": "chega a 80% do teto (US$ 80) e depois a 100% (US$ 100)",
+      "then": "aos 80% gera um alerta (uma vez por mês); aos 100% passa a usar só a busca por palavras (como em CB-14) até virar o mês, sem parar de responder; o custo estimado de cada mensagem fica gravado no rastro; o gasto do Assistente do painel não soma neste contador e o Assistente mantém o seu próprio limite",
+      "testable": "integration",
+      "test_notes": "Contador mensal (Fase 2 define onde e fuso do 'virar o mês'); relógio falso; teto em configuração; gasto do Assistente não altera o contador do cérebro. D11."
+    },
+    {
+      "id": "CB-16",
+      "title": "Latência",
+      "given": "mensagem de texto de vendedor active",
+      "when": "medida da entrada no webhook até o envio à Meta, com Gemini simulado de 2 s",
+      "then": "p95 ≤ 8 s; o caminho só com busca por palavras responde em ≤ 1 s; o Gemini tem timeout que preserva o orçamento de 8 s",
+      "testable": "integration",
+      "test_notes": "Teste de tempo com fakes; medição real no piloto."
+    },
+    {
+      "id": "CB-17",
+      "title": "Conteúdo editado vale em até 5 minutos",
+      "given": "item da FAQ editado, criado ou desativado no painel",
+      "when": "o vendedor pergunta depois da edição",
+      "then": "a resposta reflete a mudança em ≤ 5 minutos (cache do FaqReader ≤ 60 s)",
+      "testable": "integration",
+      "test_notes": "Alterar item e a revisão; consultar de novo."
+    },
+    {
+      "id": "CB-18",
+      "title": "Respostas passam pelo despacho",
+      "given": "resposta do cérebro pronta",
+      "when": "é enfileirada",
+      "then": "vai por answer_and_enqueue e pelo outbox: pausa, marca desligada e revogação antes do envio descartam a resposta; com marca desligada o vendedor não recebe conteúdo da marca e o caso vira ticket escalado",
+      "testable": "integration",
+      "test_notes": "Reaproveitar os ganchos de PF AC-23 e ReplyPolicy."
+    },
+    {
+      "id": "CB-19",
+      "title": "Tema interno ou fora de escopo",
+      "given": "pergunta sobre custos, margem da Positive, metas, pessoas, desconto/prazo/bonificação, ou assunto alheio ao trabalho",
+      "when": "o provider decide",
+      "then": "recusa em uma frase e volta ao assunto (fora de escopo) ou escala ao Comercial (condição comercial); nada interno sai, mesmo que exista item parecido na fonte",
+      "testable": "unit",
+      "test_notes": "Lista de temas bloqueados; Fase 2 define como detectar."
+    },
+    {
+      "id": "CB-20",
+      "title": "Rastro e observabilidade",
+      "given": "qualquer mensagem tratada pelo cérebro",
+      "when": "a resposta é concluída",
+      "then": "o rastro registra caminho (palavras|ia|nenhum), id do item e da fonte, nota, marca, classificação, latência por etapa, tokens e custo estimado, tamanho da janela de contexto usada, versão do prompt e do modelo; logs não contêm telefone nem texto da mensagem",
+      "testable": "integration",
+      "test_notes": "Campos novos em meta/eventos de log; teste de vazamento em logs."
+    },
+    {
+      "id": "CB-21",
+      "title": "Gate de avaliação",
+      "given": "conjunto de avaliação versionado no repositório (começa com perguntas do Guia, variações, os 5 casos do piloto, casos de preço com e sem valor na fonte e follow-ups; cresce até ≥ 200 reais)",
+      "when": "roda a avaliação offline antes de mudar prompt, modelo, limiar, fonte ou base",
+      "then": "o comando falha se factual < 98% ou se qualquer caso de preço falhar (100%); casos 'deve dizer não sei' contam como acerto quando escalam",
+      "testable": "integration",
+      "test_notes": "Comando único documentado (a definir); sem WhatsApp e sem dado licenciado (Nielsen/GMR) no repositório: itens sintéticos no formato deles."
+    },
+    {
+      "id": "CB-22",
+      "title": "Custo só depois do acesso",
+      "given": "número desconhecido, revogado, sem aceite, pausado ou acima do limite de 60 msg/h",
+      "when": "chega mensagem",
+      "then": "o cérebro, a busca e o Gemini não são chamados; só texto de usuário active e allowed chega ao AnswerProvider (regressão do PF AC-31); o limite de 60 msg/h continua exatamente como no PRD",
+      "testable": "integration",
+      "test_notes": "SpyAnswerProvider nos testes existentes continua verde; teste novo de arquitetura: Gemini só importado em services/brain."
+    },
+    {
+      "id": "CB-23",
+      "title": "Follow-up usa as últimas trocas do mesmo vendedor",
+      "given": "vendedor active que acabou de receber uma resposta e manda um follow-up curto ('e o de limão?')",
+      "when": "o provider interpreta a pergunta",
+      "then": "usa as últimas 2 a 3 trocas desse mesmo vendedor (nunca de outro) para entender o follow-up, mas filtra a fonte pelo cadastro e pela marca atuais; a janela só é lida de mensagens de usuário autorizado, respeita o tempo limite e some do alcance se o vendedor for anonimizado/excluído (LGPD); sem IA (CB-14/CB-15) o follow-up é tratado sem contexto",
+      "testable": "integration",
+      "test_notes": "Troca A, B e follow-up; seller B nunca vê trocas de A; vendedor com dados excluídos não tem janela. Tamanho da janela e limite de tempo: Fase 2. D13."
+    },
+    {
+      "id": "CB-24",
+      "title": "Botões de avaliação após a resposta",
+      "given": "resposta enviada a partir da fonte (CB-1, CB-8 com valor na fonte)",
+      "when": "é enfileirada",
+      "then": "sai com botões 'útil' (👍) e 'não útil' (👎) (send_reply_buttons) ligados àquela resposta e ao seu ticket; 'não sei', saudação, recusa, pergunta de marca, pedido de acesso e agradecimento do 👎 não levam botões",
+      "testable": "integration",
+      "test_notes": "Payload do botão leva o id da resposta/ticket, como nos botões de aceite (PF AC-19). D14 / RF-16."
+    },
+    {
+      "id": "CB-25",
+      "title": "Registro da avaliação (👍 e 👎)",
+      "given": "vendedor active que toca em um botão de avaliação",
+      "when": "a mensagem interativa chega",
+      "then": "a avaliação é gravada uma vez na resposta/ticket correspondente, com data; tocar de novo no mesmo botão é ignorado e tocar no outro depois da primeira avaliação é ignorado (a primeira vale); o toque não chama o cérebro nem o Gemini, não conta no limite de 60 msg/h (counted_in_limit=false, só rastro, como AD-003); botão de resposta de outro vendedor, adulterado ou de usuário não ativo é ignorado; 👍 só grava, sem resposta e sem ticket; não há pedido de comentário",
+      "testable": "integration",
+      "test_notes": "Toque duplo, botões opostos, botão adulterado, usuário revogado entre a resposta e o toque; 61º evento da hora não é bloqueado por toques. Exige tratar o payload no pipeline (mudança aditiva no PF). D14."
+    },
+    {
+      "id": "CB-26",
+      "title": "KPI 'Avaliados como úteis' no painel",
+      "given": "avaliações gravadas no período",
+      "when": "o admin abre Métricas",
+      "then": "o KPI 'Avaliados como úteis' mostra a % de úteis sobre as avaliadas (meta ≥ 85%, PRD §6) e a cobertura (avaliadas / respondidas); sem avaliações, continua 'sem avaliações'; respeita o filtro de marca e o período",
+      "testable": "integration",
+      "test_notes": "Substitui o marcador 'sem avaliações' de painel.1 (Q13). chat.tickets não tem colunas de avaliação; as notas ficam em chat.answer_ratings (Fase 2, spec.md 4.6/4.11)."
+    },
+    {
+      "id": "CB-27",
+      "title": "Fonte de conhecimento trocável",
+      "given": "o cérebro precisa de itens para responder",
+      "when": "consulta a base",
+      "then": "usa só uma interface de fonte de conhecimento (recuperar candidatos por pergunta, filtrados por marca e cadastro, com marca/origem/fonte/versão de cada item); a FAQ (FaqReader) é a implementação de hoje; trocar para o banco de dados exige só nova implementação, sem alterar a lógica de resposta, de privacidade e de preço; o cérebro não importa app.panel",
+      "testable": "unit",
+      "test_notes": "Teste com uma fonte falsa (fake) alternativa passando pela mesma suíte de comportamento; teste de arquitetura de import. D1."
+    },
+    {
+      "id": "CB-28",
+      "title": "Itens Nielsen e GMR da FAQ valem nas respostas",
+      "given": "itens da FAQ com origem Nielsen ou GMR (selos '📈 Nielsen' e '📦 GMR')",
+      "when": "casam com a pergunta",
+      "then": "são usados como qualquer outro item, com a linha '(Fonte: …)' e o período do item preservados na resposta; os números não são recalculados nem arredondados (D7, D15); desativar o item no painel o tira das respostas em ≤ 5 minutos (CB-17)",
+      "testable": "unit",
+      "test_notes": "Itens sintéticos no formato Nielsen/GMR (nenhum dado licenciado no repositório). Pendência jurídica no spec (licença Nielsen, PRD §10)."
+    },
+    {
+      "id": "CB-29",
+      "title": "👎 agradece e escala para a equipe corrigir a fonte",
+      "given": "primeira avaliação 'não útil' (👎) válida de um vendedor active sobre uma resposta",
+      "when": "o toque é registrado (CB-25)",
+      "then": "o vendedor recebe um agradecimento fixo curto (ex.: 'Obrigado, avisei a equipe para melhorar essa resposta.'), sem pedir comentário e sem botões; é aberto um ticket escalado (Escalados: escalated=true, status='awaiting', urgency preenchida) que carrega a pergunta original, a resposta dada e o id/versão do item da fonte, para a equipe corrigir a fonte; sem alerta e sem e-mail; toques repetidos não duplicam ticket nem agradecimento",
+      "testable": "integration",
+      "test_notes": "Pausa do Jarvis cala o agradecimento (resposta conversacional) mas o ticket é aberto; ticket do 👎 aponta para o ticket da resposta (classificação/vínculo a definir na Fase 2, mudança aditiva em chat.tickets possível, junto da de CB-4). D14."
+    }
+  ],
+  "open_questions": [
+    "D12: o PRD fala em Gemini via Vertex AI; o Settings tem gemini_api_key (API direta). Qual vai para produção, e os dados fora do Brasil já foram aceitos pelo responsável de LGPD (pendência do PRD §10, 2026-10-20)? Continua aberto.",
+    "D7 (jurídico): o Caio decidiu usar Nielsen/GMR nas respostas agora, mas a confirmação de que a licença Nielsen permite repassar os números aos vendedores (PRD §10, 2026-10-22) continua aberta. Risco assumido pelo dono; precisa de resposta do jurídico.",
+    "Toque em 4 arquivos do painel.1 já entregue (KPI úteis, 2 rótulos de alerta, rótulo [avaliação] na Inbox): mudança aditiva, a confirmar pelo Caio na aprovação da Fase 2."
+  ],
+  "out_of_scope": [
+    "O banco de dados de conhecimento em si (a interface da fonte entra; a implementação do banco é história futura)",
+    "Calcular ou estimar preço, margem ou valores (RF-12); régua de preço estruturada com canal, UF e perfil (RF-11 completo)",
+    "EAN, medidas e SKU estruturados, mix, planograma, campanhas por praça (só respondidos se estiverem na fonte)",
+    "Envio de arquivos, rótulos, fichas (RF-06..09) e kit de cadastro",
+    "Menu interativo (RF-15) e lista interativa para desambiguar",
+    "Comentário livre na avaliação (RF-16: parte opcional)",
+    "Mudar o limite de 60 mensagens por hora (permanece como no PRD)",
+    "Áudio e imagem (continuam 'equipe avisada' + ticket, PF AC-36)",
+    "Responder pelo painel ao vendedor (concluir ticket não envia mensagem)",
+    "Idiomas além do PT-BR (RF-33)",
+    "Comunicados ativos e alertas proativos (RF-24, RF-31)",
+    "Mudança no pipeline de acesso, no outbox ou nas telas do painel, salvo: tratamento do toque de avaliação (CB-25, CB-29), ticket de pedido de acesso (CB-4), KPI de úteis (CB-26) e as migrations aditivas listadas na Fase 2"
+  ]
+}

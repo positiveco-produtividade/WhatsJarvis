@@ -1,0 +1,65 @@
+{# Aba Auditoria de Logs (PN-T59; PN-55). Fragmento carregado por HTMX; se auto-substitui
+   (#logs-auditoria, outerHTML). Contexto: audit_path, page (AuditPage), filters, qs, facets.
+   Somente leitura e sem dado pessoal: valores antes/depois sao ids e status. #}
+{% from "_macros.html" import empty_row %}
+<div id="logs-auditoria" aria-live="polite">
+  <form method="get" action="{{ audit_path }}" hx-get="{{ audit_path }}" hx-target="#logs-auditoria" hx-swap="outerHTML"
+        class="bg-white rounded-2xl border border-ink-200 p-3 mb-4">
+    <div class="flex flex-wrap gap-2 items-center">
+      <label for="au-acao" class="sr-only">Ação</label>
+      <select id="au-acao" name="acao" class="border border-ink-200 rounded-lg px-3 py-1.5 text-sm">
+        <option value="">Todas as ações</option>
+        {% for a in (facets.actions if facets else []) %}<option value="{{ a }}" {% if filters and filters.action == a %}selected{% endif %}>{{ a }}</option>{% endfor %}
+      </select>
+      <label for="au-alvo" class="sr-only">Alvo</label>
+      <select id="au-alvo" name="alvo" class="border border-ink-200 rounded-lg px-3 py-1.5 text-sm">
+        <option value="">Todos os alvos</option>
+        {% for t in (facets.target_types if facets else []) %}<option value="{{ t }}" {% if filters and filters.target_type == t %}selected{% endif %}>{{ t }}</option>{% endfor %}
+      </select>
+      <label for="au-alvo-id" class="sr-only">Id do alvo</label>
+      <input id="au-alvo-id" name="alvo_id" type="search" maxlength="80" autocomplete="off" placeholder="Id do alvo"
+             value="{{ filters.target_id if filters else '' }}"
+             class="min-w-[140px] border border-ink-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-ink-900 focus:outline-none">
+      <button type="submit" class="bg-ink-900 hover:bg-ink-700 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition">Filtrar</button>
+    </div>
+  </form>
+  <div class="bg-white rounded-2xl border border-ink-200 p-3">
+    <div class="bg-white rounded-xl overflow-x-auto">
+      <table class="w-full text-sm min-w-[720px]">
+        <thead class="bg-ink-50 text-ink-500 text-xs uppercase tracking-wide"><tr>
+          <th scope="col" class="px-4 py-2 text-left font-medium">Data</th>
+          <th scope="col" class="px-4 py-2 text-left font-medium">Autor</th>
+          <th scope="col" class="px-4 py-2 text-left font-medium">Ação</th>
+          <th scope="col" class="px-4 py-2 text-left font-medium">Alvo</th>
+          <th scope="col" class="px-4 py-2 text-left font-medium">Antes</th>
+          <th scope="col" class="px-4 py-2 text-left font-medium">Depois</th>
+        </tr></thead>
+        <tbody>
+          {% for r in (page.rows if page else []) %}
+          <tr class="border-t border-ink-100">
+            <td class="px-4 py-2.5 text-ink-500 whitespace-nowrap">{{ r.at | sp_dt }}</td>
+            <td class="px-4 py-2.5 text-xs text-ink-700">{{ r.actor }} <span class="text-ink-400">({{ r.actor_type }})</span></td>
+            <td class="px-4 py-2.5 font-mono text-xs">{{ r.action }}</td>
+            <td class="px-4 py-2.5 text-xs text-ink-700">{{ r.target_type }} <span class="font-mono text-ink-500">{{ r.target_id }}</span></td>
+            <td class="px-4 py-2.5 text-xs text-ink-600 max-w-xs break-words">{{ r.old }}</td>
+            <td class="px-4 py-2.5 text-xs text-ink-600 max-w-xs break-words">{{ r.new }}</td>
+          </tr>
+          {% else %}
+          {{ empty_row(6, 'Nenhum registro de auditoria encontrado.') }}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% if page and page.pages > 1 %}
+  <div class="flex items-center justify-between gap-3 text-sm mt-4">
+    <p class="text-ink-500">Página {{ page.page }} de {{ page.pages }} — {{ page.total }} registros</p>
+    <div class="flex gap-2">
+      {% if page.page > 1 %}<a href="{{ audit_path }}?{{ qs }}&page={{ page.page - 1 }}" hx-get="{{ audit_path }}?{{ qs }}&page={{ page.page - 1 }}" hx-target="#logs-auditoria" hx-swap="outerHTML"
+         class="px-3 py-1.5 rounded-lg border border-ink-200 text-ink-700 hover:bg-ink-100">← Anterior</a>{% endif %}
+      {% if page.page < page.pages %}<a href="{{ audit_path }}?{{ qs }}&page={{ page.page + 1 }}" hx-get="{{ audit_path }}?{{ qs }}&page={{ page.page + 1 }}" hx-target="#logs-auditoria" hx-swap="outerHTML"
+         class="px-3 py-1.5 rounded-lg border border-ink-200 text-ink-700 hover:bg-ink-100">Próxima →</a>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>

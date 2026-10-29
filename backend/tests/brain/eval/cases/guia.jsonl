@@ -1,0 +1,164 @@
+{"id": "guia-001", "category": "guia", "question": "Jungle é um isotônico?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:001"]}
+{"id": "guia-002", "category": "guia", "question": "Quais são os sabores de Jungle?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:002"]}
+{"id": "guia-003", "category": "guia", "question": "Qual a diferença entre Low Carb, Endurance e Carbo?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:003"]}
+{"id": "guia-004", "category": "guia", "question": "Quais os ingredientes do Jungle?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:004"]}
+{"id": "guia-005", "category": "guia", "question": "Jungle tem glúten?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:005"]}
+{"id": "guia-006", "category": "guia", "question": "Jungle tem açúcar?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:006"]}
+{"id": "guia-007", "category": "guia", "question": "O isotônico de vocês tem proteína?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:007"]}
+{"id": "guia-008", "category": "guia", "question": "Quantas calorias tem o Jungle?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:008"]}
+{"id": "guia-009", "category": "guia", "question": "Jungle é vegano?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:009"]}
+{"id": "guia-010", "category": "guia", "question": "Jungle tem corante ou conservante?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:010"]}
+{"id": "guia-011", "category": "guia", "question": "Pode tomar Jungle antes, durante ou depois do treino?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:011"]}
+{"id": "guia-012", "category": "guia", "question": "Por que o Jungle é tão caro?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:012"]}
+{"id": "guia-013", "category": "guia", "question": "O que é o Ultracoffee?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:013"]}
+{"id": "guia-014", "category": "guia", "question": "O Ultracoffee é natural mesmo?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:014"]}
+{"id": "guia-015", "category": "guia", "question": "O Ultracoffee é só para imunidade ou também age na disposição?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:015"]}
+{"id": "guia-016", "category": "guia", "question": "O Ultracoffee é igual ao Supercoffee ou Desincoffee?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:016"]}
+{"id": "guia-017", "category": "guia", "question": "Ultracoffee é indicado pra ganho de massa muscular?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:017"]}
+{"id": "guia-018", "category": "guia", "question": "Qual a diferença entre os sabores de Ultracoffee?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:018"]}
+{"id": "guia-019", "category": "guia", "question": "Quais são os ingredientes do Ultracoffee?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:019"]}
+{"id": "guia-020", "category": "guia", "question": "Pra que serve cada ingrediente do Ultracoffee?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:020"]}
+{"id": "guia-021", "category": "guia", "question": "Qual a quantidade de cafeína em uma dose de Ultracoffee?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:021"]}
+{"id": "guia-022", "category": "guia", "question": "O Ultracoffee tem glúten, lactose, açúcar ou taurina?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:022"]}
+{"id": "guia-023", "category": "guia", "question": "Em quais ocasiões tomar o Ultracoffee?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:023"]}
+{"id": "guia-024", "category": "guia", "question": "Quantas doses de Ultracoffee por dia?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:024"]}
+{"id": "guia-025", "category": "guia", "question": "Ultracoffee quebra o jejum?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:025"]}
+{"id": "guia-026", "category": "guia", "question": "Posso consumir Ultracoffee com ômega 3?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:026"]}
+{"id": "guia-027", "category": "guia", "question": "Quem tem hipertensão, ansiedade, labirintite ou triglicérides altos pode consumir Ultracoffee?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:027"]}
+{"id": "guia-028", "category": "guia", "question": "Qual a diferença entre o stick e a lata de Ultracoffee?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:028"]}
+{"id": "guia-029", "category": "guia", "question": "Posso dividir o stick de Ultracoffee?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:029"]}
+{"id": "guia-030", "category": "guia", "question": "O stick do Ultracoffee tem picote para abrir?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:030"]}
+{"id": "guia-031", "category": "guia", "question": "Vende o Ultracoffee por unidade ou só em display?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:031"]}
+{"id": "guia-032", "category": "guia", "question": "Qual a validade do Ultracoffee?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:032"]}
+{"id": "guia-033", "category": "guia", "question": "Por que a lata de Ultracoffee vem pela metade?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:033"]}
+{"id": "guia-034", "category": "guia", "question": "A embalagem do Ultracoffee é reciclável?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:034"]}
+{"id": "guia-035", "category": "guia", "question": "O que é o Nitro 400?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:035"]}
+{"id": "guia-036", "category": "guia", "question": "Quais são os ingredientes do Nitro 400 e do Nitro Purple Berry?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:036"]}
+{"id": "guia-037", "category": "guia", "question": "Quantas doses de Nitro 400 por dia?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:037"]}
+{"id": "guia-038", "category": "guia", "question": "O Nitro 400 tem mesmo 400mg de nitrato?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:038"]}
+{"id": "guia-039", "category": "guia", "question": "Por que o nitrato não aparece na tabela nutricional do Nitro 400?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:039"]}
+{"id": "guia-040", "category": "guia", "question": "O Nitro 400 quebra o jejum?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:040"]}
+{"id": "guia-041", "category": "guia", "question": "Posso alternar entre os sabores de Nitro 400?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:041"]}
+{"id": "guia-042", "category": "guia", "question": "O Nitro 400 perdeu benefícios com a nova fórmula?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:042"]}
+{"id": "guia-043", "category": "guia", "question": "A nova fórmula do Nitro continua tendo beterraba?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:043"]}
+{"id": "guia-044", "category": "guia", "question": "Por que a Plant Power lançou um novo sabor de Nitro?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:044"]}
+{"id": "guia-045", "category": "guia", "question": "O que é o Fibergut?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:045"]}
+{"id": "guia-046", "category": "guia", "question": "Qual o diferencial do Fibergut em relação a outras fibras?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:046"]}
+{"id": "guia-047", "category": "guia", "question": "O Fibergut ajuda na constipação?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:047"]}
+{"id": "guia-048", "category": "guia", "question": "O Fibergut ajuda na imunidade?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:048"]}
+{"id": "guia-049", "category": "guia", "question": "O Fibergut ajuda na absorção de nutrientes?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:049"]}
+{"id": "guia-050", "category": "guia", "question": "Quem tem intestino sensível pode tomar Fibergut?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:050"]}
+{"id": "guia-051", "category": "guia", "question": "O Fibergut tem açúcar ou glúten?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:051"]}
+{"id": "guia-052", "category": "guia", "question": "Posso misturar o Fibergut com qualquer bebida ou alimento?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:052"]}
+{"id": "guia-053", "category": "guia", "question": "O Fibergut pode ser aquecido?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:053"]}
+{"id": "guia-054", "category": "guia", "question": "Posso consumir o Fibergut todos os dias?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:054"]}
+{"id": "guia-055", "category": "guia", "question": "Em quanto tempo o Fibergut faz efeito?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:055"]}
+{"id": "guia-056", "category": "guia", "question": "Que vitaminas e minerais tem o Defense?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:056"]}
+{"id": "guia-057", "category": "guia", "question": "Quais são os ingredientes do Defense?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:057"]}
+{"id": "guia-058", "category": "guia", "question": "O que é o The One?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:058"]}
+{"id": "guia-059", "category": "guia", "question": "Quais os benefícios do The One?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:059"]}
+{"id": "guia-060", "category": "guia", "question": "Quais são os ingredientes do The One?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:060"]}
+{"id": "guia-061", "category": "guia", "question": "Quem tem diabetes pode consumir The One?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:061"]}
+{"id": "guia-062", "category": "guia", "question": "Como funciona o Protein?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:062"]}
+{"id": "guia-063", "category": "guia", "question": "Quantas doses tem um pote de Protein?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:063"]}
+{"id": "guia-064", "category": "guia", "question": "Qual a diferença entre o sachê e o pote de Protein?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:064"]}
+{"id": "guia-065", "category": "guia", "question": "Quantos sachês de Protein vêm em um display?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:065"]}
+{"id": "guia-066", "category": "guia", "question": "Quais são os ingredientes da Creatine e da Creapower?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:066"]}
+{"id": "guia-067", "category": "guia", "question": "Qual a diferença entre a Creatine e a Creapower?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:067"]}
+{"id": "guia-068", "category": "guia", "question": "A creatina tem registro na Anvisa?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:068"]}
+{"id": "guia-069", "category": "guia", "question": "Qual a diferença entre o stick e a lata de creatina?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:069"]}
+{"id": "guia-070", "category": "guia", "question": "Quantos sticks vêm em um display de creatina?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:070"]}
+{"id": "guia-071", "category": "guia", "question": "Quantas doses e quantos gramas tem cada produto Plant Power?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:071"]}
+{"id": "guia-072", "category": "guia", "question": "Como usar cada produto Plant Power? Qual a dose?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:072"]}
+{"id": "guia-073", "category": "guia", "question": "Posso tomar os produtos Plant Power todos os dias?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:073"]}
+{"id": "guia-074", "category": "guia", "question": "Onde guardar os produtos Plant Power?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:074"]}
+{"id": "guia-075", "category": "guia", "question": "Por que a Plant Power é tão cara?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:075"]}
+{"id": "guia-076", "category": "guia", "question": "Os produtos Plant Power têm corante ou conservante?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:076"]}
+{"id": "guia-077", "category": "guia", "question": "O que é Possible?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:077"]}
+{"id": "guia-078", "category": "guia", "question": "Qual o diferencial do Possible em relação às outras bebidas vegetais?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:078"]}
+{"id": "guia-079", "category": "guia", "question": "Quais são os sabores do Possible?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:079"]}
+{"id": "guia-080", "category": "guia", "question": "Qual Possible escolher?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:080"]}
+{"id": "guia-081", "category": "guia", "question": "O que são as novas bases de Possible?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:081"]}
+{"id": "guia-082", "category": "guia", "question": "As novas bases mudam a proposta de Possible?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:082"]}
+{"id": "guia-083", "category": "guia", "question": "Qual a diferença entre Possible Aveia e Possible Amêndoa?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:083"]}
+{"id": "guia-084", "category": "guia", "question": "Possible Chocolate é um achocolatado?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:084"]}
+{"id": "guia-085", "category": "guia", "question": "Possible Chocolate é mais saudável que achocolatados tradicionais?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:085"]}
+{"id": "guia-086", "category": "guia", "question": "Por que misturam castanha de caju e aveia no Possible?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:086"]}
+{"id": "guia-087", "category": "guia", "question": "O Possible Aveia serve para latte art?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:087"]}
+{"id": "guia-088", "category": "guia", "question": "Por que não encontro mais o Possible Morango?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:088"]}
+{"id": "guia-089", "category": "guia", "question": "Possible é vegano?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:089"]}
+{"id": "guia-090", "category": "guia", "question": "Possible tem glúten?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:090"]}
+{"id": "guia-091", "category": "guia", "question": "Possible tem conservantes?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:091"]}
+{"id": "guia-092", "category": "guia", "question": "Possible Aveia e Amêndoa são saudáveis?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:092"]}
+{"id": "guia-093", "category": "guia", "question": "Possible Aveia e Amêndoa têm açúcar?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:093"]}
+{"id": "guia-094", "category": "guia", "question": "Por que o Possible tem açúcar?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:094"]}
+{"id": "guia-095", "category": "guia", "question": "Por que aparece açúcares adicionados no Possible se não há açúcar nos ingredientes?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:095"]}
+{"id": "guia-096", "category": "guia", "question": "Por que o Possible tem espessante? Faz mal?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:096"]}
+{"id": "guia-097", "category": "guia", "question": "O que é goma gelana e goma guar no Possible?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:097"]}
+{"id": "guia-098", "category": "guia", "question": "Qual a função do aroma natural no Possible?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:098"]}
+{"id": "guia-099", "category": "guia", "question": "Possible é clean label?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:099"]}
+{"id": "guia-100", "category": "guia", "question": "Por que o Possible perdeu o selo orgânico?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:100"]}
+{"id": "guia-101", "category": "guia", "question": "Como consumir o Possible?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:101"]}
+{"id": "guia-102", "category": "guia", "question": "Como conservar o Possible?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:102"]}
+{"id": "guia-103", "category": "guia", "question": "Qual a validade do Possible?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:103"]}
+{"id": "guia-104", "category": "guia", "question": "Quem pode consumir Possible Aveia e Amêndoa?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:104"]}
+{"id": "guia-105", "category": "guia", "question": "Quem tem diabetes pode tomar Possible?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:105"]}
+{"id": "guia-106", "category": "guia", "question": "Por que o Possible é mais barato que outras bebidas vegetais?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:106"]}
+{"id": "guia-107", "category": "guia", "question": "Do que é feita a embalagem do Possible?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:107"]}
+{"id": "guia-108", "category": "guia", "question": "Qual a diferença entre Possible e A Tal da Castanha?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:108"]}
+{"id": "guia-109", "category": "guia", "question": "A partir de que idade pode consumir os produtos?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:109"]}
+{"id": "guia-110", "category": "guia", "question": "Os produtos ajudam a emagrecer?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:110"]}
+{"id": "guia-111", "category": "guia", "question": "Posso consumir depois da validade?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:111"]}
+{"id": "guia-112", "category": "guia", "question": "Como os produtos duram na prateleira sem conservantes?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:112"]}
+{"id": "guia-var-005", "category": "guia", "question": "jungle tem gluten?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:005"]}
+{"id": "guia-var-001", "category": "guia", "question": "o jungle e isotonico mesmo?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:001"]}
+{"id": "guia-var-002", "category": "guia", "question": "quais sabores tem o jungle", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:002"]}
+{"id": "guia-var-006", "category": "guia", "question": "jungle leva acucar?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:006"]}
+{"id": "guia-var-009", "category": "guia", "question": "Jungle serve pra vegano?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:009"]}
+{"id": "guia-var-011", "category": "guia", "question": "posso tomar jungle depois de treinar?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:011"]}
+{"id": "guia-var-012", "category": "guia", "question": "jungle e caro por que?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:012"]}
+{"id": "guia-var-013", "category": "guia", "question": "o que e ultracoffee", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:013"]}
+{"id": "guia-var-021", "category": "guia", "question": "quanta cafeina tem o ultracoffee?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:021"]}
+{"id": "guia-var-024", "category": "guia", "question": "quantas doses de ultracoffee posso tomar por dia?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:024"]}
+{"id": "guia-var-025", "category": "guia", "question": "ultracoffee quebra jejum?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:025"]}
+{"id": "guia-var-032", "category": "guia", "question": "qual a validade do ultracoffee", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:032"]}
+{"id": "guia-var-035", "category": "guia", "question": "o que e o nitro 400?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:035"]}
+{"id": "guia-var-037", "category": "guia", "question": "nitro 400 quantas doses por dia", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:037"]}
+{"id": "guia-var-040", "category": "guia", "question": "nitro 400 quebra o jejum?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:040"]}
+{"id": "guia-var-045", "category": "guia", "question": "o que e fibergut?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:045"]}
+{"id": "guia-var-047", "category": "guia", "question": "fibergut ajuda no intestino preso?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:047"]}
+{"id": "guia-var-053", "category": "guia", "question": "pode aquecer o fibergut?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:053"]}
+{"id": "guia-var-058", "category": "guia", "question": "o que e the one da plant power?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:058"]}
+{"id": "guia-var-061", "category": "guia", "question": "diabetico pode tomar the one?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:061"]}
+{"id": "guia-var-068", "category": "guia", "question": "creatina plant power tem registro na anvisa?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:068"]}
+{"id": "guia-var-074", "category": "guia", "question": "onde guardar os produtos da plant power", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:074"]}
+{"id": "guia-var-077", "category": "guia", "question": "o que e o possible?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:077"]}
+{"id": "guia-var-079", "category": "guia", "question": "sabores do possible", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:079"]}
+{"id": "guia-var-089", "category": "guia", "question": "possible e vegano?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:089"]}
+{"id": "guia-var-090", "category": "guia", "question": "possible contem gluten?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:090"]}
+{"id": "guia-var-094", "category": "guia", "question": "por que possible tem acucar?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:094"]}
+{"id": "guia-var-096", "category": "guia", "question": "o espessante do possible faz mal?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:096"]}
+{"id": "guia-var-102", "category": "guia", "question": "como conservar o possible depois de aberto?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:102"]}
+{"id": "guia-var-103", "category": "guia", "question": "validade do possible", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:103"]}
+{"id": "guia-var-105", "category": "guia", "question": "diabetico pode tomar possible?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:105"]}
+{"id": "guia-var-110", "category": "guia", "question": "os produtos fazem emagrecer?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:110"]}
+{"id": "guia-var-111", "category": "guia", "question": "da pra consumir depois do vencimento?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:111"]}
+{"id": "guia-var-112", "category": "guia", "question": "como dura tanto na prateleira sem conservante?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:112"]}
+{"id": "guia-var-109", "category": "guia", "question": "a partir de que idade pode tomar?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "responde", "refs": ["guia:109"]}
+{"id": "guia-marca-01", "category": "guia", "question": "Quais são os sabores?", "registration": {"brands": ["jungle", "possible"], "ufs": ["SP"]}, "expected": "pede_marca", "refs": ["guia:002", "guia:079"]}
+{"id": "guia-marca-02", "category": "guia", "question": "Qual a validade?", "registration": {"brands": ["plant_power", "possible"], "ufs": ["SP"]}, "expected": "pede_marca", "refs": ["guia:032", "guia:103"]}
+{"id": "guia-marca-03", "category": "guia", "question": "Tem glúten?", "registration": {"brands": ["jungle", "possible"], "ufs": ["SP"]}, "expected": "pede_marca", "refs": ["guia:005", "guia:090"]}
+{"id": "guia-marca-04", "category": "guia", "question": "É vegano?", "registration": {"brands": ["jungle", "possible"], "ufs": ["SP"]}, "expected": "pede_marca", "refs": ["guia:009", "guia:089"]}
+{"id": "guia-marca-05", "category": "guia", "question": "Diabético pode tomar?", "registration": {"brands": ["plant_power", "possible"], "ufs": ["SP"]}, "expected": "pede_marca", "refs": ["guia:061", "guia:105"]}
+{"id": "guia-marca-06", "category": "guia", "question": "Tem conservante?", "registration": {"brands": ["jungle", "possible"], "ufs": ["SP"]}, "expected": "pede_marca", "refs": ["guia:010", "guia:091"]}
+{"id": "guia-acesso-01", "category": "guia", "question": "Quais são os sabores de Possible?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "acesso", "refs": []}
+{"id": "guia-acesso-02", "category": "guia", "question": "Jungle tem glúten?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "acesso", "refs": []}
+{"id": "guia-acesso-03", "category": "guia", "question": "O que é o Ultracoffee?", "registration": {"brands": ["jungle", "possible"], "ufs": ["SP"]}, "expected": "acesso", "refs": []}
+{"id": "guia-acesso-04", "category": "guia", "question": "Zaya tem quais sabores?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "acesso", "refs": []}
+{"id": "guia-acesso-05", "category": "guia", "question": "Como funciona o Nitro 400?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "acesso", "refs": []}
+{"id": "guia-acesso-06", "category": "guia", "question": "A Tal da Castanha tem açúcar?", "registration": {"brands": ["jungle", "plant_power"], "ufs": ["SP"]}, "expected": "acesso", "refs": []}
+{"id": "guia-naosei-01", "category": "guia", "question": "Qual o prazo de entrega para o Ceará?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "nao_sei", "refs": []}
+{"id": "guia-naosei-02", "category": "guia", "question": "Vocês têm desconto para pedido grande?", "registration": {"brands": ["possible"], "ufs": ["SP"]}, "expected": "nao_sei", "refs": []}
+{"id": "guia-naosei-03", "category": "guia", "question": "Quem é o gerente da minha região?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "nao_sei", "refs": []}
+{"id": "guia-naosei-04", "category": "guia", "question": "O Jungle combina com remédio para pressão?", "registration": {"brands": ["jungle"], "ufs": ["SP"]}, "expected": "nao_sei", "refs": []}
+{"id": "guia-naosei-05", "category": "guia", "question": "Qual a dosagem de ultracoffee para criança de 5 anos?", "registration": {"brands": ["plant_power"], "ufs": ["SP"]}, "expected": "nao_sei", "refs": []}

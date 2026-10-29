@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{# Inbox (PN-T21; PN-10, PN-9, PN-43). Esquerda: lista de conversas (esta tarefa). Direita:
+   #chat-pane, preenchido pelo chat da tarefa PN-T22 (GET /dashboard/inbox/{user_id}).
+   `?u=<id>` (ex.: vindo da linha de um ticket, PN-9) abre o chat dessa conversa ao carregar. #}
+{% block title %}Inbox{% endblock %}
+{% block content %}
+{# Script SINCRONO de proposito: precisa registrar o componente (alpine:init) antes de o Alpine
+   (defer, no <head> da base) iniciar. #}
+<script src="{{ static_v('js/inbox.js') }}"></script>
+<div class="-m-6">
+  <div class="bg-white border-y border-ink-200 grid grid-cols-1 md:grid-cols-[340px_1fr] h-[calc(100vh-30px)]">
+    <aside x-data="inboxList" @change="onChange" class="border-r border-ink-200 flex flex-col overflow-hidden" aria-label="Conversas">
+      <div id="inbox-lista" class="flex flex-col flex-1 min-h-0">
+        {% include "_inbox_lista.html" %}
+      </div>
+    </aside>
+    <div id="chat-pane" class="flex flex-col overflow-hidden bg-ink-50"
+         {% if selected %}hx-get="/dashboard/inbox/{{ selected }}" hx-trigger="load"{% endif %}>
+      <div class="flex-1 grid place-items-center text-sm text-ink-400">Selecione uma conversa para ver o chat.</div>
+    </div>
+  </div>
+</div>
+{% endblock %}

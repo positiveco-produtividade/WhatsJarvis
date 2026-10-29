@@ -1,0 +1,26 @@
+{# Revogar acesso (PN-T35; PN-34). Fragmento para #modal-body; texto do prototipo. Contexto:
+   person, reasons [(valor, rotulo)], chosen, error, action, csrf_token. Sem JS o formulario
+   funciona (select + botao). #}
+{% from "_macros.html" import csrf_field, error_list, modal_head %}
+{% if person %}
+{{ modal_head('Revogar acesso') }}
+<form method="post" action="{{ action }}" hx-post="{{ action }}" hx-target="#modal-body" hx-swap="innerHTML"
+      hx-disabled-elt="find button" class="px-4 py-4 space-y-3" data-revogar-form>
+  {{ csrf_field(csrf_token) }}
+  <p class="text-sm text-ink-700"><strong>{{ person.name }}</strong> · <span class="font-mono text-xs">{{ person.phone }}</span></p>
+  <p class="text-xs text-ink-500">O bloqueio vale em até 1 minuto, inclusive se a pessoa estiver no meio de uma conversa. O histórico fica guardado em <em>Retiradas</em>.</p>
+  {% if error %}{{ error_list([error]) }}{% endif %}
+  <div>
+    <label for="rv-motivo" class="block text-xs font-medium text-ink-600">Motivo</label>
+    <select id="rv-motivo" name="reason" required data-ficha-focus class="mt-1 w-full rounded-lg border border-ink-300 px-2 py-1.5 text-sm">
+      <option value=""{% if not chosen %} selected{% endif %}>Escolha um motivo</option>
+      {% for value, label in (reasons or []) %}<option value="{{ value }}"{% if chosen == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="flex gap-2 pt-1">
+    <button type="submit" class="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700">Revogar</button>
+    <button type="button" data-overlay-close class="rounded-lg border border-ink-300 bg-white px-3 py-1.5 text-xs font-medium text-ink-700 hover:bg-ink-50">Cancelar</button>
+  </div>
+</form>
+<script src="{{ static_v('js/pessoa_ficha.js') }}"></script>
+{% endif %}

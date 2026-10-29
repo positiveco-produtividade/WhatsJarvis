@@ -1,0 +1,53 @@
+{# Jarvis por marca (PN-T43; PN-47, PN-48). Parcial incluido pela pagina de Alertas com
+   "ignore missing". Slots: list (contexto: state) e modal (contexto: brand, csrf_token, action).
+   Cada linha mostra o rosto do agente da marca. O POST envia o estado DESEJADO (on|off). #}
+{% from "_macros.html" import agent_face, csrf_field, modal_head %}
+{% if slot == 'list' %}
+<section id="control-marcas" aria-labelledby="jarvis-por-marca" class="bg-white rounded-2xl border border-ink-200 p-4 sm:p-5 mb-6">
+  <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+    <h2 id="jarvis-por-marca" class="font-semibold text-ink-900">Em quais marcas o Jarvis responde</h2>
+    <p class="text-xs text-ink-500">Respondendo em <strong class="text-ink-700">{{ state.responding if state else 0 }} de {{ state.brands|length if state else 0 }}</strong>. Marca desligada continua recebendo pergunta e abrindo ticket — só o Jarvis não responde.</p>
+  </div>
+  <ul class="divide-y divide-ink-100 border border-ink-100 rounded-lg">
+    {% for b in (state.brands if state else []) %}
+    <li class="px-3.5 py-2.5">
+      <div class="flex items-center gap-3">
+        <span aria-hidden="true" class="w-2 h-2 rounded-full shrink-0 {{ 'bg-mint-500' if b.enabled else 'bg-ink-300' }}"></span>
+        {{ agent_face(b.key, 22) }}
+        <span class="font-medium text-ink-900">{{ b.label }}</span>
+        <span class="text-xs text-ink-400">{{ b.agent.name }}</span>
+        {% if b.enabled %}
+        <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-mint-50 text-mint-700">Respondendo</span>
+        {% else %}
+        <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-ink-100 text-ink-600">Desligado — a equipe atende</span>
+        {% endif %}
+        <button type="button" hx-get="/dashboard/control/marca/{{ b.key }}" hx-target="#modal-body" hx-swap="innerHTML"
+                class="ml-auto text-xs font-semibold px-3 py-1.5 rounded-lg border transition {{ 'border-red-600 bg-red-600 text-white hover:bg-red-700' if b.enabled else 'border-mint-700 bg-mint-700 text-white hover:bg-mint-800' }}">{{ 'Desligar' if b.enabled else 'Ligar' }}</button>
+      </div>
+    </li>
+    {% else %}
+    <li class="px-3.5 py-6 text-center text-sm text-ink-400">Nenhuma marca cadastrada.</li>
+    {% endfor %}
+  </ul>
+</section>
+{% elif slot == 'modal' and brand %}
+{% set on = brand.enabled %}
+{{ modal_head(('Desligar o Jarvis na ' if on else 'Ligar o Jarvis na ') ~ brand.label ~ '?') }}
+<form method="post" action="{{ action }}" hx-post="{{ action }}" hx-swap="none" hx-disabled-elt="find button"
+      class="px-4 py-4 space-y-3" data-control-form>
+  {{ csrf_field(csrf_token) }}
+  <input type="hidden" name="desired" value="{{ 'off' if on else 'on' }}">
+  <p class="flex items-center gap-2 text-xs font-semibold text-ink-500">{{ agent_face(brand.key, 22) }}<span>Agora: {{ 'Respondendo' if on else 'Desligado' }} ({{ brand.agent.name }})</span></p>
+  {% if on %}
+  <p class="text-sm text-ink-700">As perguntas continuam chegando e viram ticket para a equipe.</p>
+  {% else %}
+  <p class="text-sm text-ink-700">{{ brand.agent.name }} passa a responder sozinho os vendedores sobre {{ brand.label }}.</p>
+  {% endif %}
+  <p class="text-xs text-ink-500">A mudança fica registrada com o seu nome.</p>
+  <div class="flex gap-2 pt-1">
+    <button type="submit" data-control-confirm class="rounded-lg px-3 py-1.5 text-xs font-semibold text-white {{ 'bg-red-600 hover:bg-red-700' if on else 'bg-mint-700 hover:bg-mint-800' }}">{{ 'Desligar' if on else 'Ligar' }}</button>
+    <button type="button" data-overlay-close class="rounded-lg border border-ink-300 bg-white px-3 py-1.5 text-xs font-medium text-ink-700 hover:bg-ink-50">Cancelar</button>
+  </div>
+</form>
+<script src="{{ static_v('js/controls.js') }}"></script>
+{% endif %}

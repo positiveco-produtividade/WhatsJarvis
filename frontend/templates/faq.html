@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{# FAQ (PN-T26; PN-22, PN-43). Contexto: filters, page, active_count, focus_brand_label, qs,
+   qs_page, qs_toggle, qs_clear, brand_options, category_options. O resultado (contagem +
+   tabela) e trocado pelo HTMX em #faq-resultado; "Limpar" e "Desativadas" vem em #faq-acoes
+   (atualizado junto, via OOB). Nova pergunta, editar, desativar/reativar e importar
+   chamam rotas de outras tarefas (faq_form, faq_import). Sem JS proprio. #}
+{% from "_faq_tabela.html" import acoes %}
+{% block title %}FAQ{% endblock %}
+{% block content %}
+<section>
+  <div class="mb-6 flex items-start justify-between gap-4 flex-wrap">
+    <div>
+      <h1 class="text-3xl font-bold tracking-tight">FAQ</h1>
+      <p class="text-sm text-ink-500 mt-1">Perguntas e respostas que o Jarvis usa com os vendedores</p>
+    </div>
+    <div class="shrink-0 flex items-center gap-2">
+      <button type="button" hx-get="/dashboard/faq/importar" hx-target="#modal-body" hx-swap="innerHTML"
+              class="rounded-lg border border-ink-300 bg-white px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50 transition">Importar planilha</button>
+      <button type="button" hx-get="/dashboard/faq/nova" hx-target="#modal-body" hx-swap="innerHTML"
+              class="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-ink-800 transition">+ Adicionar pergunta</button>
+    </div>
+  </div>
+
+  <form method="get" action="/dashboard/faq" hx-get="/dashboard/faq" hx-target="#faq-resultado"
+        hx-push-url="true" hx-trigger="submit, change"
+        class="flex flex-wrap gap-3 mb-6">
+    <label for="faq-brand" class="sr-only">Marca da FAQ</label>
+    <select id="faq-brand" name="brand" class="text-sm border border-ink-200 rounded-lg px-3 py-2 bg-white">
+      {% for value, label in (brand_options or []) %}<option value="{{ value }}" {% if filters and filters.brand == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+    <label for="faq-category" class="sr-only">Filtrar por categoria</label>
+    <select id="faq-category" name="category" class="text-sm border border-ink-200 rounded-lg px-3 py-2 bg-white">
+      <option value="">Todas as categorias</option>
+      {% for value, label in (category_options or []) %}<option value="{{ value }}" {% if filters and filters.category == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+    <div class="flex items-center gap-2 flex-1 min-w-[200px]">
+      <label for="faq-q" class="sr-only">Buscar pergunta ou resposta</label>
+      <input id="faq-q" name="q" type="search" value="{{ filters.q if filters else '' }}" maxlength="200" autocomplete="off"
+             placeholder="Buscar pergunta ou resposta…"
+             class="text-sm border border-ink-200 rounded-lg px-3 py-2 bg-white w-full focus:ring-2 focus:ring-ink-900 focus:outline-none">
+      <button type="submit" class="px-4 py-2 bg-ink-900 text-white text-sm font-medium rounded-lg hover:bg-ink-700 transition whitespace-nowrap">Buscar</button>
+      {{ acoes(filters, qs_toggle, qs_clear) }}
+    </div>
+  </form>
+
+  <div id="faq-resultado" aria-live="polite">
+    {% include "_faq_tabela.html" %}
+  </div>
+</section>
+{% endblock %}

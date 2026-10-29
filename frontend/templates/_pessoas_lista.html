@@ -1,0 +1,134 @@
+{# Resultado de Pessoas: abas + busca + tabela + paginacao (PN-31, PN-43). E o fragmento
+   devolvido ao HTMX. Contexto: tab, tabs, q, page, people (PersonView), pending (PendingRow),
+   counts, shown, overall, qs, empty_text, text_display, csrf_token.
+   O telefone ja chega mascarado (so a ficha mostra o numero completo). #}
+{% from "_macros.html" import empty_row, pagination, phone_cell %}
+{% set tab = tab or 'autorizadas' %}
+<div hx-get="/dashboard/pessoas?{{ qs or '' }}" hx-trigger="pessoasChanged from:body" hx-target="#pessoas-resultado" hidden></div>
+
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3" role="tablist">
+  {% for key, title, sub, tone in (tabs or []) %}
+  {% set n = counts.autorizadas if key == 'autorizadas' else (counts.pedindo if key == 'pedindo' else counts.retiradas) %}
+  {% set href = '/dashboard/pessoas?aba=' ~ key ~ ('&q=' ~ (q | urlencode) if q else '') %}
+  <a href="{{ href }}" hx-get="{{ href }}" hx-target="#pessoas-resultado" hx-push-url="true"
+     role="tab" aria-selected="{{ 'true' if key == tab else 'false' }}"
+     class="text-left rounded-xl px-3 py-2 border bg-white transition {{ 'border-ink-900 ring-1 ring-ink-900' if key == tab else 'border-ink-200 hover:border-ink-400' }}">
+    <div class="flex items-center justify-between"><span class="text-sm font-semibold">{{ title }}</span><span class="text-[11px] font-bold px-2 py-0.5 rounded-full {{ tone }}">{{ n or 0 }}</span></div>
+    <div class="text-[11px] text-ink-500">{{ sub }}</div>
+  </a>
+  {% endfor %}
+</div>
+
+<div class="bg-white rounded-2xl border border-ink-200 p-3">
+  <form method="get" action="/dashboard/pessoas" hx-get="/dashboard/pessoas" hx-target="#pessoas-resultado"
+        hx-push-url="true" hx-trigger="submit, change" class="flex flex-wrap gap-2 items-center mb-3">
+    {% if tab != 'autorizadas' %}<input type="hidden" name="aba" value="{{ tab }}">{% endif %}
+    <label for="pes-q" class="sr-only">Pesquisar pessoas</label>
+    <input id="pes-q" name="q" type="search" value="{{ q or '' }}" maxlength="200" autocomplete="off"
+           placeholder="Pesquisar por nome, telefone, UF ou empresa…"
+           class="flex-1 min-w-[240px] border border-ink-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-ink-900 focus:outline-none">
+    <button type="submit" class="px-4 py-2 bg-ink-900 text-white text-sm font-medium rounded-lg hover:bg-ink-700 transition whitespace-nowrap">Buscar</button>
+    {% if q %}<a href="/dashboard/pessoas{{ '?aba=' ~ tab if tab != 'autorizadas' else '' }}" hx-get="/dashboard/pessoas{{ '?aba=' ~ tab if tab != 'autorizadas' else '' }}"
+                 hx-target="#pessoas-resultado" hx-push-url="true" class="px-3 py-2 text-sm text-ink-500 hover:text-ink-900 whitespace-nowrap">Limpar</a>{% endif %}
+    <span class="text-xs text-ink-500 ml-auto">{{ shown or 0 }} de {{ overall or 0 }}</span>
+  </form>
+  {% if tab == 'pedindo' %}{% set slot = 'toolbar' %}{% include "_pessoas_pedidos.html" ignore missing %}{% endif %}
+
+  <div class="overflow-x-auto">
+    <table class="w-full text-[13px] min-w-[820px]">
+      {% if tab == 'autorizadas' %}
+      <thead class="bg-ink-50 text-ink-500 text-xs uppercase tracking-wide"><tr>
+        <th scope="col" class="px-3 py-1.5 text-left font-medium">Nome</th>
+        <th scope="col" class="px-3 py-1.5 text-left font-medium">Telefone</th>
+        <th scope="col" class="px-3 py-1.5 text-left font-medium">Perfil</th>
+        <th scope="col" class="px-3 py-1.5 text-left font-medium">UF</th>
+        <th scope="col" class="px-3 py-1.5 text-left font-medium">Marcas</th>
+        <th scope="col" class="px-3 py-1.5 text-left font-medium">Aceite do aviso</th>
+        <th scope="col" class="px-3 py-1.5 text-right font-medium"><span class="sr-only">Ações</span></th>
+      </tr></thead>
+      <tbody>
+        {% for p in (people or []) %}
+        <tr data-ficha="{{ p.id }}" class="border-t border-ink-100 hover:bg-ink-50 cursor-pointer">
+          <td class="px-3 py-1.5 font-medium">{{ p.name }}<span class="ml-1.5 text-[11px] text-ink-400 font-normal">{{ p.company }}</span></td>
+          <td class="px-3 py-1.5">{{ phone_cell(p.phone_masked) }}</td>
+          <td class="px-3 py-1.5">{{ p.profile }}</td>
+          <td class="px-3 py-1.5">{{ p.ufs }}</td>
+          <td class="px-3 py-1.5 text-ink-600">{{ p.brands }}</td>
+          <td class="px-3 py-1.5">{% if p.pending_notice %}<span class="text-[11px] font-semibold px-2 rounded-full bg-amber-100 text-amber-800">⏳ aguardando aceite</span>{% else %}<span class="text-mint-700">✓ aceito</span>{% endif %}</td>
+          <td class="px-3 py-1.5 text-right whitespace-nowrap">
+            <button type="button" data-ficha-open hx-get="/dashboard/pessoas/{{ p.id }}" hx-target="#modal-body" hx-swap="innerHTML"
+                    class="rounded-md border border-ink-200 bg-white px-2 py-0.5 text-[11px] font-medium text-ink-600 hover:bg-ink-100">Ver ficha</button>
+          </td>
+        </tr>
+        {% else %}
+        {{ empty_row(7, ('Ninguém encontrado para “' ~ q ~ '”.') if q else empty_text) }}
+        {% endfor %}
+      </tbody>
+      {% elif tab == 'pedindo' %}
+      <thead class="bg-ink-50 text-ink-500 text-xs uppercase tracking-wide"><tr>
+        <th scope="col" class="px-3 py-1.5 text-left font-medium">Telefone</th>
+        <th scope="col" class="px-3 py-1.5 text-left font-medium">Primeira mensagem</th>
+        <th scope="col" class="px-3 py-1.5 text-left font-medium">Tentativas</th>
+        <th scope="col" class="px-3 py-1.5 text-left font-medium">Primeiro contato</th>
+        <th scope="col" class="px-3 py-1.5 text-left font-medium">Último contato</th>
+        <th scope="col" class="px-3 py-1.5 text-right font-medium"><span class="sr-only">Ações</span></th>
+      </tr></thead>
+      <tbody>
+        {% for r in (pending or []) %}
+        <tr class="border-t border-ink-100 hover:bg-ink-50">
+          <td class="px-3 py-1.5">{{ phone_cell(r.phone_masked) }}</td>
+          <td class="px-3 py-1.5 text-ink-700 max-w-xs">
+            {% if text_display and r.first_text %}“{{ r.first_text }}”
+            {% elif r.first_msg_type == 'text' %}<span class="text-ink-400">Texto{% if r.first_msg_chars %} · {{ r.first_msg_chars }} caracteres{% endif %}</span>
+            {% else %}<span class="text-ink-400">Mídia{% if r.first_msg_mime %} · {{ r.first_msg_mime }}{% endif %}</span>{% endif %}
+          </td>
+          <td class="px-3 py-1.5"><span class="text-xs font-semibold {{ 'text-red-700' if r.highlight else 'text-ink-600' }}">{{ r.attempt_count }}{% if r.highlight %} ⚠{% endif %}</span></td>
+          <td class="px-3 py-1.5 text-ink-500 whitespace-nowrap">{{ r.first_attempt_at | sp_dt }}</td>
+          <td class="px-3 py-1.5 text-ink-500 whitespace-nowrap">{{ r.last_attempt_at | sp_dt }}</td>
+          <td class="px-3 py-1.5 text-right whitespace-nowrap">
+            <button type="button" hx-get="/dashboard/pessoas/nova?pedido={{ r.id }}" hx-target="#modal-body" hx-swap="innerHTML"
+                    class="rounded-md bg-ink-900 px-2 py-0.5 text-[11px] font-semibold text-white hover:bg-ink-800">Autorizar</button>
+            {% set row = r %}{% set slot = 'row' %}{% include "_pessoas_pedidos.html" ignore missing %}
+          </td>
+        </tr>
+        {% else %}
+        {{ empty_row(6, ('Ninguém encontrado para “' ~ q ~ '”.') if q else empty_text) }}
+        {% endfor %}
+      </tbody>
+      {% else %}
+      <thead class="bg-ink-50 text-ink-500 text-xs uppercase tracking-wide"><tr>
+        <th scope="col" class="px-3 py-1.5 text-left font-medium">Nome</th>
+        <th scope="col" class="px-3 py-1.5 text-left font-medium">Telefone</th>
+        <th scope="col" class="px-3 py-1.5 text-left font-medium">Perfil</th>
+        <th scope="col" class="px-3 py-1.5 text-left font-medium">UF</th>
+        <th scope="col" class="px-3 py-1.5 text-left font-medium">Retirado em</th>
+        <th scope="col" class="px-3 py-1.5 text-left font-medium">Motivo</th>
+        <th scope="col" class="px-3 py-1.5 text-right font-medium"><span class="sr-only">Ações</span></th>
+      </tr></thead>
+      <tbody>
+        {% for p in (people or []) %}
+        <tr data-ficha="{{ p.id }}" class="border-t border-ink-100 hover:bg-ink-50 text-ink-600 cursor-pointer">
+          <td class="px-3 py-1.5 font-medium">{{ p.name }}<span class="ml-1.5 text-[11px] text-ink-400 font-normal">{{ p.company }}</span></td>
+          <td class="px-3 py-1.5">{{ phone_cell(p.phone_masked) }}</td>
+          <td class="px-3 py-1.5">{{ p.profile }}</td>
+          <td class="px-3 py-1.5">{{ p.ufs }}</td>
+          <td class="px-3 py-1.5 whitespace-nowrap">{{ p.changed_at | sp_dt }}</td>
+          <td class="px-3 py-1.5">{{ p.reason }}</td>
+          <td class="px-3 py-1.5 text-right whitespace-nowrap">
+            <button type="button" data-ficha-open hx-get="/dashboard/pessoas/{{ p.id }}" hx-target="#modal-body" hx-swap="innerHTML"
+                    class="rounded-md border border-ink-200 bg-white px-2 py-0.5 text-[11px] font-medium text-ink-600 hover:bg-ink-100">Ver ficha</button>
+            <button type="button" hx-post="/dashboard/pessoas/{{ p.id }}/reativar" hx-swap="none"
+                    class="ml-1 rounded-md border border-mint-300 bg-mint-50 px-2 py-0.5 text-[11px] font-semibold text-mint-800 hover:bg-mint-100">Reativar</button>
+            <button type="button" hx-get="/dashboard/pessoas/{{ p.id }}/excluir" hx-target="#modal-body" hx-swap="innerHTML"
+                    class="ml-1 rounded-md border border-ink-200 bg-white px-2 py-0.5 text-[11px] font-medium text-ink-600 hover:bg-red-50 hover:text-red-700 hover:border-red-200">Excluir</button>
+          </td>
+        </tr>
+        {% else %}
+        {{ empty_row(7, ('Ninguém encontrado para “' ~ q ~ '”.') if q else empty_text) }}
+        {% endfor %}
+      </tbody>
+      {% endif %}
+    </table>
+  </div>
+  {% if page %}{{ pagination(page.page, page.pages, page.total, '/dashboard/pessoas', '#pessoas-resultado', qs or '') }}{% endif %}
+</div>

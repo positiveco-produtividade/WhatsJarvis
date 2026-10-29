@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{# Perguntas do assistente (PN-T58; PN-53, PN-43). Contexto: stats (questions, people), rows
+   (QuestionRow), window_days. So admin. Texto de pergunta e resposta sai escapado. #}
+{% block title %}Perguntas{% endblock %}
+{% block content %}
+<section id="perguntas-area">
+  <h1 class="text-3xl font-bold tracking-tight mb-1">Perguntas</h1>
+  <p class="text-sm text-ink-500 mb-4">O que a equipe perguntou ao Assistente Jarvis aqui no painel, com a resposta. Só admin.</p>
+  <div class="grid grid-cols-2 gap-3 mb-4 max-w-md">
+    <div class="bg-white rounded-2xl border border-ink-200 p-4"><div class="text-3xl font-bold" id="perg-total">{{ stats.questions }}</div><div class="text-xs text-ink-500">perguntas nos últimos {{ window_days }} dias</div></div>
+    <div class="bg-white rounded-2xl border border-ink-200 p-4"><div class="text-3xl font-bold" id="perg-pessoas">{{ stats.people }}</div><div class="text-xs text-ink-500">{% if stats.people == 1 %}pessoa perguntou{% else %}pessoas perguntaram{% endif %}</div></div>
+  </div>
+  <div class="bg-white rounded-2xl border border-ink-200 divide-y divide-ink-100 text-sm" id="pergList">
+    {% for r in rows %}
+    <article class="p-4">
+      <div class="flex justify-between text-xs text-ink-400"><span>{{ r.asked_by }} · {{ r.agent }}</span><span>{{ r.when }}</span></div>
+      <p class="font-medium mt-1 whitespace-pre-line">{{ r.question }}</p>
+      <p class="mt-1 whitespace-pre-line {% if r.failed %}text-red-700{% else %}text-ink-600{% endif %}">{{ r.answer }}{% if r.failed and r.error_code %} <span class="text-xs text-ink-400">({{ r.error_code }})</span>{% endif %}</p>
+    </article>
+    {% else %}
+    <div class="p-10 text-center text-ink-400">Nenhuma pergunta ao assistente ainda.</div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

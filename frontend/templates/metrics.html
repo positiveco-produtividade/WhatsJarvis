@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{# Metricas (PN-T47; PN-41, PN-43). Contexto: view (MetricsView), period_options, period_key,
+   metrics_path. O periodo troca #metrics-resultado via HTMX (KPIs + graficos); sem JS o
+   formulario envia por GET. Graficos: static/js/metrics-charts.js com Chart.js local. #}
+{% block title %}Métricas{% endblock %}
+{% block head %}<script defer src="{{ static_v('vendor/chart.min.js') }}"></script><script defer src="{{ static_v('js/metrics-charts.js') }}"></script>{% endblock %}
+{% block content %}
+<section>
+  <div class="mb-6 flex items-start justify-between gap-4 flex-wrap">
+    <div>
+      <h1 class="text-3xl font-bold tracking-tight">Métricas</h1>
+      <p class="text-sm text-ink-500 mt-1">Como o Jarvis está atendendo a equipe{% if view and view.brand_focus %} · {{ view.brand_focus }}{% endif %}</p>
+    </div>
+    <form method="get" action="{{ metrics_path or '/dashboard/metrics' }}" hx-get="{{ metrics_path or '/dashboard/metrics' }}"
+          hx-target="#metrics-resultado" hx-push-url="true" hx-trigger="change" class="flex items-center gap-2">
+      <label for="metrics-periodo" class="sr-only">Período</label>
+      <select id="metrics-periodo" name="periodo" class="border border-ink-300 rounded-lg px-3 py-2 text-sm bg-white">
+        {% for value, label in (period_options or []) %}<option value="{{ value }}" {% if period_key == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+      <noscript><button type="submit" class="rounded-lg border border-ink-300 bg-white px-3 py-2 text-sm">Aplicar</button></noscript>
+    </form>
+  </div>
+
+  <div id="metrics-resultado" aria-live="polite">
+    {% include "_metrics_charts.html" %}
+  </div>
+</section>
+{% endblock %}

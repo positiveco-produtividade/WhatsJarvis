@@ -1,0 +1,98 @@
+{
+  "task_id": "PAINEL-1",
+  "phase": "2-design",
+  "story_points": 34,
+  "size": "XL",
+  "rationale": "64 criterios de aceite ativos em 11 telas, sobre uma base que ainda nao existe (porta-fechada.1 tambem e greenfield). Inclui camada de autenticacao propria (sessao sobre IAM + CSRF), tabelas novas (FAQ, sessoes, lotes de importacao, perguntas do assistente), uma UI server-rendered inteira (Jinja + HTMX + Alpine CSP + Tailwind) portada de um prototipo em JS puro, pipelines de importacao com conferencia (FAQ e pessoas), LGPD (exportar, anonimizar, retencao), PDF, assistente com provedor LLM atras de interface e papel de banco somente leitura, e suites de seguranca/E2E/desempenho. Reaproveita bastante do AUTO-1 (IAM, CSRF por Origin, FAQ import, alertas, e-mail, deploy), mas o AUTO-1 e um monolito de 2.700 linhas por router e usa outro modelo de dados, entao o reaproveito e de padrao e nao de codigo. Atualizado em 2026-10-23: porta-fechada.1 aceitou R1-R4 e passou a ser dona de chat.tickets/ops.v_tickets (migration 005), flags e reply_policy; isso tirou ~4 h do marco P2 do painel e eliminou o plano B de tickets (+6 h). Deve ser quebrada em ~20 tarefas de 4-16 h na Fase 3 (ver 8.1); nao e implementavel como uma tarefa unica.",
+  "estimated_hours": { "min": 220, "max": 284, "expected": 246 },
+  "by_milestone_hours": {
+    "P0_casca": [14, 18], "P1_acesso": [14, 18], "P2_banco": [10, 14],
+    "P3_tickets_inbox_escalados": [32, 40], "P4_faq": [28, 34], "P5_pessoas": [30, 38],
+    "P6_controles_alertas": [16, 22], "P7_metricas_relatorios": [18, 24], "P8_assistente": [20, 26],
+    "P9_logs_auditoria_retencao": [12, 16], "P10_fechamento": [20, 28], "P11_deploy": [6, 10]
+  },
+  "change_log": [
+    "2026-10-23: R1-R4 aceitos por PF. Removidos da lista do painel: services/flags.py (MODIFY) e services/reply_policy.py (CREATE); migration 102 passa a so adicionar search_key e indices sobre chat.tickets (criada por PF 005); migration de tickets e plano B UNION removidos; Q-P9 e Q-P4 resolvidas; raise_alert(email=...) ja existe."
+  ],
+  "risk_count": 15,
+  "risk_factors": [
+    { "n": 1, "factor": "Dependencia de porta-fechada.1: o painel so e implementavel depois das migrations 001-005 de PF, dos servicos users/attempts/flags/reply_policy/alerts e de chat.tickets/ops.v_tickets. R1-R4 estao aceitos, mas PF ainda nao foi implementado e pode mudar nomes de colunas ou assinaturas.", "impact": "medium", "mitigation": "Painel le tickets so pela visao ops.v_tickets e escreve so por tickets_admin; contrato em PF 4.2.8 e 4.11; testes de integracao do painel rodam sobre as migrations reais de PF; revisar assinaturas apos a Fase 4 de PF." },
+    { "n": 2, "factor": "Painel e webhook no mesmo worker uvicorn: rota lenta ou bug de bloqueio do painel atrasa o webhook (SLA de 200 em <1 s).", "impact": "medium", "mitigation": "CPU (XLSX, PDF) em asyncio.to_thread; timeouts em toda E/S; teste de arquitetura (webhook nao importa panel; pausa e politica de resposta ficam em PF); PANEL_ENABLED; separacao em segundo processo PM2 e so configuracao (gatilho: p95 do webhook >1 s)." },
+    { "n": 3, "factor": "IAM: modelo de papeis, lista de hosts de destino (next) e dominio do cookie para jarvis.positiveco.com.br nao verificados; AUTO-1 mostra que um next com host nao permitido gerou loop de login em producao (2026-05-20).", "impact": "high", "mitigation": "Autoridade = lista de e-mails em configuracao; registrar o host no IAM antes do go-live (Q-P1); teste do redirecionamento com host permitido/negado; DEV_AUTH_EMAIL so fora de producao." },
+    { "n": 4, "factor": "Tickets de pergunta (bot) so existem com o modulo de resposta (fora de escopo); em producao as telas de Tickets, Metricas e Relatorios mostram so midia e estados vazios. Risco de percepcao no aceite.", "impact": "medium", "mitigation": "Aceite por fixtures e revisao visual com dados de demonstracao; contrato chat.tickets ja fixado por PF; Q-P10." },
+    { "n": 5, "factor": "Portar o prototipo (JS puro com innerHTML) para Jinja + HTMX + Alpine build CSP (sem expressoes inline) e esforco grande e fonte de divergencia visual.", "impact": "medium", "mitigation": "Extrair tailwind.config do prototipo; um JS por tela; teste de renderizacao proibe onclick inline; revisao visual tela a tela contra o prototipo; contingencia: partials mais estaticos e menos reatividade." },
+    { "n": 6, "factor": "Sem chave do Gemini (e Vertex x API key indefinido): o assistente so e testado com provedor falso; GeminiProvider por REST nao e validado ao vivo.", "impact": "medium", "mitigation": "Interface AssistantProvider; DisabledProvider e estado desligado entregues e testados; smoke do Gemini real vira tarefa de ativacao (Q-P6); o resto do painel nao depende dele." },
+    { "n": 7, "factor": "LGPD: exibir a 1a mensagem de desconhecido depende de parecer juridico; semantica da exclusao (Q7); respostas do assistente e importacoes podem conter nomes (PII fora das tabelas principais).", "impact": "high", "mitigation": "Chave de exibicao desligada por padrao e consulta unica testada por varredura; lote de importacao de pessoas apaga linhas ao terminar; exclusao com melhor esforco em assistant_questions e contagens auditadas; views do assistente sem corpo/telefone." },
+    { "n": 8, "factor": "Retencao e exclusao LGPD sao irreversiveis; ordem de FKs (tickets, outbound_messages, message_trace) pode falhar ou apagar demais.", "impact": "medium", "mitigation": "RETENTION_DRY_RUN=true na primeira semana; lotes de 5.000 com trava consultiva; testes de integracao com relogio injetavel e FKs reais; modal com digitacao do nome na exclusao; pg_dump antes do go-live." },
+    { "n": 9, "factor": "Busca de tickets por substring sem indice trigram (pg_trgm pode nao estar instalado no droplet): janela de 365 dias com ~200 mil+ tickets pode passar de 2 s (PN-59).", "impact": "medium", "mitigation": "search_key gerada com translate (sem extensao); janela padrao de 30 dias; teste de desempenho com semente sintetica; migration 107 opcional com GIN se pg_trgm existir (Q-P8); fallback: limitar busca de texto a 90 dias." },
+    { "n": 10, "factor": "Duas frentes (PF emendando, painel) tocando arquivos de PF (main.py, config.py) e recriando ops.v_tickets (CREATE OR REPLACE na migration 102).", "impact": "low", "mitigation": "Bloco de migrations 101-107 reservado e runner recusa prefixo duplicado; mudancas em arquivos de PF listadas em files_touched.modify e so aditivas; visao so ganha colunas no fim; ordenar PF antes do painel no go-live." },
+    { "n": 11, "factor": "Contencao de arquivos compartilhados em ondas paralelas (base.html, _macros.html, routes.py, values.py, config.py, main.py).", "impact": "medium", "mitigation": "P0/P1 donos desses arquivos; roteador, servicos e JS por tela; acrescimos serializados; ondas da skill sdd-waves com whitelist por tarefa." },
+    { "n": 12, "factor": "Cadeia de build do front: Tailwind exige Node na maquina de desenvolvimento (o servidor nao tem); vendor (htmx, Alpine CSP, Chart.js) passa a ser servido localmente e precisa ser baixado/verificado.", "impact": "low", "mitigation": "tailwind.css compilado e versionado; teste de CI que falha se build:css gerar diff; versoes e hashes dos vendors registrados no runbook; CSP sem CDN." },
+    { "n": 13, "factor": "Calibragem do monitor (volume_spike, error_rate, api_failure): limiares errados geram alertas e e-mails falsos (cada alerta novo envia e-mail).", "impact": "low", "mitigation": "Limiares em configuracao, dedup por dedup_key, minimos absolutos; revisar com dados reais do piloto; falsos positivos custam e-mail, nunca bloqueio." },
+    { "n": 14, "factor": "Ambiente de desenvolvimento sem Python/Postgres (mesma pendencia Q25 de PF) e novas dependencias (reportlab, openpyxl, playwright).", "impact": "medium", "mitigation": "Resolver Q25 de PF antes da Fase 4; CI com Postgres 16 e Playwright; fixar versoes; PDF isolado em report_pdf.py (trocavel por pagina de impressao, Q-P7)." },
+    { "n": 15, "factor": "Cronograma: incremento 5 (painel) planejado para 26/04 a 28/05/2027, ~5 semanas, para ~246 h alem de PF.", "impact": "medium", "mitigation": "Marcos P3-P7 paralelizaveis; P0-P2 (casca, acesso, banco) podem comecar assim que PF M1 estiver pronto; corte de escopo candidato: Relatorios/PDF e rotina de Retencao para uma segunda entrega." }
+  ],
+  "dependencies": {
+    "blocks_on": ["PORTA-FECHADA-1 (migrations 001-005 incl. chat.tickets e ops.v_tickets; servicos users/attempts/flags/reply_policy/alerts/deliveries/outbox; R1-R4 aceitos)"],
+    "blocks_on_notes": [
+      "Codigo e testes do painel dependem das migrations 001-005 de PF aplicadas no banco de teste.",
+      "Go-live depende do DNS/certificado/nginx de PF e do host registrado no IAM (Q-P1)."
+    ],
+    "blocks": ["PAINEL-2 (tela Dados, Nielsen e GMR)", "Modulo de resposta (usa FaqReader, chat.tickets, gate de marca de flags)"]
+  },
+  "parallelizable_with": [
+    "Fase 2/3 de porta-fechada.1 (emenda)",
+    "Validacao juridica da LGPD (Q16) e registro do host no IAM",
+    "Apos P0-P2: P3, P4, P5, P6, P7 em ondas paralelas (roteador, servicos e JS por tela)"
+  ],
+  "files_touched": {
+    "create": [
+      "backend/app/paths.py",
+      "backend/app/services/faq_reader.py",
+      "backend/app/panel/__init__.py",
+      "backend/app/panel/routes.py",
+      "backend/app/panel/deps.py",
+      "backend/app/panel/values.py",
+      "backend/app/panel/auth/{sessions,iam,csrf}.py",
+      "backend/app/panel/api/{system,tickets,inbox,escalados,faq,pessoas,metrics,alerts,relatorios,logs,assistant}.py",
+      "backend/app/panel/services/{scope,formatting,mask,tickets_read,tickets_admin,inbox_read,faq_admin,faq_validation,faq_import,people_read,people_import,import_batches,metrics_read,reports,report_pdf,lgpd,retention,audit_read,monitor,workers}.py",
+      "backend/app/panel/assistant/{provider,gemini,disabled,agents,tools,service,log}.py",
+      "backend/migrations/101_content_faq.sql",
+      "backend/migrations/102_tickets_panel.sql (so search_key, indices e CREATE OR REPLACE da visao)",
+      "backend/migrations/103_ops_panel.sql",
+      "backend/migrations/104_access_search.sql",
+      "backend/migrations/105_roles_assistant.sql",
+      "backend/migrations/107_trgm_optional.sql (condicional)",
+      "backend/tests/panel/{unit,integration,security}/*.py",
+      "frontend/templates/**/*.html (lista em spec 4.5)",
+      "frontend/static/css/{input,tailwind}.css",
+      "frontend/static/js/{base,tickets,inbox,escalados,faq,pessoas,metrics-charts,alerts,assistente}.js",
+      "frontend/static/vendor/{htmx,alpine-csp,chart}.min.js",
+      "frontend/static/img/bots/*.png",
+      "frontend/tailwind.config.js",
+      "frontend/package.json",
+      "frontend/e2e/*.spec.ts, playwright.config.ts"
+    ],
+    "modify": [
+      "backend/app/main.py (arquivo de PF; so monta app.panel e headers do painel; aditivo)",
+      "backend/app/config.py (arquivo de PF; variaveis de 4.11; aditivo)",
+      "backend/app/cli.py (arquivo de PF; comando faq seed; aditivo)",
+      "backend/requirements.txt (jinja2, python-multipart, openpyxl, reportlab)",
+      "backend/requirements-dev.txt (playwright)",
+      "backend/configuracao-modelo.txt (variaveis novas, sem valores)",
+      "deploy/nginx/jarvis.conf.template (blocos do painel, 8.3; mesclar na tarefa de deploy)",
+      "deploy/RUNBOOK.md",
+      "docs/architecture/overview.md (7 ADRs propostos em spec 9.1, so apos aprovacao e com ADR)",
+      "docs/stories/painel.1.md",
+      ".claude/CLAUDE.md (comandos de verificacao)",
+      "docs/STATE.md"
+    ],
+    "delete": [],
+    "owned_by_porta_fechada_not_touched": [
+      "backend/app/services/flags.py",
+      "backend/app/services/reply_policy.py",
+      "backend/app/services/tickets.py",
+      "backend/migrations/005_chat_tickets.sql (chat.tickets e ops.v_tickets)"
+    ]
+  }
+}

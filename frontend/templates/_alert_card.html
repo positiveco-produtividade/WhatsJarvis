@@ -1,0 +1,36 @@
+{# Cartao de alerta (PN-T42; PN-44). Contexto: a (AlertCard), filtro, alerts_path, tickets_path,
+   csrf_token. Texto sempre escapado (autoescape); detalhes recolhidos em <details>. #}
+{% from "_macros.html" import csrf_field %}
+<article id="alerta-{{ a.id }}" data-alert-id="{{ a.id }}" {% if a.highlight %}data-alert-focus tabindex="-1"{% endif %}
+         class="bg-white rounded-2xl border p-4 sm:p-5 {% if a.highlight %}ring-2 ring-mint-500 border-mint-500{% elif a.severity == 'critical' and not a.seen %}ring-2 ring-red-300 border-red-300{% else %}border-ink-200{% endif %}">
+  <div class="flex items-start justify-between gap-3 mb-2">
+    <div class="flex flex-wrap items-center gap-2 min-w-0">
+      <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset {{ a.severity_cls }}">{{ a.severity_label }}</span>
+      <span class="text-sm font-semibold">{{ a.label }}</span>
+      {% if a.auto_action %}<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-600 text-white">AUTO: {{ a.auto_action }}</span>{% endif %}
+      {% if a.seen %}<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-ink-100 text-ink-600">✓ visto</span>{% endif %}
+    </div>
+    <span class="text-xs text-ink-400 shrink-0">{{ a.when }}</span>
+  </div>
+  <p class="text-sm text-ink-800 mb-2">{{ a.message }}</p>
+  {% if a.details %}
+  <details class="text-xs text-ink-500">
+    <summary class="cursor-pointer hover:text-ink-700">Ver detalhes</summary>
+    <pre class="mt-2 bg-ink-50 rounded p-2 overflow-x-auto whitespace-pre-wrap break-all">{{ a.details }}</pre>
+  </details>
+  {% endif %}
+  <div class="flex items-center gap-2 mt-3">
+    {% if a.ticket_number %}
+    <button type="button" hx-get="{{ tickets_path }}/{{ a.ticket_number }}" hx-target="#drawer-body" hx-swap="innerHTML"
+            class="text-xs text-ink-600 hover:text-ink-900 hover:underline">Abrir {{ a.ticket_number }}</button>
+    {% endif %}
+    {% if not a.seen %}
+    <form class="ml-auto" method="post" action="{{ alerts_path }}/{{ a.id }}/ack"
+          hx-post="{{ alerts_path }}/{{ a.id }}/ack" hx-target="#alerts-area" hx-select="#alerts-area" hx-swap="outerHTML">
+      {{ csrf_field(csrf_token) }}
+      <input type="hidden" name="filtro" value="{{ filtro }}">
+      <button type="submit" class="text-xs text-ink-500 hover:text-ink-900 underline">Marcar como visto</button>
+    </form>
+    {% endif %}
+  </div>
+</article>

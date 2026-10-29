@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{# Escalados (PN-T23; PN-19..21, PN-63). Contexto: board, scope_all, team_group_on, urgency_options,
+   csrf_token, board_path, tickets_path, inbox_path. As acoes HTMX trocam so #escalados-board
+   (hx-select). Escalado nao e alerta: nada aqui envia e-mail. A frase do resumo das 08:05 so
+   aparece com a chave do grupo da equipe ligada. #}
+{% block title %}Escalados{% endblock %}
+{% block head %}<script defer src="{{ static_v('js/escalados.js') }}"></script><script defer src="{{ static_v('js/drawer.js') }}"></script>{% endblock %}
+{% block content %}
+{% set media_qs = '' if board.media_view else '?midias=1' %}
+<section id="escalados-board" hx-get="{{ board_path }}{{ '?midias=1' if board.media_view else '' }}" hx-trigger="ticketChanged from:body" hx-select="#escalados-board" hx-swap="outerHTML">
+  <div class="mb-5 flex items-end justify-between gap-4 flex-wrap">
+    <div>
+      <h1 class="text-3xl font-bold tracking-tight">Escalados</h1>
+      <p class="text-sm text-ink-500 mt-1">Tickets escalados para humano, agrupados pelo tipo da pergunta. Some daqui quando alguém responde{% if team_group_on %} — pelo grupo da equipe ou pelo inbox{% else %} — pelo inbox{% endif %}.</p>
+    </div>
+    <div class="flex items-center gap-3">
+      {% if team_group_on %}<p class="hidden sm:block text-xs text-ink-400 whitespace-nowrap">Resumo automático no grupo todo dia <strong class="text-ink-600">08:05</strong>.</p>{% endif %}
+      <a id="midia-btn" href="{{ board_path }}{{ media_qs }}" hx-get="{{ board_path }}{{ media_qs }}" hx-target="#escalados-board" hx-select="#escalados-board" hx-swap="outerHTML" hx-push-url="true"
+         class="cursor-pointer inline-flex items-center gap-1 text-[11px] font-semibold leading-none px-2 py-1 rounded-md whitespace-nowrap {% if board.media_view %}bg-ink-900 text-white hover:bg-ink-800{% else %}bg-white border border-ink-200 text-ink-700 hover:border-ink-300{% endif %}">
+        {%- if board.media_view %}🖼 Mídias ({{ board.media_count }}) ×{% else %}🖼 Mídias{% if board.media_count %} ({{ board.media_count }}){% endif %}{% endif -%}
+      </a>
+    </div>
+  </div>
+  <div class="-mx-6 px-6 pb-2 overflow-x-auto">
+    <div class="flex gap-3 items-stretch" id="kanban" style="min-height:60vh">
+      {% for col in board.columns %}{% include "_kanban_coluna.html" %}{% endfor %}
+    </div>
+  </div>
+  <p class="text-xs text-ink-400 mt-3 text-center">O ticket sai daqui assim que alguém responde. Para ver os já respondidos: <a href="{{ tickets_path }}" class="underline hover:text-ink-700">filtrar em Tickets</a>.</p>
+</section>
+{% endblock %}

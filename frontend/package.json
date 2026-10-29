@@ -1,0 +1,13 @@
+{
+  "name": "jarvis-painel-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pipeline Tailwind do painel. tailwind.css minificado e versionado: o servidor nao precisa de Node. Sem npm install, rode a partir de frontend/: <caminho-do-AUTO-1>/frontend/node_modules/.bin/tailwindcss -i ./static/css/input.css -o ./static/css/tailwind.css --minify (Tailwind 3.4.19).",
+  "scripts": {
+    "build:css": "tailwindcss -i ./static/css/input.css -o ./static/css/tailwind.css --minify",
+    "watch:css": "tailwindcss -i ./static/css/input.css -o ./static/css/tailwind.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "3.4.19"
+  }
+}

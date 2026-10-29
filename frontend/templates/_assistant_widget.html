@@ -1,0 +1,87 @@
+{# Assistente flutuante (PN-T57; PN-50, PN-51). Incluido por base.html ("ignore missing").
+   Copiado do prototipo docs/designs/painel-prototipo.html. Respostas sao renderizadas por
+   static/js/assistente.js com marked + DOMPurify (nada de |safe nem x-html).
+   Os scripts ficam depois do Alpine (base.html carrega o Alpine antes deste include): o JS
+   registra o componente "assistente" e inicia #assistente sozinho (Alpine.initTree). #}
+<div id="assistente" data-component="assistente"
+     data-disabled-text="O assistente será ativado quando a chave do Gemini for configurada"
+     data-bots-base="/static/img/bots/">
+  <button type="button" x-show="closed" @click="toggle" aria-label="Abrir assistente"
+          class="fixed bottom-6 right-6 z-40 bg-ink-900 hover:bg-ink-700 text-white rounded-full w-14 h-14 shadow-2xl flex items-center justify-center transition group">
+    <img src="{{ static_v('img/bots/rosto-positive.png') }}" alt="" title="Jarvis" width="52" height="52"
+         class="rounded-full group-hover:scale-110 transition"
+         style="width:52px;height:52px;object-fit:cover;object-position:50% 20%;image-rendering:pixelated;background:#fff">
+  </button>
+  <div x-show="open" style="display:none" role="dialog" aria-label="Assistente Jarvis" @keydown.escape="close"
+       :class="panelClass">
+    <div class="bg-ink-900 text-white px-4 py-3 flex items-center gap-3">
+      <img :src="headFace" src="{{ static_v('img/bots/rosto-positive.png') }}" alt="" width="36" height="36" aria-hidden="true"
+           class="inline-block shrink-0 rounded-full"
+           style="width:36px;height:36px;object-fit:cover;object-position:50% 20%;image-rendering:pixelated;background:#fff">
+      <div class="flex-1 min-w-0">
+        <div class="font-semibold text-sm truncate" x-text="headTitle">Jarvis</div>
+        <div class="text-xs text-ink-300 truncate" x-text="headSub">Jarvis · coordenador do time · todas as marcas</div>
+      </div>
+      <button type="button" @click="toggleExpand" aria-label="Expandir ou recolher o assistente" class="text-ink-300 hover:text-white p-1 rounded">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg></button>
+      <button type="button" x-show="hasMessages" style="display:none" @click="reset" title="Voltar ao início" aria-label="Limpar a conversa e voltar ao início" class="text-ink-300 hover:text-white p-1 rounded">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg></button>
+      <button type="button" @click="close" title="Fechar" aria-label="Fechar o assistente" class="text-ink-300 hover:text-white p-1">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div x-ref="scroller" class="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-ink-50">
+      <div x-show="isEmpty" class="text-center pt-0.5 pb-6">
+        <div class="flex flex-col items-center gap-1 mb-3" aria-label="Jarvis (coordenador), Duda, Léo, Nico, Rita e Tati">
+          <div class="flex justify-center"><img src="{{ static_v('img/bots/bot-positive.png') }}" alt="" title="Jarvis" style="height:80px;width:auto;image-rendering:pixelated;mix-blend-mode:multiply"></div>
+          <div class="flex items-end justify-center gap-1">
+            <img src="{{ static_v('img/bots/bot-jungle.png') }}" alt="" title="Duda · Jungle" style="height:64px;width:auto;image-rendering:pixelated;mix-blend-mode:multiply">
+            <img src="{{ static_v('img/bots/bot-plant.png') }}" alt="" title="Léo · Plant Power" style="height:64px;width:auto;image-rendering:pixelated;mix-blend-mode:multiply">
+            <img src="{{ static_v('img/bots/bot-possible.png') }}" alt="" title="Nico · Possible" style="height:64px;width:auto;image-rendering:pixelated;mix-blend-mode:multiply">
+            <img src="{{ static_v('img/bots/bot-atal.png') }}" alt="" title="Rita · A Tal da Castanha" style="height:64px;width:auto;image-rendering:pixelated;mix-blend-mode:multiply">
+            <img src="{{ static_v('img/bots/bot-zaya.png') }}" alt="" title="Tati · Zaya" style="height:64px;width:auto;image-rendering:pixelated;mix-blend-mode:multiply">
+          </div>
+        </div>
+        <p class="text-sm font-medium text-ink-700 mb-1">Olá! Como podemos ajudar?</p>
+        <p x-show="isDisabled" style="display:none" role="status" class="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4" x-text="notice"></p>
+        <p x-show="notDisabled" class="text-xs text-ink-500 mb-4">Algumas coisas que sabemos fazer:</p>
+        <div class="flex flex-wrap gap-2 justify-center">
+          {% for label, question in [
+            ("Ver escalados", "Quais tickets estão escalados aguardando a equipe agora?"),
+            ("Quem não aceitou", "Quais vendedores ainda não aceitaram o aviso de privacidade?"),
+            ("Métricas 7d", "Quantos tickets tivemos nos últimos 7 dias?"),
+            ("Pedidos de acesso", "Quantos números estão pedindo acesso?"),
+            ("Jarvis na semana", "Quanto o Jarvis resolveu sozinho nos últimos 7 dias, por marca?"),
+            ("Semana x anterior", "Compare esta semana com a semana passada, por marca."),
+            ("O que falta na FAQ", "Com base no que mais vai para a equipe, o que falta na FAQ?"),
+            ("Onde o Jarvis erra", "Onde o Jarvis mais erra ou escala?"),
+            ("Saúde do sistema", "Como está a saúde do sistema?"),
+          ] %}
+          <button type="button" data-chip data-question="{{ question }}" @click="chip" :disabled="chipsOff"
+                  class="bg-white border border-ink-200 hover:border-ink-900 disabled:opacity-40 disabled:cursor-not-allowed text-xs px-3 py-1.5 rounded-full transition">{{ label }}</button>
+          {% endfor %}
+        </div>
+      </div>
+      <div x-ref="list" class="space-y-3" aria-live="polite"></div>
+      <div x-show="loading" style="display:none" class="flex justify-start">
+        <div class="bg-white border border-ink-200 rounded-2xl px-3.5 py-2 text-sm text-ink-500 flex items-center gap-1.5" role="status" aria-label="Gerando resposta">
+          <span class="w-1.5 h-1.5 bg-ink-400 rounded-full motion-safe:animate-pulse"></span>
+          <span class="w-1.5 h-1.5 bg-ink-400 rounded-full motion-safe:animate-pulse" style="animation-delay:150ms"></span>
+          <span class="w-1.5 h-1.5 bg-ink-400 rounded-full motion-safe:animate-pulse" style="animation-delay:300ms"></span>
+        </div>
+      </div>
+    </div>
+    <form @submit.prevent="submit" class="border-t border-ink-200 bg-white p-3 flex items-center gap-2">
+      <label class="sr-only" for="assistente-pergunta">Pergunta para o assistente</label>
+      <input id="assistente-pergunta" x-ref="input" x-model="draft" type="text" autocomplete="off" maxlength="4000"
+             placeholder="Pergunte algo…" :disabled="inputOff"
+             class="flex-1 border border-ink-200 rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-ink-900 focus:border-ink-900 focus:outline-none disabled:bg-ink-100">
+      <button type="submit" :disabled="sendOff" aria-label="Enviar pergunta"
+              class="bg-ink-900 hover:bg-ink-700 disabled:opacity-40 text-white rounded-full w-9 h-9 flex items-center justify-center transition">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
+    </form>
+  </div>
+</div>
+{# src antes de defer de proposito: o teste da base conta so os <script defer src> do proprio base.html #}
+<script src="{{ static_v('vendor/marked.min.js') }}" defer></script>
+<script src="{{ static_v('vendor/purify.min.js') }}" defer></script>
+<script src="{{ static_v('js/assistente.js') }}" defer></script>

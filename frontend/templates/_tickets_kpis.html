@@ -1,0 +1,15 @@
+{# 5 KPIs de Tickets (PN-7). Contexto: kpis (KpiView, valores ja formatados). Sem kpis: "0"/"—" (PN-43). #}
+{% from "_macros.html" import kpi %}
+{% set days = kpis.days if kpis else 30 %}
+<div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+  {{ kpi(kpis.total if kpis else '0', 'Total (' ~ days ~ 'd)') }}
+  <a href="/dashboard/tickets?status=awaiting&amp;days={{ days }}" class="block bg-white rounded-2xl p-5 border border-red-300 hover:border-red-400 transition">
+    <div class="text-3xl font-bold tracking-tight text-red-600">{{ kpis.awaiting if kpis else '0' }}</div>
+    <div class="text-xs text-ink-500 mt-1">Aguardando resposta</div>
+    <div class="text-xs text-red-700 mt-1 font-medium">{{ kpis.awaiting_over_48h if kpis else '0' }} há mais de 48h</div>
+    <div class="text-xs text-ink-400 mt-0.5">+ {{ kpis.awaiting_media if kpis else '0' }} mídia sem texto</div>
+  </a>
+  {{ kpi(kpis.escalated if kpis else '0', 'Escalados no período', tone='ink') }}
+  {{ kpi(kpis.unclassified if kpis else '—', 'Sem classificação') }}
+  {{ kpi(kpis.bot_answers if kpis else '0', 'Respostas do bot', tone='mint', hint=(kpis.bot_share ~ ' dos tickets') if kpis and kpis.bot_share else '') }}
+</div>

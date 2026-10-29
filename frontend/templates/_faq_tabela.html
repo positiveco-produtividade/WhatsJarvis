@@ -1,0 +1,49 @@
+{# Resultado da FAQ: contagem + tabela + paginacao (PN-22, PN-43). E o fragmento devolvido ao
+   HTMX. Contexto: filters, page (FaqPage), active_count, focus_brand_label, qs, qs_page, qs_toggle, qs_clear, oob (pedido HTMX: troca tambem #faq-acoes).
+   Exporta a macro acoes(), usada por faq.html. #}
+{% from "_macros.html" import empty_row, pagination %}
+{% macro acoes(filters, qs_toggle, qs_clear, oob=false) %}
+<div id="faq-acoes" class="flex items-center gap-1" {% if oob %}hx-swap-oob="true"{% endif %}>
+  {% if filters and filters.inactive %}<input type="hidden" name="inativas" value="1">{% endif %}
+  {% if filters and filters.is_filtered %}
+  <a href="/dashboard/faq?{{ qs_clear }}" hx-get="/dashboard/faq?{{ qs_clear }}" hx-target="#faq-resultado" hx-push-url="true"
+     class="px-3 py-2 text-sm text-ink-500 hover:text-ink-900 whitespace-nowrap">Limpar</a>
+  {% endif %}
+  {% set toggle = qs_toggle or 'brand=todas&inativas=1' %}
+  {% if filters and filters.inactive %}
+  <a href="/dashboard/faq?{{ toggle }}" hx-get="/dashboard/faq?{{ toggle }}" hx-target="#faq-resultado" hx-push-url="true"
+     class="px-3 py-2 text-sm whitespace-nowrap font-medium text-ink-900 hover:underline">← voltar para as ativas</a>
+  {% else %}
+  <a href="/dashboard/faq?{{ toggle }}" hx-get="/dashboard/faq?{{ toggle }}" hx-target="#faq-resultado" hx-push-url="true"
+     class="px-3 py-2 text-sm whitespace-nowrap text-ink-500 hover:text-ink-900">Desativadas</a>
+  {% endif %}
+</div>
+{% endmacro %}
+{% set inactive = filters.inactive if filters else false %}
+{% if oob %}{{ acoes(filters, qs_toggle, qs_clear, true) }}{% endif %}
+<div hx-get="/dashboard/faq?{{ qs_page or 'brand=todas' }}" hx-trigger="faqChanged from:body" hx-target="#faq-resultado" hidden></div>
+<p class="text-sm text-ink-500 mb-3">
+  {% set n = active_count or 0 %}{{ n }} {{ 'item ativo' if n == 1 else 'itens ativos' }} na FAQ
+  {% if focus_brand_label %}<strong>{{ focus_brand_label }}</strong>{% endif %}
+  {% if inactive %}· <span class="font-medium text-ink-700">mostrando as desativadas</span>{% endif %}
+</p>
+<div class="bg-white rounded-2xl border border-ink-200 overflow-x-auto">
+  <table class="w-full text-sm min-w-[800px]">
+    <thead class="bg-ink-50 text-ink-500 text-xs uppercase tracking-wide"><tr>
+      <th scope="col" class="px-4 py-2 text-left font-medium w-12">#</th>
+      <th scope="col" class="px-4 py-2 text-left font-medium w-40">Categoria</th>
+      <th scope="col" class="px-4 py-2 text-left font-medium">Pergunta</th>
+      <th scope="col" class="px-4 py-2 text-left font-medium">Resposta</th>
+      <th scope="col" class="px-4 py-2 text-left font-medium w-28">Atualizado</th>
+      <th scope="col" class="px-4 py-2 text-right font-medium w-24">Ações</th>
+    </tr></thead>
+    <tbody>
+      {% for item in (page.rows if page else []) %}
+      {% include "_faq_linha.html" %}
+      {% else %}
+      {{ empty_row(6, ('Nenhum item encontrado para os filtros aplicados.' if filters and filters.is_filtered else ('Nenhuma linha desativada.' if inactive else 'Nenhum item ativo na base de FAQ.'))) }}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if page %}{{ pagination(page.page, page.pages, page.total, '/dashboard/faq', '#faq-resultado', qs or '') }}{% endif %}

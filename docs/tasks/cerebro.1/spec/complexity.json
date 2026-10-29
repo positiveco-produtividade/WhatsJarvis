@@ -1,0 +1,154 @@
+{
+  "task_id": "CEREBRO-1",
+  "phase": "3-tasks",
+  "story_points": 21,
+  "size": "L",
+  "rationale": "29 criterios de aceite sobre um fluxo que ja tem ponto de extensao pronto (AnswerProvider, outbox, tickets, FaqReader, alertas). O trabalho novo e: um pacote de cerebro (fonte de conhecimento, recuperacao, prompt, cliente Gemini, verificador de fidelidade, memoria, custo), tratamento de avaliacao no pipeline, tres kinds de saida com botoes, duas migrations, KPI no painel e a bateria de testes e avaliacao. Nao ha dependencia nova nem tela nova. Menor que painel.1 (XL, 246 h) porque reutiliza a infraestrutura; maior que uma tarefa unica porque mistura IA, LGPD, custo, pipeline transacional e painel. Fase 3 (2026-10-28): quebrada em 35 tarefas de 1-4 h (106,5 h de tarefas; a estimativa total de ~140 h inclui ~25% de reserva para revisao, retrabalho e calibragem do gate).",
+  "estimated_hours": { "min": 110, "max": 180, "expected": 140 },
+  "task_breakdown": {
+    "source": "docs/tasks/cerebro.1/task.md",
+    "total_tasks": 35,
+    "total_waves": 10,
+    "task_hours": 106.5,
+    "task_hours_without_manual": 104.5,
+    "critical_path_hours": 31.5,
+    "critical_path": ["T02", "T10", "T16", "T22", "T23", "T28", "T30", "T32", "T34"],
+    "waves": {
+      "W1": ["T01", "T02", "T03", "T04", "T05"],
+      "W2": ["T06", "T08", "T09", "T10", "T11"],
+      "W3": ["T07", "T12", "T13", "T14", "T15"],
+      "W4": ["T16", "T17", "T18", "T19", "T20"],
+      "W5": ["T21", "T22", "T24", "T26"],
+      "W6": ["T23", "T25"],
+      "W7": ["T28"],
+      "W8": ["T29", "T30", "T31"],
+      "W9": ["T32", "T33"],
+      "W10": ["T34", "T35 (manual, opcional)"]
+    },
+    "design_changes": [
+      "Novo modulo brain/assembly.py (montagem de partes, assinatura e fonte sai de provider.py)",
+      "Novo modulo services/question_tickets.py (insercao de ticket de pergunta compartilhada por effects.py e ratings.py; evita editar services/tickets.py de PF)",
+      "Migration 201 descobre o CHECK de kind pelo catalogo (pg_constraint) em vez de presumir o nome padrao",
+      "provider.py dividido em duas tarefas em ondas diferentes (palavras, depois IA)",
+      "main.py tocado em duas tarefas em ondas diferentes (AppProcessor._answer por causa da tupla; instalacao do provedor)",
+      "tests/brain/factories.py e conftest.py como infra de teste (T02)"
+    ]
+  },
+  "by_component_hours": {
+    "fonte_e_recuperacao (source, faq_source, matching port do piloto)": [14, 20],
+    "intents_e_guardas (saudacao, injection, temas bloqueados, preco/calculo, classificacao e urgencia)": [10, 14],
+    "gemini_llm_prompt_redacao": [12, 18],
+    "verificador_de_fidelidade": [8, 12],
+    "memoria_de_conversa": [6, 9],
+    "custo_teto_alertas": [8, 12],
+    "orquestrador_BrainProvider_e_efeitos (tickets, runs)": [12, 18],
+    "answering_outbox_values_migration_201 (varias partes, botoes, kinds)": [10, 14],
+    "avaliacao_pipeline_ratings_migration_202_ticket_down": [10, 14],
+    "painel_KPI_alerta_inbox (pequeno)": [4, 6],
+    "avaliacao_offline_gate (conjunto, runner, modos palavras/ia)": [12, 18],
+    "testes_integracao_seguranca_arquitetura": [14, 20],
+    "documentacao_e_fechamento": [3, 5]
+  },
+  "risk_count": 10,
+  "risk_factors": [
+    { "n": 1, "factor": "Fidelidade da IA: reescrita pode introduzir fato, numero ou preco que nao esta na fonte; o gate exige 100% em preco.", "impact": "high", "mitigation": "Verificador deterministico (numeros e valores R$ do texto devem existir nos itens citados); modo 'verbatim' por configuracao; gate offline em dois modos (palavras e ia); preco com valor ausente na fonte nunca passa pela IA." },
+    { "n": 2, "factor": "Premissas de API externa nao verificadas (JSON mode do Gemini, nome e preco do modelo, emoji e limites de botao da Meta).", "impact": "medium", "mitigation": "Tarefa T01 (primeira da Fase 4) verifica na documentacao oficial; T35 confere no numero de teste real; plano B de JSON por prompt." },
+    { "n": 3, "factor": "Pipeline e transacional e critico (segue 'acesso antes de tudo'); mexer em _on_active e em answering pode quebrar garantias de PF (zero custo, idempotencia, 60/h).", "impact": "high", "mitigation": "Mudancas aditivas e localizadas em tarefas proprias (T12, T25); suites existentes (test_zero_cost, test_pipeline_*, test_answering, test_rate_limit) rodam em cada uma; novos testes de regressao para toque de botao nao contar no limite." },
+    { "n": 4, "factor": "Privacidade: pergunta do vendedor e historico vao ao Gemini (fora do Brasil, pendencia LGPD D12); pergunta pode conter nome ou telefone de terceiros.", "impact": "high", "mitigation": "Payload sem identificacao do vendedor (T31 intercepta o HTTP); mascara de telefone/e-mail/CPF (T07); historico limitado a 2-3 trocas e excluido na anonimizacao (T14, T33); D12 segue como pendencia de go-live." },
+    { "n": 5, "factor": "Custo: teto de US$ 100/mes depende de tabela de preco que o repo nao tem; erro na estimativa libera ou corta cedo demais.", "impact": "medium", "mitigation": "Precos em configuracao (obrigatorios para ligar a IA, T03) com fonte registrada em T01; tokens reais por chamada; alerta a 80%; queda para palavras ao atingir 100% (T15); revisar contra a fatura no primeiro mes." },
+    { "n": 6, "factor": "Latencia p95 <= 8 s com Gemini no caminho (rede + modelo) alem de varias partes de resposta enviadas em serie (sem limite de partes, D9 revisto em 2026-10-28).", "impact": "medium", "mitigation": "Resposta direta sem IA quando a nota e muito alta; timeout de 5 s no Gemini com queda para palavras; uma unica chamada ao Gemini por mensagem; teste de latencia (T33) e medicao no piloto; respostas muito longas viram mais partes, nunca cortadas." },
+    { "n": 7, "factor": "Contencao de arquivos compartilhados em ondas paralelas (answering.py, outbox.py, values.py, config.py, main.py, pipeline.py, provider.py).", "impact": "medium", "mitigation": "Um dono por arquivo por onda, verificado no mapa de ondas do task.md; infraestrutura (values, config, outbox, answering, migrations) antes do pacote brain." },
+    { "n": 8, "factor": "Indice unico de ticket de pergunta por trace pode falhar em bancos com dados de teste/desenvolvimento ja existentes.", "impact": "low", "mitigation": "Indice parcial (kind='question' e trace_id nao nulo); migration testada sobre o schema real (T10); limpar dado de teste se acusar duplicata." },
+    { "n": 9, "factor": "Rotina de retencao apaga tickets/traces: FKs novas poderiam bloquear a purga.", "impact": "medium", "mitigation": "ON DELETE CASCADE nas tabelas novas; T10 e T33 rodam a purga real com linhas de brain_runs e answer_ratings." },
+    { "n": 10, "factor": "Toques de avaliacao inflam 'mensagens por dia' e 'usuarios ativos' das Metricas e aparecem no Inbox.", "impact": "low", "mitigation": "Rotulo '[avaliacao]' no Inbox (T20); aceitar a inflacao leve no piloto e filtrar por access_decision se incomodar (registrado)." }
+  ],
+  "dependencies": {
+    "blocks_on": ["PORTA-FECHADA-1 (pipeline, outbox, chat.tickets, flags, alerts: entregue)", "PAINEL-1 (FaqReader, Metricas, FAQ: entregue)"],
+    "blocks_on_notes": [
+      "T01 verifica a API do Gemini (JSON mode, modelo, preco) e os limites de botao da Meta antes de codificar o cliente e os botoes (T11, T13).",
+      "Chave do Gemini no .env so e necessaria para T35 (manual); em producao, D12 (Vertex x API direta, LGPD) e D7 (licenca Nielsen) resolvidos antes do go-live."
+    ],
+    "blocks": ["Historia futura: banco de dados de conhecimento (implementa KnowledgeSource)", "Historia futura: classificacao interna por item (D5)", "Historia futura: promover o pedido de acesso a uma classificacao propria"]
+  },
+  "parallelizable_with": [
+    "Verificacao de documentacao (T01) e escrita dos casos de avaliacao (T24)",
+    "Apos a fundacao (T02-T04, T11, T12): matching, fidelidade, redacao, llm, memoria e custo em tarefas paralelas com arquivos disjuntos"
+  ],
+  "files_touched": {
+    "create": [
+      "backend/app/services/brain/__init__.py",
+      "backend/app/services/brain/source.py",
+      "backend/app/services/brain/faq_source.py",
+      "backend/app/services/brain/matching.py",
+      "backend/app/services/brain/intents.py",
+      "backend/app/services/brain/redaction.py",
+      "backend/app/services/brain/prompt.py",
+      "backend/app/services/brain/llm.py",
+      "backend/app/services/brain/fidelity.py",
+      "backend/app/services/brain/memory.py",
+      "backend/app/services/brain/meter.py",
+      "backend/app/services/brain/assembly.py",
+      "backend/app/services/brain/provider.py",
+      "backend/app/services/brain/effects.py",
+      "backend/app/services/brain/eval.py",
+      "backend/app/services/ratings.py",
+      "backend/app/services/question_tickets.py",
+      "backend/migrations/201_brain_outbound.sql",
+      "backend/migrations/202_brain_runs_ratings.sql",
+      "backend/tests/brain/{__init__,conftest,factories}.py",
+      "backend/tests/brain/unit/ (matching, intents, redaction, fidelity, prompt, llm, assembly, config_brain, source_contract, eval_cases_schema, eval_runner)",
+      "backend/tests/brain/integration/ (migration_201, migration_202, outbox_brain, answering_effects, faq_source, memory, meter, question_tickets, ratings, effects, pipeline_rating, provider_palavras, provider_ia, kpi_uteis, panel_labels, brain_wiring, e2e_flow, lgpd_retention, latency_trace)",
+      "backend/tests/brain/security/ (architecture, payload_privacy, injection_corpus, zero_cost_brain)",
+      "backend/tests/brain/eval/cases/*.jsonl e README.md (sem dado licenciado)",
+      "docs/tasks/cerebro.1/spec/verificacao-externa.md",
+      "docs/tasks/cerebro.1/spec/ac-test-map.md",
+      "docs/tasks/cerebro.1/gate-ia-relatorio.md (T35, manual)"
+    ],
+    "modify": [
+      "backend/app/services/answering.py",
+      "backend/app/services/pipeline.py",
+      "backend/app/services/outbox.py",
+      "backend/app/core/values.py",
+      "backend/app/config.py",
+      "backend/configuracao-modelo.txt",
+      "backend/app/main.py",
+      "backend/app/panel/services/metrics_read.py",
+      "backend/app/panel/api/metrics.py",
+      "backend/app/panel/api/alerts.py",
+      "backend/app/panel/services/inbox_read.py",
+      "backend/tests/integration/test_answering.py",
+      "backend/tests/unit/test_values.py",
+      "backend/tests/integration/test_outbox_dispatch.py (se necessario)",
+      "backend/tests/integration/test_pipeline_core.py (se necessario)",
+      "backend/tests/integration/test_app_e2e.py (se necessario)",
+      "docs/STATE.md (T34)",
+      ".claude/CLAUDE.md (T34, so a linha de verificacao do gate)"
+    ],
+    "do_not_touch": [
+      "docs/prd.md", "docs/architecture/", "backend/app/panel/services/retention.py", "backend/app/panel/values.py (CLASSIFICATIONS)", "backend/app/panel/services/faq_validation.py", "backend/app/services/reply_policy.py", "backend/app/services/access.py (tabela 4.4.2)", "backend/app/services/tickets.py"
+    ],
+    "counts": { "create_source_files": 17, "create_migrations": 2, "create_test_groups": 4, "modify_files": 11, "modify_tests": 5, "docs": 5 }
+  },
+  "migrations": [
+    { "id": "201_brain_outbound.sql", "does": "Amplia o CHECK de kind de chat.outbound_messages (brain_answer, brain_answer_rate, brain_notice), achando o CHECK atual pelo catalogo, e acrescenta reply_buttons jsonb." },
+    { "id": "202_brain_runs_ratings.sql", "does": "Cria chat.brain_runs (rastro/custo por mensagem) e chat.answer_ratings (avaliacao unica por ticket) com ON DELETE CASCADE; indice unico parcial de ticket de pergunta por trace." }
+  ],
+  "actual": {
+    "closed_on": "2026-10-28",
+    "tasks_done": "T01..T34 (T35 manual, pendente)",
+    "remediations": ["R01 pausado sem busca nem Gemini", "R02 busca: protein palavra inteira, sinonimos, stopword antes do plural", "R03 partes sem botao saem como brain_answer"],
+    "hours_note": "Horas reais nao foram cronometradas por tarefa (execucao em ondas de agentes); o escopo coube nas 34 tarefas planejadas mais 3 remediacoes e 2 ajustes de fechamento (caso piloto-3 e fabrica de teste). Nenhum arquivo novo fora da whitelist alem de brain/assembly.py e services/question_tickets.py, ja previstos em design_changes.",
+    "gate_offline": "eval --mode palavras: 245 casos, 227 avaliados, factual 99,1% (minimo 98%), preco 20/20, APROVADO",
+    "no_new_dependencies": true,
+    "pending": ["T35 gate com IA real e teste no numero de teste", "D12 LGPD/Vertex", "D7 licenca Nielsen"]
+  },
+  "new_dependencies": [],
+  "new_dependencies_note": "Nenhuma. httpx, asyncpg, pydantic-settings ja estao no projeto (usados por painel/gemini.py e config.py). Sem SDK do Gemini, sem lib de NLP/embeddings.",
+  "new_settings": [
+    "BRAIN_ENABLED", "BRAIN_MONTHLY_BUDGET_USD=100", "BRAIN_BUDGET_ALERT_PCT=0.8", "BRAIN_GEMINI_TIMEOUT_SECONDS=5",
+    "BRAIN_MATCH_THRESHOLD=0.55", "BRAIN_CANDIDATE_FLOOR=0.30", "BRAIN_DIRECT_THRESHOLD=0.85", "BRAIN_CANDIDATES_K=8",
+    "BRAIN_CONTEXT_EXCHANGES=3", "BRAIN_CONTEXT_MINUTES=30", "BRAIN_ANSWER_MODE=grounded|verbatim",
+    "BRAIN_PRICE_IN_PER_MTOK_USD", "BRAIN_PRICE_OUT_PER_MTOK_USD",
+    "TEXT_BRAIN_NO_ANSWER, TEXT_BRAIN_ACCESS_REQUEST, TEXT_BRAIN_REFUSAL, TEXT_BRAIN_GREETING, TEXT_BRAIN_ASK_BRAND, TEXT_BRAIN_RATING_THANKS"
+  ]
+}

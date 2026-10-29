@@ -1,0 +1,26 @@
+{# Importar CSV de pessoas - modal (PN-T38; PN-40). Fragmento para #modal-body. Contexto: csrf_token,
+   error, error_link, template_url, action, max_rows, header. Envio multipart pelo HTMX; sucesso
+   responde HX-Redirect para a conferencia, arquivo recusado volta este mesmo formulario. #}
+{% from "_macros.html" import csrf_field, modal_head %}
+{{ modal_head('Importar CSV de pessoas') }}
+<form method="post" action="{{ action }}" enctype="multipart/form-data"
+      hx-post="{{ action }}" hx-encoding="multipart/form-data" hx-target="#modal-body" hx-swap="innerHTML"
+      hx-disabled-elt="find button" class="px-4 py-3 space-y-3" data-pessoas-import-form>
+  {{ csrf_field(csrf_token) }}
+  <p class="text-xs text-ink-600">Cadastra várias pessoas de uma vez. Antes de gravar aparece uma tela de conferência, como a da FAQ. Quem já está cadastrado fica de fora.</p>
+  {% if error %}
+  <div role="alert" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">{{ error }}{% if error_link %} <a href="{{ template_url }}" class="underline font-medium">Baixar o modelo</a>{% endif %}</div>
+  {% endif %}
+  <label for="ip-file" class="block text-xs font-medium text-ink-600">Arquivo (.csv)</label>
+  <input id="ip-file" name="file" type="file" accept=".csv" class="block w-full text-sm text-ink-700 file:mr-3 file:rounded-lg file:border-0 file:bg-ink-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-ink-700 hover:file:bg-ink-200">
+  <p class="-mt-2 text-xs text-ink-400">Até {{ max_rows or 500 }} pessoas e 2 MB, em UTF-8.</p>
+  <div class="rounded-lg bg-ink-50 px-3 py-2 text-xs text-ink-600">
+    <p>A primeira linha precisa ter as colunas: {% for col in (header or []) %}<strong>{{ col }}</strong>{{ ', ' if not loop.last }}{% endfor %}.</p>
+    <p class="mt-1">Em <strong>ufs</strong>, <strong>canais</strong> e <strong>marcas</strong> separe vários valores com <strong>|</strong> ou <strong>;</strong>.</p>
+    <p class="mt-1"><a href="{{ template_url }}" class="font-medium text-ink-800 underline hover:text-ink-900">Baixar o modelo</a></p>
+  </div>
+  <div class="flex items-center gap-2 pt-1">
+    <button type="submit" class="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-ink-800">Conferir antes de gravar</button>
+    <button type="button" data-overlay-close class="rounded-lg border border-ink-300 bg-white px-3 py-1.5 text-xs font-medium text-ink-700 hover:bg-ink-50">Cancelar</button>
+  </div>
+</form>

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{# Alertas (PN-T42; PN-44, PN-43, PN-5). Contexto: alerts (lista de AlertCard), unseen, filtro,
+   filters, alerts_path, tickets_path, control_path, csrf_token. So alertas de sistema e
+   seguranca; escalado e numero desconhecido nao sao alertas. Pausa e marcas (botao, aviso e
+   lista) chegam por HTMX de control_path (router de controles) e se recarregam sozinhos em
+   "controlsChanged"; esta pagina tambem se recarrega nesse evento (o controle gera um alerta). #}
+{% block title %}Alertas{% endblock %}
+{% block head %}<script defer src="{{ static_v('js/alerts.js') }}"></script><script defer src="{{ static_v('js/drawer.js') }}"></script>{% endblock %}
+{% block content %}
+<section id="alerts-area" hx-get="{{ alerts_path }}?filtro={{ filtro }}" hx-trigger="controlsChanged from:body" hx-select="#alerts-area" hx-swap="outerHTML">
+  <div class="mb-6">
+    <h1 class="text-3xl font-bold tracking-tight">Alertas do sistema</h1>
+    <p class="text-sm text-ink-500 mt-1">Monitor automático rodando a cada 10 minutos · você recebe e-mail a cada alerta · <span class="text-ink-400">grupo da equipe no WhatsApp: desligado por enquanto</span><br><span class="text-xs text-ink-400">Tickets escalados ficam em Escalados; números desconhecidos, em Pessoas autorizadas → Pedindo acesso.</span></p>
+  </div>
+  <div id="control-painel" hx-get="{{ control_path }}" hx-trigger="load" hx-swap="innerHTML" hx-select="unset"></div>
+  <nav class="flex flex-wrap gap-2 mb-3 text-sm" aria-label="Filtrar alertas">
+    {% for key, label in filters %}
+    <a href="{{ alerts_path }}?filtro={{ key }}" hx-get="{{ alerts_path }}?filtro={{ key }}" hx-target="#alerts-area" hx-select="#alerts-area" hx-swap="outerHTML" hx-push-url="true"
+       {% if key == filtro %}aria-current="true"{% endif %}
+       class="rounded-full px-3 py-1 border {% if key == filtro %}bg-ink-900 text-white border-ink-900{% else %}bg-white border-ink-300{% endif %}">{{ label }}{% if key == 'nao_vistos' %} ({{ unseen }}){% endif %}</a>
+    {% endfor %}
+  </nav>
+  <div class="space-y-3" aria-live="polite" id="alertList">
+    {% for a in alerts %}{% include "_alert_card.html" %}
+    {% else %}
+    <div class="bg-white rounded-2xl border border-ink-200 p-10 text-center text-ink-400">🎉 Nenhum alerta. Sistema saudável.</div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,24 @@
+{# Faixa de estado (spec 4.5): pausa e alertas nao vistos. Atualiza sozinha a cada 30 s
+   por GET /dashboard/estado (o proprio fragmento volta com hx-swap="outerHTML").
+   Contexto: estado = {paused: bool, unseen_alerts: int} (opcional). #}
+<div id="estado-banner" hx-get="/dashboard/estado" hx-trigger="every 30s" hx-swap="outerHTML">
+  {% if estado and estado.paused %}
+  <div role="status" class="bg-red-600 text-white">
+    <div class="px-6 py-2.5 flex items-center justify-between gap-3 text-sm">
+      <div class="flex items-center gap-2 min-w-0">
+        <span aria-hidden="true">🛑</span>
+        <span class="font-semibold truncate">Jarvis pausado</span>
+        <span class="hidden sm:inline text-red-100">— ele não está respondendo as perguntas dos vendedores.</span>
+      </div>
+      <a href="/dashboard/alerts" class="bg-white text-red-700 px-3 py-1 rounded-md text-xs font-semibold whitespace-nowrap hover:bg-red-50 transition">Ver controles →</a>
+    </div>
+  </div>
+  {% endif %}
+  {% if estado and estado.unseen_alerts %}
+  <div class="bg-amber-100 text-amber-900">
+    <div class="px-6 py-1.5 text-xs">
+      <a href="/dashboard/alerts?filtro=nao_vistos" class="font-medium hover:underline">🔔 {{ estado.unseen_alerts }} alerta{{ 's' if estado.unseen_alerts != 1 else '' }} não visto{{ 's' if estado.unseen_alerts != 1 else '' }} →</a>
+    </div>
+  </div>
+  {% endif %}
+</div>

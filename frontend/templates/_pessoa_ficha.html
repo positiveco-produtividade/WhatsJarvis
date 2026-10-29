@@ -1,0 +1,56 @@
+{# Ficha da pessoa (PN-T35; PN-34, PN-39). Fragmento para #modal-body. Unico lugar com o telefone
+   completo. Contexto: person (dict da ficha), csrf_token. O bloco LGPD (exportar/excluir) vem do
+   parcial _pessoa_lgpd.html (T40), incluido com "ignore missing". #}
+{% from "_macros.html" import modal_head %}
+{% if person %}
+{{ modal_head('Ficha', person.name) }}
+<div class="px-4 py-4 space-y-4" data-ficha-body>
+  <div class="flex items-center gap-2 flex-wrap">
+    <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full {{ 'bg-mint-100 text-mint-700' if person.status == 'active' else ('bg-amber-100 text-amber-800' if person.status == 'pending_optin' else 'bg-ink-100 text-ink-600') }}">{{ person.status_text }}</span>
+    {% if person.is_self %}<span class="text-xs text-ink-400">você</span>{% endif %}
+  </div>
+
+  <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+    <div><dt class="text-xs text-ink-400">Nome</dt><dd class="font-medium">{{ person.name }}</dd></div>
+    <div><dt class="text-xs text-ink-400">Telefone</dt><dd class="font-mono text-xs">{{ person.phone }}</dd></div>
+    <div><dt class="text-xs text-ink-400">Perfil</dt><dd>{{ person.profile }}</dd></div>
+    <div><dt class="text-xs text-ink-400">Empresa</dt><dd>{{ person.company }}</dd></div>
+    <div><dt class="text-xs text-ink-400">UFs</dt><dd>{{ person.ufs }}</dd></div>
+    <div><dt class="text-xs text-ink-400">Canais</dt><dd>{{ person.channels }}</dd></div>
+    <div class="col-span-2"><dt class="text-xs text-ink-400">Marcas</dt><dd>{{ person.brands }}</dd></div>
+    <div><dt class="text-xs text-ink-400">Gestor responsável</dt><dd>{{ person.manager }}</dd></div>
+    <div><dt class="text-xs text-ink-400">Cadastrada em</dt><dd>{{ person.created_at | sp_dt }} <span class="text-xs text-ink-400">por {{ person.created_by }}</span></dd></div>
+  </dl>
+
+  <div class="rounded-lg border border-ink-200 bg-ink-50 px-3 py-2 text-xs text-ink-700 space-y-1">
+    <p class="font-semibold text-ink-800">Aviso de privacidade</p>
+    {% if person.accepted_at %}
+    <p>Aceito em {{ person.accepted_at | sp_dt }}{% if person.notice_version %} · versão {{ person.notice_version }}{% endif %}</p>
+    {% else %}
+    <p>Ainda sem aceite. O acesso só libera depois do <strong>Aceito</strong>.</p>
+    {% endif %}
+    {% if person.revoked_at %}
+    <p>Retirada em {{ person.revoked_at | sp_dt }}{% if person.revoked_by %} por {{ person.revoked_by }}{% endif %}{% if person.revoked_reason %} · motivo: {{ person.revoked_reason }}{% endif %}</p>
+    {% endif %}
+  </div>
+
+  <div class="flex items-center gap-2 flex-wrap pt-1">
+    {% if person.can_revoke %}
+    <button type="button" hx-get="/dashboard/pessoas/{{ person.id }}/revogar" hx-target="#modal-body" hx-swap="innerHTML"
+            class="rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs font-medium text-ink-600 hover:bg-red-50 hover:text-red-700 hover:border-red-200">Revogar acesso</button>
+    {% endif %}
+    {% if person.can_reactivate %}
+    <button type="button" hx-post="/dashboard/pessoas/{{ person.id }}/reativar" hx-swap="none" hx-disabled-elt="this"
+            class="rounded-lg border border-mint-300 bg-mint-50 px-3 py-1.5 text-xs font-semibold text-mint-800 hover:bg-mint-100">Reativar</button>
+    {% endif %}
+    {% if person.can_resend %}
+    <button type="button" hx-post="/dashboard/pessoas/{{ person.id }}/reenviar" hx-swap="none" hx-disabled-elt="this"
+            class="rounded-lg border border-ink-300 bg-white px-3 py-1.5 text-xs font-medium text-ink-700 hover:bg-ink-50">Reenviar aviso</button>
+    {% endif %}
+    <button type="button" data-overlay-close class="rounded-lg border border-ink-300 bg-white px-3 py-1.5 text-xs font-medium text-ink-700 hover:bg-ink-50">Fechar</button>
+  </div>
+
+  {% include "_pessoa_lgpd.html" ignore missing %}
+</div>
+<script src="{{ static_v('js/pessoa_ficha.js') }}"></script>
+{% endif %}

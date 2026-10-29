@@ -1,0 +1,23 @@
+# MODELO (sem senhas). Crie o arquivo piloto/.env com este conteúdo e preencha.
+# O .env NUNCA vai para o git. Não mande esses valores por chat.
+# Onde achar: developers.facebook.com → app Jarvis → WhatsApp → Configuração da API
+
+# Token de acesso (botão "Gerar token de acesso"). O temporário vence em 24 h.
+WHATSAPP_TOKEN=
+
+# App Jarvis → Configurações do app → Básico → "Chave secreta do aplicativo" (clique em Mostrar)
+APP_SECRET=
+
+# "Identificação do número de telefone" do número de teste (+1 555 670 8419)
+PHONE_NUMBER_ID=
+
+# Uma senha qualquer que você inventa; a mesma vai no campo "Verificar token" da Meta
+VERIFY_TOKEN=
+
+# Seu celular com DDI e DDD, só números (ex.: 5585999999999). Vários: separe por vírgula
+ALLOWED_NUMBERS=
+
+# Opcionais
+PORT=8787
+GRAPH_VERSION=v25.0
+LIMIAR=0.55

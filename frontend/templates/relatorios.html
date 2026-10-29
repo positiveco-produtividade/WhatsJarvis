@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{# Relatorios (PN-T50; PN-42, PN-43). Contexto: top_rows, objection_rows, unanswered_rows
+   (ReportRow), period_options, period_key, month_options, month_key, relatorios_path, pdf_path.
+   "Criar na FAQ" abre o modal pelo numero do ticket (nunca o texto na URL). #}
+{% from "_macros.html" import empty_box, brand_chip %}
+{% block title %}Relatórios{% endblock %}
+{% macro question_list(rows, empty_text, with_faq=False) %}
+  {% if rows %}
+  <ol class="text-sm space-y-2 list-decimal pl-5">
+    {% for r in rows %}
+    <li>
+      <div class="flex items-start justify-between gap-3">
+        <span class="min-w-0 break-words">{{ r.text }}</span>
+        <span class="shrink-0 flex items-center gap-2">
+          {{ brand_chip(r.brand) }}
+          <span class="text-xs text-ink-500">{{ r.count_label }}</span>
+          {% if with_faq and r.faq_url %}
+          <button type="button" hx-get="{{ r.faq_url }}" hx-target="#modal-body" hx-swap="innerHTML"
+                  class="text-xs underline text-ink-700 hover:text-ink-900">Criar na FAQ</button>
+          {% endif %}
+        </span>
+      </div>
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  {{ empty_box(empty_text) }}
+  {% endif %}
+{% endmacro %}
+{% block content %}
+<section>
+  <div class="mb-6 flex items-start justify-between gap-4 flex-wrap">
+    <div>
+      <h1 class="text-3xl font-bold tracking-tight">Relatórios</h1>
+      <p class="text-sm text-ink-500 mt-1">Leitura do campo: o que os vendedores perguntam e onde a base precisa melhorar.</p>
+    </div>
+    <form method="get" action="{{ relatorios_path or '/dashboard/relatorios' }}" hx-get="{{ relatorios_path or '/dashboard/relatorios' }}"
+          hx-target="#relatorios-resultado" hx-select="#relatorios-resultado" hx-push-url="true" hx-trigger="change"
+          class="flex items-center gap-2">
+      <label for="relatorios-periodo" class="sr-only">Período</label>
+      <select id="relatorios-periodo" name="periodo" class="border border-ink-300 rounded-lg px-3 py-2 text-sm bg-white">
+        {% for value, label in (period_options or []) %}<option value="{{ value }}" {% if period_key == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+      <noscript><button type="submit" class="rounded-lg border border-ink-300 bg-white px-3 py-2 text-sm">Aplicar</button></noscript>
+    </form>
+  </div>
+
+  <div id="relatorios-resultado" aria-live="polite">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div class="bg-white rounded-2xl border border-ink-200 p-4">
+        <h2 class="font-semibold mb-3">Perguntas mais frequentes</h2>
+        {{ question_list(top_rows, 'Nenhuma pergunta neste período.') }}
+      </div>
+      <div class="bg-white rounded-2xl border border-ink-200 p-4">
+        <h2 class="font-semibold mb-3">Objeções mais citadas</h2>
+        {{ question_list(objection_rows, 'Nenhuma objeção neste período.') }}
+      </div>
+      <div class="bg-white rounded-2xl border border-ink-200 p-4 lg:col-span-2">
+        <h2 class="font-semibold mb-3">Perguntas sem resposta na base (viram pendência na FAQ)</h2>
+        {{ question_list(unanswered_rows, 'Nenhuma pergunta sem resposta. A base cobriu tudo o que foi perguntado.', True) }}
+      </div>
+    </div>
+  </div>
+
+  <form method="get" action="{{ pdf_path or '/dashboard/relatorios/mensal.pdf' }}" class="mt-4 flex items-center gap-2 flex-wrap">
+    <label for="relatorios-mes" class="sr-only">Mês do relatório</label>
+    <select id="relatorios-mes" name="mes" class="border border-ink-300 rounded-lg px-3 py-2 text-sm bg-white">
+      {% for value, label in (month_options or []) %}<option value="{{ value }}" {% if month_key == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="border border-ink-300 bg-white rounded-lg px-3 py-2 text-sm hover:bg-ink-50">Baixar relatório do mês (PDF)</button>
+  </form>
+</section>
+{% endblock %}

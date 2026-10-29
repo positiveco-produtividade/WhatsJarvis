@@ -1,0 +1,32 @@
+{# Importar planilha da FAQ - modal (PN-T30; PN-27, PN-28). Fragmento para #modal-body; layout e textos
+   vem do prototipo. Contexto: csrf_token, brand_options, selected_brand, error, error_link,
+   template_url, action, max_rows. Envio multipart pelo HTMX; sucesso responde HX-Redirect
+   para a conferencia, arquivo recusado volta este mesmo formulario com a mensagem. #}
+{% from "_macros.html" import csrf_field, modal_head %}
+{{ modal_head('Importar planilha') }}
+<form method="post" action="{{ action }}" enctype="multipart/form-data"
+      hx-post="{{ action }}" hx-encoding="multipart/form-data" hx-target="#modal-body" hx-swap="innerHTML"
+      hx-disabled-elt="find button" class="px-4 py-3 space-y-3" data-faq-import-form>
+  {{ csrf_field(csrf_token) }}
+  <p class="text-xs text-ink-600">Cadastra várias perguntas de uma vez. A planilha só <strong>acrescenta</strong>: não edita nem apaga o que já está na FAQ.</p>
+  {% if error %}
+  <div role="alert" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">{{ error }}{% if error_link %} <a href="{{ template_url }}" class="underline font-medium">Baixar a planilha modelo</a>{% endif %}</div>
+  {% endif %}
+  <label for="im-brand" class="block text-xs font-medium text-ink-600">Marca</label>
+  <select id="im-brand" name="brand" class="w-full rounded-lg border border-ink-300 px-2 py-1 text-sm">
+    {% for value, label in (brand_options or []) %}<option value="{{ value }}"{% if selected_brand == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  <p class="-mt-2 text-xs text-ink-400">Todas as linhas da planilha entram nesta marca.</p>
+  <label for="im-file" class="block text-xs font-medium text-ink-600">Planilha (.xlsx ou .csv)</label>
+  <input id="im-file" name="file" type="file" accept=".xlsx,.csv" class="block w-full text-sm text-ink-700 file:mr-3 file:rounded-lg file:border-0 file:bg-ink-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-ink-700 hover:file:bg-ink-200">
+  <p class="-mt-2 text-xs text-ink-400">Até {{ max_rows or 200 }} perguntas e 2 MB.</p>
+  <div class="rounded-lg bg-ink-50 px-3 py-2 text-xs text-ink-600">
+    <p>A planilha precisa das colunas <strong>pergunta</strong> e <strong>resposta</strong>. Pode ter também <strong>categoria</strong> (ou <strong>assunto</strong>) e <strong>bot responde</strong> (sim ou não). Linha sem resposta vai para a equipe.</p>
+    <p class="mt-1">A categoria de cada linha pode ser ajustada na próxima tela, antes de gravar.</p>
+    <p class="mt-1"><a href="{{ template_url }}" class="font-medium text-ink-800 underline hover:text-ink-900">Baixar a planilha modelo</a></p>
+  </div>
+  <div class="flex items-center gap-2 pt-1">
+    <button type="submit" class="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-ink-800">Conferir antes de gravar</button>
+    <button type="button" data-overlay-close class="rounded-lg border border-ink-300 bg-white px-3 py-1.5 text-xs font-medium text-ink-700 hover:bg-ink-50">Cancelar</button>
+  </div>
+</form>

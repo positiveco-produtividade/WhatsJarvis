@@ -1,0 +1,78 @@
+{# Chat do Inbox (PN-T22; PN-12, PN-13, PN-14, PN-43). Fragmento injetado em #chat-pane.
+   SEM caixa de resposta: o painel so mostra a conversa e registra a conclusao. Contexto: chat
+   (Chat: header, entries, recent_tickets, awaiting_ticket_numbers), recent (RecentView),
+   escalated (selo ou vazio), team_group (chave do grupo), notice {kind, text}, csrf_token. #}
+{% from "_macros.html" import csrf_field, empty_box %}
+{% if not chat %}
+<div class="flex-1 grid place-items-center text-sm text-ink-400">{{ notice.text if notice and notice.text else 'Selecione uma conversa para ver o chat.' }}</div>
+{% else %}
+{% set h = chat.header %}
+<div class="bg-white border-b border-ink-200 px-4 sm:px-6 py-3 flex items-center gap-3 shrink-0">
+  <div class="w-10 h-10 rounded-full bg-gradient-to-br from-lavender-200 to-sky-200 text-ink-700 flex items-center justify-center font-bold text-sm shrink-0" aria-hidden="true">{{ h.initial }}</div>
+  <div class="flex-1 min-w-0">
+    <div class="text-sm font-semibold truncate flex items-center gap-2"><span class="truncate">{{ h.name }}</span>
+      <span class="shrink-0 text-[10px] font-medium px-2 py-0.5 rounded-full bg-ink-100 text-ink-600">{{ profile_name }}{% if h.ufs %} · {{ h.ufs | join(', ') }}{% endif %}</span></div>
+    <div class="text-xs text-ink-500 flex flex-wrap items-center gap-2 mt-0.5"><span>{{ h.message_count }} msgs</span><span>{{ h.phone_masked }}</span><span class="text-ink-400">Última: {{ h.last_at | sp_dt }}</span></div>
+  </div>
+  <a href="/dashboard/pessoas/{{ h.user_id }}" class="hidden lg:block text-xs text-ink-500 hover:text-ink-900 hover:underline shrink-0">Perfil completo →</a>
+</div>
+
+<div class="bg-ink-50 border-b border-ink-200 px-4 sm:px-6 py-2.5 shrink-0 flex flex-wrap items-center gap-x-5 gap-y-1.5">
+  <span class="text-[10px] uppercase tracking-[0.08em] text-ink-400 font-medium">Responder em</span>
+  {% if team_group %}
+  <span class="inline-flex items-baseline gap-1 text-xs text-ink-700" data-team-group="on">Grupo da equipe (WhatsApp)</span>
+  {% else %}
+  <span class="inline-flex items-baseline gap-1 text-xs text-ink-400" data-team-group="off" aria-disabled="true" title="A chave do grupo da equipe está desligada">Grupo da equipe desativado</span>
+  {% endif %}
+  {% if escalated %}
+  <span class="inline-flex items-center gap-1.5 bg-sky-50 border border-sky-200 text-sky-500 text-[11px] font-semibold px-2.5 py-1 rounded-lg"><span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>{{ escalated.classification_name }} {{ escalated.number }} escalado</span>
+  {% endif %}
+  {% if chat.awaiting_ticket_numbers %}
+  <form method="post" action="/dashboard/inbox/{{ h.user_id }}/concluir" hx-post="/dashboard/inbox/{{ h.user_id }}/concluir" hx-target="#chat-pane" hx-swap="innerHTML" hx-disabled-elt="find button" class="ml-auto">
+    {{ csrf_field(csrf_token) }}
+    {% if escalated %}<input type="hidden" name="ticket" value="{{ escalated.number }}">{% endif %}
+    <button type="submit" class="inline-flex items-center gap-1.5 bg-mint-500 hover:bg-mint-600 text-white text-[11px] font-semibold px-3 py-1 rounded-lg">✓ Marcar como concluído</button>
+  </form>
+  {% endif %}
+</div>
+
+{% if notice and notice.text %}
+{% set tone = {'ok': 'border-mint-200 bg-mint-50 text-mint-900', 'aviso': 'border-amber-200 bg-amber-50 text-amber-900', 'erro': 'border-red-200 bg-red-50 text-red-800'}.get(notice.kind, 'border-mint-200 bg-mint-50 text-mint-900') %}
+<div role="{{ 'alert' if notice.kind == 'erro' else 'status' }}" class="mx-4 sm:mx-6 mt-3 rounded-lg border px-4 py-2 text-sm shrink-0 {{ tone }}">{{ notice.text }}</div>
+{% endif %}
+
+<div data-chat-scroll class="flex-1 overflow-y-auto px-3 sm:px-6 py-5 space-y-2 bg-ink-50" role="log" aria-label="Mensagens da conversa">
+  {% for e in chat.entries %}
+  {% if e.new_day %}
+  <div class="flex justify-center py-2"><span class="text-[11px] font-medium text-ink-500 bg-white border border-ink-200 rounded-full px-3 py-0.5">{{ e.day }}</span></div>
+  {% endif %}
+  <div class="flex flex-col {{ 'items-start' if e.role == 'seller' else 'items-end' }}" data-role="{{ e.role }}">
+    <div class="max-w-[78%] rounded-2xl px-4 py-2 text-sm leading-relaxed whitespace-pre-line {{ 'bg-white border border-ink-200 text-ink-800 rounded-bl-sm' if e.role == 'seller' else 'bg-mint-200 text-ink-800 rounded-br-sm' }}">
+      {%- if e.body -%}{{ e.body }}{%- elif e.role == 'human' -%}Ticket concluído por {{ e.kind or 'equipe' }}. Nenhuma mensagem foi enviada.{%- else -%}…{%- endif -%}
+    </div>
+    <span class="text-[10px] leading-none mt-1 px-1 whitespace-nowrap text-ink-400" title="{{ e.at | sp_dt }}">
+      {%- if e.role == 'seller' -%}{{ e.time }}
+      {%- else -%}<span class="{{ 'text-mint-700' if e.role == 'bot' else 'text-ink-500 font-semibold' }}">{{ e.author }}</span> · {{ e.time }}{% if e.responded_in %} · <span title="Tempo desde a pergunta do vendedor">respondeu em {{ e.responded_in }}</span>{% endif %}
+      {%- endif -%}
+    </span>
+  </div>
+  {% else %}
+  {{ empty_box('Ainda não há mensagens nesta conversa.') }}
+  {% endfor %}
+</div>
+
+<div class="bg-white border-t border-ink-200 px-3 sm:px-6 py-3 max-h-44 overflow-y-auto shrink-0">
+  <div class="text-[10px] uppercase tracking-wide text-ink-400 font-semibold mb-2">Tickets recentes</div>
+  <div class="flex flex-wrap gap-1.5">
+    {% for t in recent %}
+    <button type="button" hx-get="/dashboard/tickets/{{ t.number }}" hx-target="#drawer-body" hx-swap="innerHTML" class="text-xs px-2 py-1 rounded-md border border-ink-200 bg-ink-50 hover:bg-ink-100 flex items-center gap-1.5">
+      <span class="font-mono font-medium">{{ t.number }}</span><span class="text-ink-400">·</span><span class="text-[10px] text-ink-600">{{ t.classification_name }}</span>
+      {% if t.badge %}<span class="text-ink-400">·</span><span class="text-[10px] px-1.5 py-0.5 rounded-full font-semibold {{ {'mint': 'bg-mint-100 text-mint-700', 'red': 'bg-red-100 text-red-700'}.get(t.badge_tone, 'bg-amber-100 text-amber-700') }}">{{ t.badge }}</span>{% endif %}
+    </button>
+    {% else %}
+    <span class="text-xs text-ink-400">Nenhum ticket ainda.</span>
+    {% endfor %}
+  </div>
+</div>
+<script src="{{ static_v('js/inbox_chat.js') }}"></script>
+{% endif %}

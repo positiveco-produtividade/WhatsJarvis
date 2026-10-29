@@ -1,0 +1,79 @@
+{# Aba Retencao de Logs (PN-T62; PN-58). Fragmento carregado por HTMX; so leitura e sem dado pessoal.
+   Contexto: volumes (RetentionVolumes), dry_run, months_kept, last_run (LastRun | None). #}
+{% from "_macros.html" import empty_row %}
+<div id="logs-retencao" aria-live="polite">
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+    <div class="bg-white rounded-2xl border border-ink-200 p-4">
+      <p class="text-xs uppercase tracking-wide text-ink-500">Rotina</p>
+      {% if dry_run %}
+      <p class="text-sm font-medium text-amber-700 mt-1">Em simulação (dry-run): só conta, nada é apagado.</p>
+      {% else %}
+      <p class="text-sm font-medium text-ink-900 mt-1">Ativa: apaga o que passa de {{ months_kept }} meses.</p>
+      {% endif %}
+      <p class="text-xs text-ink-500 mt-2">Roda todo dia às 02:30 (horário de Brasília).</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-ink-200 p-4">
+      <p class="text-xs uppercase tracking-wide text-ink-500">Última execução</p>
+      {% if last_run %}
+      <p class="text-sm font-medium text-ink-900 mt-1">{{ last_run.at | sp_dt }}</p>
+      <p class="text-xs text-ink-500 mt-2">{% if last_run.dry_run %}Simulação: {{ last_run.total }} registros seriam apagados{% else %}{{ last_run.total }} registros apagados{% endif %}{% if last_run.cutoff %} (anteriores a {{ last_run.cutoff }}){% endif %}.</p>
+      {% else %}
+      <p class="text-sm text-ink-500 mt-1">A rotina ainda não rodou.</p>
+      {% endif %}
+    </div>
+    <div class="bg-white rounded-2xl border border-ink-200 p-4">
+      <p class="text-xs uppercase tracking-wide text-ink-500">Expira nos próximos {{ volumes.expiring_days }} dias</p>
+      <ul class="text-sm text-ink-900 mt-1 space-y-0.5">
+        <li>{{ volumes.expiring_messages }} mensagens</li>
+        <li>{{ volumes.expiring_tickets }} tickets</li>
+        <li>{{ volumes.expiring_replies }} respostas enviadas</li>
+      </ul>
+    </div>
+  </div>
+  <div class="bg-white rounded-2xl border border-ink-200 p-3 mb-4">
+    <h2 class="text-sm font-medium text-ink-900 px-2 pb-2">Volume por mês</h2>
+    <div class="bg-white rounded-xl overflow-x-auto">
+      <table class="w-full text-sm min-w-[480px]">
+        <thead class="bg-ink-50 text-ink-500 text-xs uppercase tracking-wide"><tr>
+          <th scope="col" class="px-4 py-2 text-left font-medium">Mês</th>
+          <th scope="col" class="px-4 py-2 text-right font-medium">Mensagens</th>
+          <th scope="col" class="px-4 py-2 text-right font-medium">Tickets</th>
+          <th scope="col" class="px-4 py-2 text-right font-medium">Respostas</th>
+        </tr></thead>
+        <tbody>
+          {% for m in (volumes.months if volumes else []) %}
+          <tr class="border-t border-ink-100">
+            <td class="px-4 py-2.5 text-ink-700">{{ '%02d/%d' | format(m.month.month, m.month.year) }}</td>
+            <td class="px-4 py-2.5 text-right">{{ m.messages }}</td>
+            <td class="px-4 py-2.5 text-right">{{ m.tickets }}</td>
+            <td class="px-4 py-2.5 text-right">{{ m.replies }}</td>
+          </tr>
+          {% else %}
+          {{ empty_row(4, 'Nenhum registro dentro do período de retenção.') }}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% if last_run and last_run.rows %}
+  <div class="bg-white rounded-2xl border border-ink-200 p-3">
+    <h2 class="text-sm font-medium text-ink-900 px-2 pb-2">Última execução, por tabela</h2>
+    <div class="bg-white rounded-xl overflow-x-auto">
+      <table class="w-full text-sm min-w-[360px]">
+        <thead class="bg-ink-50 text-ink-500 text-xs uppercase tracking-wide"><tr>
+          <th scope="col" class="px-4 py-2 text-left font-medium">Tabela</th>
+          <th scope="col" class="px-4 py-2 text-right font-medium">{% if last_run.dry_run %}Seriam apagados{% else %}Apagados{% endif %}</th>
+        </tr></thead>
+        <tbody>
+          {% for label, n in last_run.rows %}
+          <tr class="border-t border-ink-100">
+            <td class="px-4 py-2.5 text-ink-700">{{ label }}</td>
+            <td class="px-4 py-2.5 text-right">{{ n }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>

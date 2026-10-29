@@ -1,0 +1,297 @@
+{
+  "task_id": "PORTA-FECHADA-1",
+  "phase": "2-design",
+  "date": "2026-10-23",
+  "exploration_summary": "Lidos: PRD (incl. Decision Log), architecture/overview.md (ADR 2026-10-20 e 2026-10-19), STATE.md, epico/historia, spec e requirements aprovados (Fase 1), spec e requirements do painel.1 (consome o modelo de dados que esta tarefa possui), piloto Node (piloto/server.js e spec) e o codigo de referencia do AUTO-1 (backend/app: main, config, api/webhook, db/connection, services/{rate_limit,notifications,waha,monitor}, core/{security,log_redaction,errors,retry}, migrations 001/004, deploy/ecosystem.config.js, docs de arquitetura, fluxo tecnico, specs de banco proprio e de alertas por e-mail). Nenhum arquivo .env foi lido. O AUTO-1 oferece quase tudo que a camada HTTP, config, log, alertas, e-mail, WAHA e deploy precisam; o que NAO existe la e precisa ser desenhado do zero: identidade por telefone/BSUID, maquina de estados de opt-in, historico de aceite, limite de 60/h em janela deslizante no Postgres, tentativas de acesso, ticket escalado, outbox de envios, auditoria imutavel e CLI administrativo. Tres armadilhas do AUTO-1 foram identificadas e corrigidas no desenho: (1) hmac.compare_digest com str nao-ASCII levanta TypeError (500) no webhook; (2) INSERT ... WHERE NOT EXISTS com parametro reutilizado exige cast explicito (AmbiguousParameterError, licao de 11/09/2026); (3) rate limit em memoria nao vale com mais de 1 worker, e o limite de 60/h tem que viver no Postgres.",
+  "existing_patterns": [
+    {
+      "pattern": "App FastAPI com lifespan, pool asyncpg, TrustedHost, headers de seguranca, /health, exception handlers sem vazar traceback",
+      "location": "agente-instagram-direct-n8n/backend/app/main.py; app/db/connection.py",
+      "applies_to_this_task": true,
+      "notes": "Copiar a estrutura (lifespan inicia/para tarefas de fundo e fecha clientes HTTP; pool min 2/max 10, command_timeout 30). Remover Jinja/StaticFiles/IAM (painel e incremento 5). allowed_hosts = jarvis.positiveco.com.br, localhost, 127.0.0.1."
+    },
+    {
+      "pattern": "Webhook Meta: GET de verificacao com compare_digest, POST com limite de 64 KB, HMAC SHA-256 sobre bytes brutos, descarte por recipient diferente, BackgroundTasks para o trabalho pesado",
+      "location": "agente-instagram-direct-n8n/backend/app/api/webhook.py",
+      "applies_to_this_task": true,
+      "notes": "Adotar o desenho e corrigir: comparar BYTES (str nao-ASCII no header derruba compare_digest com TypeError -> 500); checar tamanho ANTES da assinatura (AC-4) lendo o corpo em stream com teto; filtro por phone_number_id no lugar do IBA; persistir ANTES de agendar o trabalho de rede (AUTO-1 enfileira tudo em BackgroundTasks e perde a mensagem se o processo morre)."
+    },
+    {
+      "pattern": "Settings com pydantic-settings, SecretStr, validadores fail-fast (allow-list SSRF para base URLs, WAHA exige chave), extra=ignore, env_file=.env",
+      "location": "agente-instagram-direct-n8n/backend/app/config.py",
+      "applies_to_this_task": true,
+      "notes": "Copiar o padrao (nao os campos de marca/Instagram/Claude/Gemini). Segredos como SecretStr; ALERT_RECIPIENT_EMAIL tambem SecretStr e SEM default (o AUTO-1 tem endereco como default no codigo; aqui e proibido, AC-37). Validar WHATSAPP_API_BASE contra allow-list (graph.facebook.com)."
+    },
+    {
+      "pattern": "Filtro de log que mascara credenciais por formato e por valor exato (varre todo SecretStr do Settings)",
+      "location": "agente-instagram-direct-n8n/backend/app/core/log_redaction.py",
+      "applies_to_this_task": true,
+      "notes": "Reusar como esta e acrescentar padroes de telefone (E.164 e wa_id brasileiro) e e-mail como defesa em profundidade. Como o e-mail do Caio e SecretStr, e registrado pelo install() e mascarado onde aparecer."
+    },
+    {
+      "pattern": "Rate limit HTTP em memoria, janela deslizante, chave por IP real (X-Real-IP do nginx; nunca X-Forwarded-For)",
+      "location": "agente-instagram-direct-n8n/backend/app/services/rate_limit.py",
+      "applies_to_this_task": true,
+      "notes": "Reusar so para a borda HTTP (webhook 600/60 s por IP, ajustado de 60 porque a Meta entrega em rajadas). NAO serve para o limite de 60 msg/h por usuario: aquele precisa ser no Postgres (resiste a restart e a mais de um worker) - mesma conclusao do disjuntor de entrega do AUTO-1."
+    },
+    {
+      "pattern": "Tabela alerts (severity/kind/message/payload/ticket_number/acknowledged_*) e dedup por INSERT ... SELECT ... WHERE NOT EXISTS (janela) RETURNING id",
+      "location": "agente-instagram-direct-n8n/backend/migrations/004_monitoring.sql; app/services/notifications.py (_alarm_group_deduped)",
+      "applies_to_this_task": true,
+      "notes": "Espelhar as colunas (o painel copia as telas do AUTO-1). Dedup sob lock consultivo por dedup_key. Licao registrada no proprio codigo: parametro usado em INSERT e em WHERE precisa de cast (::varchar) senao o asyncpg levanta AmbiguousParameterError - o alarme ficou 53 dias quebrado sem ninguem ver. Teste de integracao obrigatorio contra Postgres real."
+    },
+    {
+      "pattern": "Envio de e-mail via Resend (httpx.AsyncClient singleton, timeout 15 s, retorna bool, nunca levanta para o chamador)",
+      "location": "agente-instagram-direct-n8n/backend/app/services/notifications.py (_send_email, send_alert_email)",
+      "applies_to_this_task": true,
+      "notes": "Copiar _send_email. Nao copiar os botoes assinados de pausar/ack (pausa e do painel) nem o destinatario default em codigo. O AUTO-1 envia o alerta dentro do monitor; aqui o envio sai de uma fila (ops.deliveries) para ter retentativa e nao bloquear o webhook (AC-37)."
+    },
+    {
+      "pattern": "Cliente WAHA: sendText, SendResult(ok, msg_id) com 201 de corpo vazio tratado como sucesso, nunca levanta",
+      "location": "agente-instagram-direct-n8n/backend/app/services/waha.py",
+      "applies_to_this_task": true,
+      "notes": "Copiar como esta. Destinatario unico: TEAM_GROUP_CHAT_ID. Chamado SOMENTE se a chave do grupo estiver ligada. A licao do SendResult (log mentindo sobre entrega) vale: 2xx sem corpo e sucesso."
+    },
+    {
+      "pattern": "with_retry so para leituras idempotentes; envios que mudam estado (DM, WhatsApp, e-mail) NUNCA entram em retry automatico generico",
+      "location": "agente-instagram-direct-n8n/backend/app/core/retry.py (docstring)",
+      "applies_to_this_task": true,
+      "notes": "Regra herdada: respostas ao usuario sao at-most-once; so ha nova tentativa quando a requisicao comprovadamente nao saiu (ConnectError/ConnectTimeout) ou a Meta respondeu 429/503, no maximo 2 tentativas. E-mail e grupo podem ter retentativa com backoff (duplicata e tolerada)."
+    },
+    {
+      "pattern": "Migrations em SQL numerado (NNN_nome.sql), IF NOT EXISTS, aplicadas manualmente com psql no deploy, imutaveis depois de aplicadas",
+      "location": "agente-instagram-direct-n8n/backend/migrations/*.sql; .claude/commands/deploy.md; docs/architecture/overview.md (ADR-012)",
+      "applies_to_this_task": true,
+      "notes": "Manter SQL numerado e aplicacao humana (servidor compartilhado), mas com runner minimo que grava versao+checksum e recusa migration alterada. Contradiz a linha 'alembic' do overview.md secao 5 (texto de template) - registrado como ADR."
+    },
+    {
+      "pattern": "Deploy non-git: rsync do codigo para /opt/<app>, PM2 com uvicorn (venv), logs em /var/log/<app>, restart + health check",
+      "location": "agente-instagram-direct-n8n/deploy/ecosystem.config.js; .claude/commands/deploy.md",
+      "applies_to_this_task": true,
+      "notes": "Replicar com nome jarvis, /opt/jarvis, porta propria, --workers 1 (o AUTO-1 usa 2 workers com rate limiter em memoria, contradizendo o proprio ADR-003). Porta e confirmada no servidor antes de usar."
+    },
+    {
+      "pattern": "IAM corporativo (cookie iam_session, whoami com cache 30 s e circuit breaker) e require_superadmin",
+      "location": "agente-instagram-direct-n8n/backend/app/core/security.py; app/services/iam.py",
+      "applies_to_this_task": false,
+      "notes": "Nao entra aqui: nao ha UI nem rota administrativa HTTP (cadastro e por CLI via SSH). Fica para painel.1."
+    },
+    {
+      "pattern": "Transacoes atomicas em escritas compostas, com HTTP externo FORA da transacao",
+      "location": "agente-instagram-direct-n8n/docs/architecture/overview.md (Q7 resolvida)",
+      "applies_to_this_task": true,
+      "notes": "Generalizado aqui: decisao de acesso + rastro + tentativa + alerta + ticket + linhas de envio numa unica transacao; toda chamada externa depois do commit via outbox. Vira ADR."
+    },
+    {
+      "pattern": "Monitor com alertas que viravam e-mail em lote porque o e-mail por evento gerou ruido (41 e-mails em 30 dias)",
+      "location": "agente-instagram-direct-n8n/docs/specs/alertas-email-e-bot-parado.md",
+      "applies_to_this_task": false,
+      "notes": "Licao, nao padrao: aqui a decisao do Caio e e-mail imediato por alerta. O ruido e contido porque so ha 4 tipos de alerta, todos raros e com dedup (limite 1/h por usuario, conflito 1/dia, falha de boas-vindas 1/h por usuario, falha de envio 1/h global). Agrupamento fica como pergunta futura (painel Q17)."
+    },
+    {
+      "pattern": "Piloto Node: wa_id sem 9o digito vs numero cadastrado com 9; responder sempre ao numero cadastrado; idempotencia por id; limite 60/h; assinatura HMAC; filtro por phone_number_id; GRAPH_VERSION v25.0; cumprimentos variam",
+      "location": "AgenteWPP/piloto/server.js; docs/tasks/piloto-tecnico.1/spec/spec.md; docs/STATE.md",
+      "applies_to_this_task": true,
+      "notes": "Provou a entrega ponta a ponta. Levar: funcao de variantes do 9o digito (vira phone_key), destino = telefone canonico do cadastro, versao da Graph API, payload de envio de texto. NAO levar: janela de 10 min que descarta eventos antigos (a Meta reentrega por ate 7 dias e o descarte por idade esconderia mensagens legitimas; a defesa contra replay e a idempotencia) nem estado em memoria. Normalizar cumprimentos nao e desta tarefa (e do modulo de resposta)."
+    }
+  ],
+  "integration_points": [
+    {
+      "component": "WhatsApp Cloud API - webhook de entrada (Meta)",
+      "interface": "HTTPS POST/GET https://<subdominio>/webhook/whatsapp; assinatura X-Hub-Signature-256 (HMAC SHA-256 do App Secret); campo assinado 'messages' do objeto whatsapp_business_account",
+      "contract_doc": "docs/tasks/porta-fechada.1/spec/spec.md#43-contratos",
+      "concerns": "Webhook e por APP, nao por numero: a conta Positive Co autorizada por engano (STATE.md, Q12) entrega eventos de outro phone_number_id ao mesmo URL - descarte por phone_number_id e obrigatorio e testado. Meta reentrega por ate 7 dias com backoff (idempotencia e backlog pos-queda). Forma exata do campo BSUID no payload nao confirmada (Q5): extracao isolada em uma funcao com fixtures."
+    },
+    {
+      "component": "WhatsApp Cloud API - envio (Graph API)",
+      "interface": "POST https://graph.facebook.com/{versao}/{phone_number_id}/messages, Authorization Bearer; tipos: template (boas-vindas com botoes de resposta rapida), interactive button (lembrete), text",
+      "contract_doc": "docs/architecture/overview.md (ADR 2026-10-19: interface de canal)",
+      "concerns": "Fora da janela de 24h so modelo aprovado (AC-17). Modelo ainda nao submetido/aprovado e forma de pagamento pendente (Q8). Numero de teste so envia para destinatarios cadastrados no painel da Meta e para a forma cadastrada do numero (licao do piloto). Codigos de erro: classificar por HTTP (4xx permanente, 429/5xx transitorio) e guardar code/subcode crus; mapa de codigos so para texto de alerta."
+    },
+    {
+      "component": "Resend (e-mail de alerta)",
+      "interface": "POST https://api.resend.com/emails, Bearer RESEND_API_KEY, via httpx",
+      "contract_doc": "agente-instagram-direct-n8n/backend/app/services/notifications.py",
+      "concerns": "Reuso da conta/dominio do AUTO-1 pendente (Q19). Corpo sem texto de mensagem nem telefone/nome. Destinatario e chave so em ambiente. Provedor fora do ar nunca atrasa webhook (fila + backoff)."
+    },
+    {
+      "component": "WAHA (grupo da equipe)",
+      "interface": "POST {WAHA_BASE_URL}/api/sendText com X-Api-Key; chatId do grupo em TEAM_GROUP_CHAT_ID",
+      "contract_doc": "agente-instagram-direct-n8n/backend/app/services/waha.py",
+      "concerns": "Desligado por chave (padrao). Sessao/grupo ainda nao definidos (Q18). Container WAHA do AUTO-1 e compartilhado: reusar a mesma sessao ou criar outra e decisao de operacao."
+    },
+    {
+      "component": "PostgreSQL 16 no droplet (banco jarvis)",
+      "interface": "asyncpg, DSN em DATABASE_URL; roles jarvis_owner (migrations) e jarvis_app (DML)",
+      "contract_doc": "agente-instagram-direct-n8n/docs/specs/banco-proprio-auto1.md",
+      "concerns": "Servidor compartilhado em producao: criar banco/role exige confirmacao do Caio. Postgres 16.15 local (nao Neon, confirmado no spec do AUTO-1). Testes de concorrencia exigem Postgres real (CI com service container); nao usar o banco do droplet para testes."
+    },
+    {
+      "component": "nginx + PM2 + certificado no droplet",
+      "interface": "site nginx jarvis.positiveco.com.br -> 127.0.0.1:<porta>; PM2 processo 'jarvis'",
+      "contract_doc": "docs/tasks/porta-fechada.1/spec/spec.md#410-deploy-e-operacao",
+      "concerns": "DNS ainda nao apontado e responsavel nao identificado (STATE.md todo). Mecanismo de certificado do site do AUTO-1 nao foi inspecionado: reutilizar o mesmo. Config do nginx so aplicada com nginx -t e reload (nunca restart) por ser servidor compartilhado."
+    }
+  ],
+  "alternatives_considered": [
+    {
+      "option": "Idempotencia por tabela dedicada (chat.inbound_dedup) separada do rastro",
+      "pros": ["Semantica limpa, sem estado transitorio", "Poderia ser expurgada antes do rastro"],
+      "cons": ["Dois inserts por mensagem", "Redundante: o rastro ja tem 1 linha por mensagem"],
+      "chosen": false,
+      "reason": "Rejeitada. A restricao UNIQUE(wa_message_id) no proprio rastro e o mecanismo (AC-7). O INSERT do rastro e o primeiro comando da transacao, com decisao transitoria 'processing' que nunca e commitada."
+    },
+    {
+      "option": "Idempotencia + decisao + efeitos de banco numa unica transacao; efeitos externos depois do commit via outbox",
+      "pros": ["Falha antes do commit reverte tudo e a reentrega da Meta reprocessa (AC-3)", "Crash depois do commit nao perde alerta/ticket/resposta (linhas de outbox ja gravadas)", "Mensagem duplicada concorrente bloqueia no indice unico e vira no-op (AC-7)"],
+      "cons": ["Resposta ao usuario sai alguns ms depois do commit (BackgroundTasks) e precisa de laco de varredura", "Mais tabelas (outbound_messages, deliveries)"],
+      "chosen": true,
+      "reason": "Unica forma de cumprir AC-3 e AC-7 juntos sem perder nem duplicar efeitos. Custo aceito."
+    },
+    {
+      "option": "Gravar o id de idempotencia primeiro e processar depois, fora da transacao",
+      "pros": ["Simples de escrever"],
+      "cons": ["Queda entre o registro e o processamento faz a reentrega ser tratada como duplicata e a mensagem some"],
+      "chosen": false,
+      "reason": "Viola AC-3 (5xx para reentrega) na pratica."
+    },
+    {
+      "option": "Cache em processo (TTL 30 s) do status do usuario",
+      "pros": ["Evita uma consulta por mensagem"],
+      "cons": ["Revogacao vale so apos o TTL", "Estado divergente se algum dia houver 2 workers", "Mais um caso de teste"],
+      "chosen": false,
+      "reason": "Consulta indexada por mensagem custa menos de 5 ms ao volume de 20 mil msg/dia. Sem cache: revogacao vale na proxima mensagem (AC-22) e a rechecagem antes do envio (AC-23) le o banco."
+    },
+    {
+      "option": "Limite de 60/h por contador em tabela (linha por usuario/hora) ou em memoria",
+      "pros": ["Constante O(1)"],
+      "cons": ["Janela fixa nao e deslizante (AC-29 exige deslizante de 60 min)", "Memoria nao sobrevive a restart nem a 2 workers", "Linha quente por usuario"],
+      "chosen": false,
+      "reason": "Rejeitada. Contagem derivada do rastro (indice parcial user_id, received_at onde counted_in_limit) sob lock da linha do usuario: exata, deslizante, atomica e sem estado extra."
+    },
+    {
+      "option": "Migrations com Alembic",
+      "pros": ["Ferramenta padrao, autogenerate", "Linha 'alembic' ja no overview.md secao 5"],
+      "cons": ["Dependencia nova (alembic+SQLAlchemy) num projeto 100% asyncpg/SQL", "AUTO-1 usa SQL numerado e a equipe ja opera assim", "Autogenerate inutil sem ORM"],
+      "chosen": false,
+      "reason": "SQL numerado + runner de ~80 linhas (versao, checksum, lock consultivo) atende. ADR registrado."
+    },
+    {
+      "option": "Tudo no schema public (como no AUTO-1)",
+      "pros": ["Consulta mais curta"],
+      "cons": ["AUTO-1 precisou de uma spec inteira para separar o banco porque tabelas de donos diferentes se misturaram", "overview.md secao 4: schema por dominio"],
+      "chosen": false,
+      "reason": "Tres schemas: access (quem pode), chat (mensagens), ops (alertas, tickets, entregas, auditoria, estado). Cada modulo futuro nasce no seu schema."
+    },
+    {
+      "option": "Biblioteca phonenumbers para validar/normalizar telefone",
+      "pros": ["Cobre todos os paises e regras de operadora"],
+      "cons": ["Dependencia nova grande", "O unico caso especial real aqui e o 9o digito brasileiro", "Atualizacao de metadados acompanha release da lib"],
+      "chosen": false,
+      "reason": "Funcao propria (E.164 + regra BR + lista de DDDs) com tabela de testes. Limite conhecido: quirks de MX/AR nao cobertos (risco baixo; parceiros externos sao brasileiros)."
+    },
+    {
+      "option": "Texto da 1a mensagem de desconhecido como coluna em access_attempts",
+      "pros": ["Uma tabela a menos"],
+      "cons": ["Concede leitura do texto a quem le a tabela (assistente do painel, PN-52)", "Dificil desligar/apagar em massa se o juridico negar (Q17)"],
+      "chosen": false,
+      "reason": "Tabela separada access.unknown_first_messages: permissao independente, DROP/TRUNCATE simples, expurgo por stored_at."
+    },
+    {
+      "option": "Guardar o texto da 1a mensagem ligado por padrao",
+      "pros": ["Cumpre AC-10 literalmente desde o primeiro dia"],
+      "cons": ["Armazena texto de terceiros sem base legal confirmada (Q17)", "Nao ha como 'des-guardar' o que ja entrou"],
+      "chosen": false,
+      "reason": "Chave UNKNOWN_FIRST_TEXT_STORE desligada em producao ate o juridico responder; ligada nos testes. Custo: quem escrever antes da virada perde o texto (so tipo e contagem)."
+    },
+    {
+      "option": "Resposta da IA/FAQ dentro da transacao de decisao",
+      "pros": ["Mais simples hoje (resposta fixa e instantanea)"],
+      "cons": ["Futuro modulo de resposta leva segundos e faz I/O: seguraria linha de usuario e conexao do pool", "Obriga refatorar o nucleo no proximo incremento"],
+      "chosen": false,
+      "reason": "Ponto de extensao AnswerProvider chamado DEPOIS do commit, com segunda transacao curta que grava a linha de outbox; hoje devolve o texto fixo. Custo: varredura que marca como 'abandoned' respostas pendentes por mais de 5 min."
+    },
+    {
+      "option": "Admin por endpoints HTTP protegidos (token) em vez de CLI",
+      "pros": ["Sem SSH", "Reaproveitavel pelo painel"],
+      "cons": ["Superficie de ataque nova na porta mais sensivel do sistema", "Decisao do Caio ja e CLI/CSV via SSH (Q4)"],
+      "chosen": false,
+      "reason": "CLI (python -m app.cli) sobre uma camada de servico (services/users.py) que o painel chama depois. O CLI enfileira o envio e espera o resultado (<=20 s) em vez de enviar: um unico remetente (o servidor)."
+    },
+    {
+      "option": "Envio de e-mail e grupo dentro do processamento da mensagem (como o monitor do AUTO-1)",
+      "pros": ["Menos peca"],
+      "cons": ["Provedor lento atrasa o webhook (AC-3/AC-37)", "Sem retentativa duravel"],
+      "chosen": false,
+      "reason": "Tabela ops.deliveries (uma linha por alerta/ticket x canal) com claim atomico, backoff e CHECK que proibe ticket x e-mail (decisao 9 garantida no banco)."
+    },
+    {
+      "option": "Dois workers uvicorn (como o AUTO-1)",
+      "pros": ["Mais throughput", "Tolerancia a travar um worker"],
+      "cons": ["Rate limiter HTTP em memoria divide o limite por N", "Tarefas de fundo duplicadas", "Servidor compartilhado com 2,4 GB livres"],
+      "chosen": false,
+      "reason": "1 worker: 2.000 usuarios/20 mil msg/dia sao ~0,25 msg/s media; o gargalo e I/O assincrono. Estado compartilhado ja vive no Postgres, entao subir para 2 workers depois e seguro (claims com SKIP LOCKED)."
+    },
+    {
+      "option": "Resposta 401 vs 403 para assinatura invalida",
+      "pros": ["401 e o que o piloto usa", "403 e o que o AUTO-1 usa"],
+      "cons": ["Nenhum cliente legitimo depende do codigo"],
+      "chosen": true,
+      "reason": "403 (padrao AUTO-1; igual ao do verify token). Corpo vazio."
+    }
+  ],
+  "open_research": [
+    "Q5: nome exato e posicao do campo BSUID no payload de mensagens recebidas da Cloud API (contacts[].user_id? messages[].from_user_id?) e se ele chega para o nosso app/versao. Confirmar na documentacao oficial da Meta e capturando payloads reais no numero de teste ANTES de congelar o parser; ate la a extracao fica isolada em services/inbound.py::extract_sender com fixtures.",
+    "Q8: componentes exatos do modelo de boas-vindas aprovado (parametros nomeados {{nome}} vs posicionais {{1}}, botoes de resposta rapida e payloads, cabecalho com documento do aviso). O construtor do payload e uma funcao unica (services/whatsapp.py::build_welcome_template).",
+    "Codigos de erro da Meta para classificar falha de boas-vindas (pagamento, modelo inexistente/pausado, fora da janela, numero sem WhatsApp, rate limit): confirmar na pagina oficial de codigos de erro; o desenho nao depende deles (classifica por HTTP e guarda code/subcode crus).",
+    "Lista oficial de DDDs brasileiros (Anatel) para services/phone.py; conferir contra a lista embutida na implementacao.",
+    "Porta livre no droplet (ss -ltnp) e confirmar que 8010 nao colide; confirmar nginx (sites-enabled), mecanismo de certificado do AUTO-1 e logrotate/pm2-logrotate em uso.",
+    "Backup do Postgres do droplet: existe rotina que cobre o novo banco jarvis? (pg_dump diario?). Confirmar com Caio/infra.",
+    "Roles do Postgres: criar jarvis_owner/jarvis_app (e, no painel, jarvis_ro para o assistente). Confirmar convencao existente no servidor.",
+    "Ambiente de desenvolvimento: o piloto foi escrito em Node porque a maquina do Caio nao tinha Python (piloto spec). Definir onde rodam pytest e Postgres de teste (maquina local com Python 3.12 + Postgres, ou somente CI).",
+    "Repositorio remoto e CI: AgenteWPP ainda sem commits e sem remoto conhecido. Se for GitHub, usar Actions com service container postgres:16.",
+    "WAHA: reaproveitar sessao/container do AUTO-1 ou nova sessao para o grupo do Jarvis (Q18)."
+  ],
+  "references": [
+    {
+      "url_or_path": "docs/prd.md (secoes 3, 4, 7 e 10)",
+      "relevance": "Lista positiva, acesso antes de tudo, LGPD, limites e Decision Log. A entrada de 2026-10-22 'Audio e foto nao recebem resposta' foi revertida pelo Caio em 2026-10-23 (AC-36 vale: resposta curta de equipe avisada); o Decision Log precisa ser corrigido."
+    },
+    {
+      "url_or_path": "docs/architecture/overview.md",
+      "relevance": "ADR 2026-10-20 (stack/hospedagem) e 2026-10-19 (Cloud API atras de interface de canal); principios de dados (schema por dominio, TIMESTAMPTZ, sem boolean nulo); ADRs de 2026-10-23 (outbox e migrations)."
+    },
+    {
+      "url_or_path": "docs/tasks/painel.1/spec/spec.md e requirements.json",
+      "relevance": "Consumidor do modelo de dados (Pessoas, Pedindo acesso, Inbox, Escalados, Alertas, auditoria, LGPD); define o contrato de leitura/escrita do 4.2.8."
+    },
+    {
+      "url_or_path": "piloto/server.js e docs/tasks/piloto-tecnico.1/spec/spec.md",
+      "relevance": "Prova de entrega ponta a ponta; 9o digito, destino canonico, versao da Graph API, payload de envio."
+    },
+    {
+      "url_or_path": "C:/Users/User/Documents/GitHub/agente-instagram-direct-n8n/backend/app (main.py, config.py, api/webhook.py, services/{rate_limit,notifications,waha}.py, core/{security,log_redaction,errors,retry}.py)",
+      "relevance": "Implementacao de referencia reutilizada."
+    },
+    {
+      "url_or_path": "C:/Users/User/Documents/GitHub/agente-instagram-direct-n8n/backend/migrations/001_schema.sql, 004_monitoring.sql",
+      "relevance": "Convencao de migrations e tabela alerts."
+    },
+    {
+      "url_or_path": "C:/Users/User/Documents/GitHub/agente-instagram-direct-n8n/deploy/ecosystem.config.js e .claude/commands/deploy.md",
+      "relevance": "Modelo de deploy PM2 + rsync."
+    },
+    {
+      "url_or_path": "C:/Users/User/Documents/GitHub/agente-instagram-direct-n8n/docs/specs/banco-proprio-auto1.md",
+      "relevance": "Postgres 16 local no droplet; riscos de sequences/DSN duplicado no .env; separar banco por produto."
+    },
+    {
+      "url_or_path": "C:/Users/User/Documents/GitHub/agente-instagram-direct-n8n/docs/specs/alertas-email-e-bot-parado.md",
+      "relevance": "Experiencia com ruido de e-mail de alerta e dedup via system_state."
+    },
+    {
+      "url_or_path": "docs/legal/aviso-privacidade.md",
+      "relevance": "Texto do modelo de boas-vindas, texto de recusa e itens pendentes do juridico (versao do aviso)."
+    }
+  ]
+}

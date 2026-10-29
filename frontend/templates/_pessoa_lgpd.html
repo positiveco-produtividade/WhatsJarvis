@@ -1,0 +1,43 @@
+{# LGPD na ficha da pessoa (PN-T40; PN-56, PN-57). Incluido por _pessoa_ficha.html (bloco com
+   Exportar e Excluir; contexto: person, csrf_token) e por pessoas.html (sem person: nao
+   desenha nada). slot == 'modal' e o fragmento para #modal-body que exige digitar o nome
+   (contexto: person {id, name}, action, error, csrf_token). Exportar e um formulario comum
+   para o navegador baixar o arquivo; nenhum link GET exporta ou exclui. #}
+{% from "_macros.html" import csrf_field, error_list, modal_head %}
+{% if slot is defined and slot == 'modal' %}
+{% if person %}
+{{ modal_head('Excluir dados', person.name) }}
+<form method="post" action="{{ action }}" hx-post="{{ action }}" hx-target="#modal-body" hx-swap="innerHTML"
+      hx-disabled-elt="find button" autocomplete="off" class="px-4 py-4 space-y-3" data-lgpd-excluir>
+  {{ csrf_field(csrf_token) }}
+  <p class="text-sm text-ink-700">Isto <strong>não pode ser desfeito</strong>. A pessoa perde o acesso, o cadastro é anonimizado e o texto das mensagens, respostas e tickets dela é apagado. O registro de que a exclusão aconteceu fica na auditoria, sem dados pessoais.</p>
+  {% if error %}{{ error_list([error]) }}{% endif %}
+  <div>
+    <label for="lgpd-nome" class="block text-xs font-medium text-ink-600">Para confirmar, digite o nome exatamente como está no cadastro: <strong class="text-ink-800">{{ person.name }}</strong></label>
+    <input id="lgpd-nome" name="confirm_name" type="text" required autocomplete="off" data-ficha-focus
+           class="mt-1 w-full rounded-lg border border-ink-300 px-2 py-1.5 text-sm">
+  </div>
+  <div class="flex gap-2 pt-1">
+    <button type="submit" class="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700">Excluir definitivamente</button>
+    <button type="button" data-overlay-close class="rounded-lg border border-ink-300 bg-white px-3 py-1.5 text-xs font-medium text-ink-700 hover:bg-ink-50">Cancelar</button>
+  </div>
+</form>
+{% endif %}
+{% elif person and not (person.name or '').startswith('anon:') %}
+<div class="rounded-lg border border-ink-200 px-3 py-3 space-y-2" data-lgpd-bloco>
+  <p class="text-xs font-semibold text-ink-800">Dados pessoais (LGPD)</p>
+  <p class="text-xs text-ink-500">Exportar baixa um arquivo com os dados desta pessoa. Excluir anonimiza o cadastro e apaga o texto das conversas.</p>
+  <div class="flex items-center gap-2 flex-wrap">
+    <form method="post" action="/dashboard/pessoas/{{ person.id }}/exportar">
+      {{ csrf_field(csrf_token) }}
+      <button type="submit" class="rounded-lg border border-ink-300 bg-white px-3 py-1.5 text-xs font-medium text-ink-700 hover:bg-ink-50">Exportar dados</button>
+    </form>
+    {% if not person.is_self %}
+    <button type="button" hx-get="/dashboard/pessoas/{{ person.id }}/excluir" hx-target="#modal-body" hx-swap="innerHTML"
+            class="rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs font-medium text-ink-600 hover:bg-red-50 hover:text-red-700 hover:border-red-200">Excluir dados</button>
+    {% else %}
+    <span class="text-xs text-ink-500" data-lgpd-admin>Dados de administrador não podem ser excluídos pelo painel.</span>
+    {% endif %}
+  </div>
+</div>
+{% endif %}

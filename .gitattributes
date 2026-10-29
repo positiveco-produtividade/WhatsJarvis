@@ -1,0 +1,3 @@
+# Bibliotecas de terceiros: bytes exatos (o hash sha384 em VENDOR.md depende disso)
+frontend/static/vendor/** -text
+frontend/static/css/tailwind.css -text

@@ -1,0 +1,15 @@
+{# Coluna do quadro Escalados (PN-T23; PN-19). Contexto: col (BoardColumn) + o que o cartao usa. #}
+<section class="flex-1 min-w-[240px] flex flex-col {{ col.bg }} rounded-2xl" aria-label="{{ col.label }}">
+  <header class="sticky top-0 flex items-center justify-between gap-2 px-3 py-2.5 rounded-t-2xl bg-white/60 border-b border-ink-200/40">
+    <div class="flex items-center gap-2 min-w-0"><span class="w-2 h-2 rounded-full {{ col.dot }}"></span><h2 class="text-xs font-semibold text-ink-800 uppercase tracking-wide truncate">{{ col.label }}</h2></div>
+    <span class="text-[11px] font-bold px-2 py-0.5 rounded-full {{ col.count_cls }}">{{ col.cards | length }}</span>
+  </header>
+  <div class="flex-1 p-2 space-y-2">
+    {% for t in col.cards %}
+    {% set col_label = col.label %}
+    {% include "_kanban_cartao.html" %}
+    {% else %}
+    <div class="flex flex-col items-center justify-center gap-2 mt-2 py-10 px-3 text-center border border-dashed border-ink-200/60 rounded-xl bg-white/30"><p class="text-[11px] text-ink-400">{{ col.empty }}</p></div>
+    {% endfor %}
+  </div>
+</section>

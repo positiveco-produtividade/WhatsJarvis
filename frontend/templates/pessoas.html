@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{# Pessoas autorizadas (PN-T33; PN-31, PN-43). Contexto: tab, tabs, q, page, people, pending,
+   counts, shown, overall, qs, empty_text, text_display. O resultado (abas + busca + tabela +
+   paginacao) e trocado pelo HTMX em #pessoas-resultado. Cadastrar, importar, ficha, reativar,
+   autorizar e ignorar chamam rotas de outras tarefas (pessoas_cadastro, _importar, _ficha,
+   _pedidos). Os parciais _pessoas_pedidos.html (T36) e _pessoa_lgpd.html (T40) entram com
+   "ignore missing". #}
+{% block title %}Pessoas autorizadas{% endblock %}
+{% block head %}<script defer src="{{ static_v('js/pessoas.js') }}"></script>{% endblock %}
+{% block content %}
+<section>
+  <div class="mb-3 flex items-start justify-between gap-4 flex-wrap">
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight">Pessoas autorizadas</h1>
+    </div>
+    <div class="shrink-0 flex items-center gap-2">
+      <button type="button" hx-get="/dashboard/pessoas/importar" hx-target="#modal-body" hx-swap="innerHTML"
+              class="rounded-lg border border-ink-300 bg-white px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50">Importar CSV</button>
+      <button type="button" hx-get="/dashboard/pessoas/nova" hx-target="#modal-body" hx-swap="innerHTML"
+              class="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-ink-800">+ Cadastrar</button>
+    </div>
+  </div>
+
+  <div id="pessoas-resultado" aria-live="polite">
+    {% include "_pessoas_lista.html" %}
+  </div>
+  {% include "_pessoa_lgpd.html" ignore missing %}
+</section>
+{% endblock %}

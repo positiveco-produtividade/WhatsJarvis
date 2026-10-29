@@ -1,0 +1,460 @@
+{
+  "$schema": "../requirements-schema.json",
+  "task_id": "PORTA-FECHADA-1",
+  "title": "Receber mensagens da WhatsApp Cloud API e aplicar a lista positiva com opt-in",
+  "story": "docs/stories/porta-fechada.1.md",
+  "epic": "docs/epics/porta-fechada.md",
+  "revision": "2026-10-23 (Fase 2) — mídia de usuário autorizado RECEBE a resposta curta 'equipe avisada' (AC-36 como aprovado; o Caio confirmou em 2026-10-23, revertendo a nota do PRD §10 de 2026-10-22); AC-31 reordenado para tamanho, assinatura; Q21–Q26 acrescentadas. Anterior: 2026-10-22 (6ª rodada) — mídia vira ticket escalado; e-mail imediato SÓ para novos alertas (tickets escalados não enviam e-mail); tentativas de desconhecido/bloqueado NÃO geram alerta",
+  "user_story": {
+    "as_a": "responsável pelo Jarvis",
+    "i_want": "que ele receba as mensagens do WhatsApp e só deixe passar quem está cadastrado, ativo e com aceite registrado",
+    "so_that": "preço e material comercial nunca cheguem a quem não deveria e números desconhecidos não gerem custo"
+  },
+  "conventions": {
+    "ears": "Cada AC é GIVEN/WHEN/THEN (EARS). 'Bloqueado' = nenhuma mídia, busca ou chamada ao modelo; só rastro/registro, sem resposta ao remetente (exceto onde o AC disser o contrário).",
+    "terms": {
+      "usuário": "registro na lista positiva (nome, telefone, BSUID opcional, perfil, empresa, UFs, canais, marcas, gestor responsável, valid_until NULLABLE, status, accepted_at)",
+      "status": "pending_optin | active | declined | revoked",
+      "valid_until": "campo mantido no modelo de dados, nulo e ignorado pela decisão de acesso; reservado para uso futuro (sem bloqueio automático por data)",
+      "remetente": "wa_id (telefone) e/ou BSUID presentes no payload",
+      "tentativa de acesso": "mensagem de número desconhecido ou de usuário revogado/recusado. É APENAS registrada (contador, primeiro/último instante, texto da 1ª mensagem de desconhecido) para a tela 'Pessoas autorizadas → Pedindo acesso' do painel. NÃO gera alerta, e-mail nem aviso ao grupo.",
+      "alerta": "registro imediato na tabela de alertas (o que o painel exibe) para eventos anômalos: limite de mensagens por hora, conflito de BSUID, falha de boas-vindas e falha repetida de envio. NÃO inclui tentativas de acesso nem escalonamento de mídia.",
+      "ticket escalado": "registro de escalonamento (hoje só mídia de usuário autorizado, AC-36), criado imediatamente em tabela própria, separada da de alertas, com status inicial 'aberto'. NÃO envia e-mail. Fluxo de atendimento do ticket (responder, fechar, painel) fica para história futura.",
+      "e-mail de aviso": "e-mail enviado imediatamente a cada NOVO ALERTA (somente alertas; tickets escalados e tentativas de acesso não enviam e-mail), ao e-mail corporativo do Caio configurado no servidor (o endereço nunca consta em spec, código versionado ou log), no padrão Resend do AUTO-1. Independente da chave do grupo WAHA.",
+      "grupo da equipe": "grupo de WhatsApp alcançado via WAHA, padrão AUTO-1; envio controlado por chave de configuração DESLIGADA por padrão; grupo e sessão configurados depois por variável de ambiente"
+    },
+    "numeracao": "AC-24 e AC-25 foram removidos em 2026-10-21 (expiração/revalidação); os IDs não são reutilizados."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "group": "Webhook",
+      "title": "Verificação do webhook (GET)",
+      "given": "o endpoint de webhook está no ar e o verify token está configurado",
+      "when": "a Meta chama GET com hub.mode=subscribe, hub.verify_token e hub.challenge",
+      "then": "com token correto responde 200 com o hub.challenge em texto puro; com token errado ou ausente responde 403 e não ecoa o challenge",
+      "testable": "integration",
+      "test_notes": "Dois casos via cliente HTTP de teste; comparação do token em tempo constante."
+    },
+    {
+      "id": "AC-2",
+      "group": "Webhook",
+      "title": "Assinatura HMAC inválida",
+      "given": "o App Secret está configurado",
+      "when": "chega POST sem X-Hub-Signature-256, com formato inválido ou com HMAC SHA-256 que não bate com os bytes brutos do corpo",
+      "then": "a requisição é descartada sem parsing do JSON, sem registro de mensagem, sem resposta ao remetente e sem qualquer processamento; apenas um contador/log de segurança sem PII é incrementado",
+      "testable": "integration",
+      "test_notes": "Casos: sem header, prefixo errado, assinatura de corpo alterado em 1 byte, assinatura válida de outro secret. Verificar que nenhuma linha é gravada e que o cliente do WhatsApp/modelo/e-mail não é chamado."
+    },
+    {
+      "id": "AC-3",
+      "group": "Webhook",
+      "title": "Assinatura válida é aceita e reconhecida rápido",
+      "given": "um POST com assinatura válida e payload de mensagem",
+      "when": "o endpoint recebe a requisição",
+      "then": "responde 200 sem esperar o envio da resposta ao usuário nem de e-mails/avisos; em falha transitória interna (ex.: banco indisponível) responde 5xx para a Meta reentregar, sem ter enviado nada ao usuário",
+      "testable": "integration",
+      "test_notes": "Medir que o 200 não depende do mock de envio nem do mock de e-mail; simular falha de banco e checar 5xx + nenhum envio."
+    },
+    {
+      "id": "AC-4",
+      "group": "Webhook",
+      "title": "Limite de tamanho do payload",
+      "given": "o limite de payload é 64 KB (referência AUTO-1; ver Q10)",
+      "when": "chega POST com Content-Length acima do limite ou corpo que excede o limite durante a leitura",
+      "then": "responde 413 sem ler o restante do corpo, sem validar assinatura de corpo completo e sem processar",
+      "testable": "integration",
+      "test_notes": "Corpo de 64 KB + 1 com e sem Content-Length honesto."
+    },
+    {
+      "id": "AC-5",
+      "group": "Webhook",
+      "title": "Eventos que não são mensagem (status, leitura, entrega)",
+      "given": "assinatura válida e payload contendo apenas statuses (sent, delivered, read, failed) ou outros eventos sem messages",
+      "when": "o payload é recebido",
+      "then": "responde 200, não faz decisão de acesso, não responde ao usuário, não gera rastro de mensagem e não conta no limite de mensagens por hora; status 'failed' de mensagem enviada pelo Jarvis é registrado no rastro da mensagem de origem",
+      "testable": "unit",
+      "test_notes": "Fixtures reais da Meta para statuses; verificar zero chamadas ao envio e zero linhas de rastro novas (exceto a atualização do failed)."
+    },
+    {
+      "id": "AC-6",
+      "group": "Webhook",
+      "title": "Payload de outra conta ou com várias mensagens",
+      "given": "o phone_number_id configurado é o do Jarvis",
+      "when": "o payload traz phone_number_id diferente, ou vários entry/changes/messages",
+      "then": "payload de outro phone_number_id é descartado sem processar; cada mensagem de um payload múltiplo é processada de forma independente (uma falha não impede as demais)",
+      "testable": "unit",
+      "test_notes": "Fixture com 3 mensagens de remetentes distintos, uma delas fora da lista."
+    },
+    {
+      "id": "AC-7",
+      "group": "Idempotência",
+      "title": "Entrega duplicada do mesmo message_id",
+      "given": "uma mensagem com message_id X já foi recebida e processada",
+      "when": "a Meta reentrega o mesmo message_id (mesmo payload ou em novo POST)",
+      "then": "nenhuma segunda resposta, alerta, ticket escalado ou e-mail é criado/enviado, nenhum segundo rastro é criado, o contador de mensagens por hora e o contador de tentativas de acesso não são incrementados; a requisição responde 200",
+      "testable": "integration",
+      "test_notes": "Enviar o mesmo payload 2x e em paralelo (2 requisições concorrentes); a unicidade deve vir de constraint no banco, não só de checagem em memória."
+    },
+    {
+      "id": "AC-8",
+      "group": "Identidade",
+      "title": "Identificação por telefone e por BSUID",
+      "given": "usuário registrado com telefone; payload traz wa_id (telefone) e/ou BSUID",
+      "when": "chega mensagem cujo telefone OU BSUID corresponde a um usuário",
+      "then": "o remetente é resolvido para esse usuário; se o payload traz telefone e BSUID e só um deles estava guardado, o outro é associado ao usuário ao aceitar/na primeira mensagem autorizada; se o BSUID já pertence a outro usuário, não há reassociação, o remetente é tratado como não autorizado (silêncio) e um alerta de conflito é criado (anomalia de dados, diferente de tentativa de acesso)",
+      "testable": "unit",
+      "test_notes": "Matriz: só telefone, só BSUID conhecido, ambos, BSUID conflitante (único caso com alerta)."
+    },
+    {
+      "id": "AC-9",
+      "group": "Identidade",
+      "title": "Variação do 9º dígito em números brasileiros",
+      "given": "usuário cadastrado em E.164 com 9º dígito (+55 DD 9XXXX-XXXX)",
+      "when": "a Meta entrega wa_id do mesmo número sem o 9º dígito (ou vice-versa)",
+      "then": "o número é normalizado antes da comparação e o remetente é reconhecido como o mesmo usuário",
+      "testable": "unit",
+      "test_notes": "Tabela de pares com e sem 9º dígito; números não brasileiros não são alterados."
+    },
+    {
+      "id": "AC-10",
+      "group": "Lista positiva",
+      "title": "Número fora da lista: silêncio, registro para o painel, zero custo e 1ª mensagem guardada",
+      "status": "armazenamento do texto da 1ª mensagem dependente de validação jurídica (LGPD) — Q17",
+      "given": "remetente (telefone e/ou BSUID) que não corresponde a nenhum usuário e nunca tentou antes",
+      "when": "envia sua primeira mensagem (texto, áudio, imagem, botão etc.)",
+      "then": "NENHUMA mensagem é enviada ao remetente (silêncio total, sem texto fixo); a tentativa é registrada (primeiro instante, contador = 1) para a tela 'Pedindo acesso' do painel, SEM alerta, SEM e-mail e SEM aviso ao grupo (AC-12); nenhuma mídia é baixada e nenhuma busca ou chamada ao modelo ocorre; se a primeira mensagem for texto, o TEXTO dela é guardado no registro do remetente desconhecido; se não for texto, guarda-se só o tipo e o tamanho",
+      "testable": "integration",
+      "test_notes": "Injetar spies/mocks no cliente do modelo, mídia, envio do WhatsApp, e-mail e WAHA; afirmar zero envios ao remetente, zero chamadas de custo, zero linhas em alertas e zero e-mails. Verificar que o texto da 1ª mensagem fica gravado e que mídia grava só tipo e tamanho. Repetir para cada tipo de mensagem."
+    },
+    {
+      "id": "AC-11",
+      "group": "Lista positiva",
+      "title": "Tentativas seguintes: silêncio, contagem e sem corpo",
+      "given": "remetente desconhecido com tentativas anteriores",
+      "when": "envia novas mensagens",
+      "then": "continua sem receber qualquer resposta; cada tentativa (exceto duplicatas, AC-7) é registrada e incrementa o contador e o instante da última tentativa; o texto dessas mensagens NÃO é guardado (só a 1ª mensagem, AC-10) e o texto da 1ª nunca é sobrescrito",
+      "testable": "integration",
+      "test_notes": "3 mensagens seguidas: 0 envios ao remetente, contador = 3, last_attempt_at atualizado, apenas o texto da 1ª gravado."
+    },
+    {
+      "id": "AC-12",
+      "group": "Lista positiva",
+      "title": "Tentativas de acesso não geram alerta",
+      "status": "decisão de 2026-10-22 (substitui o default Q2' de alertar no 1º contato e na 3ª tentativa)",
+      "given": "remetente desconhecido, ou usuário revogado/recusado (AC-27)",
+      "when": "faz a 1ª, a 3ª ou qualquer número de tentativas",
+      "then": "nenhum alerta é criado, nenhum e-mail de aviso é enviado e nada é enviado ao grupo da equipe; a única consequência é o registro da tentativa (contador, instantes e, só para desconhecido, o texto da 1ª mensagem), que alimenta a tela 'Pessoas autorizadas → Pedindo acesso' do painel; não existe limiar de 3 tentativas",
+      "testable": "integration",
+      "test_notes": "10 tentativas seguidas de um desconhecido e de um revogado: tabela de alertas inalterada, mock de e-mail com zero chamadas, mock do WAHA com zero chamadas (com a chave ligada e desligada), contador = 10."
+    },
+    {
+      "id": "AC-13",
+      "group": "Alertas e escalonamentos",
+      "title": "Canal do grupo (WAHA) existe mas fica desligado por padrão",
+      "given": "chave de configuração do grupo da equipe, desligada por padrão (nome definido na Fase 2); o caminho de envio via WAHA está implementado",
+      "when": "um alerta ou ticket escalado é criado",
+      "then": "com a chave DESLIGADA: nenhuma chamada ao WAHA é feita, o alerta/ticket fica só no banco (visível no painel) com entrega ao grupo marcada como 'somente painel'; com a chave LIGADA: também é enviado ao grupo via WAHA; se o WAHA falhar, o alerta/ticket continua persistido, o fluxo da mensagem segue, a entrega ao grupo fica marcada como falha e é retentada depois; nenhum erro é exposto ao remetente; o e-mail de aviso de um NOVO ALERTA (AC-37) é enviado independentemente do estado da chave, e ticket escalado nunca envia e-mail; tentativas de acesso nunca vão ao grupo (AC-12)",
+      "testable": "integration",
+      "test_notes": "Casos para alerta: chave desligada (zero chamadas ao WAHA, registro gravado, e-mail enviado), ligada com sucesso (1 envio ao grupo e 1 e-mail), ligada com WAHA em timeout/500 (registro gravado com entrega falha e retentativa; e-mail enviado). Mesmos casos para ticket escalado, mas com zero e-mails. Valor padrão da chave verificado em teste de configuração."
+    },
+    {
+      "id": "AC-14",
+      "group": "Lista positiva",
+      "title": "Remetente BSUID sem telefone e sem cadastro",
+      "given": "payload traz apenas BSUID (sem telefone) que não corresponde a nenhum usuário",
+      "when": "a mensagem é recebida",
+      "then": "o remetente é tratado como desconhecido (AC-10 a AC-12): silêncio e registro da tentativa usando o BSUID como chave, sem alerta",
+      "testable": "unit",
+      "test_notes": "Fixture sem wa_id; afirmar zero envios, registro com chave BSUID e zero alertas."
+    },
+    {
+      "id": "AC-15",
+      "group": "Cadastro",
+      "title": "Cadastro por comando administrativo exige todos os campos do PRD",
+      "given": "administrador executa o comando de cadastro (CLI via SSH); campos obrigatórios (todos): nome, telefone (E.164), perfil, empresa, UFs, canais, marcas e gestor responsável; valid_until é opcional e, se omitido, fica nulo (sem validade padrão)",
+      "when": "o comando conclui",
+      "then": "com todos os campos obrigatórios válidos, o usuário é criado com status pending_optin, o modelo de boas-vindas aprovado com botões Aceito / Não aceito é enviado ao telefone e a ação é registrada com quem executou e quando; a ausência de QUALQUER campo obrigatório (inclusive gestor responsável), telefone inválido ou valor de perfil inválido rejeita o cadastro com mensagem indicando o campo, sem criar nada; telefone já ativo ou pendente é rejeitado como duplicado",
+      "testable": "integration",
+      "test_notes": "Cliente WhatsApp mockado; checar nome do template, parâmetro {{nome}} e payloads dos botões; valid_until nulo. Um caso de rejeição para cada um dos 8 campos ausentes. Usuário de teste inicial: apenas o telefone do Caio."
+    },
+    {
+      "id": "AC-16",
+      "group": "Cadastro",
+      "title": "Importação CSV",
+      "given": "arquivo CSV com N linhas no layout definido (layout em Q4, baixa prioridade)",
+      "when": "o administrador executa a importação",
+      "then": "todas as linhas são validadas antes de gravar, com a mesma exigência de campos do AC-15; havendo erro, nada é gravado e o relatório lista linha, campo e motivo; sem erro, cada linha vira usuário pending_optin com boas-vindas enviadas (mesma regra do AC-15)",
+      "testable": "integration",
+      "test_notes": "CSV válido (3 linhas), CSV com 1 linha sem gestor responsável, CSV com telefone repetido no próprio arquivo."
+    },
+    {
+      "id": "AC-17",
+      "group": "Cadastro",
+      "title": "Boas-vindas só como modelo aprovado; falha de envio",
+      "given": "o usuário recém-cadastrado ainda não escreveu ao Jarvis (fora da janela de 24h)",
+      "when": "o sistema envia a boas-vindas",
+      "then": "usa exclusivamente o modelo aprovado pela Meta, nunca texto livre; se o envio falhar (modelo não aprovado, erro de pagamento, número sem WhatsApp), o usuário permanece pending_optin, a falha é registrada, um alerta é criado na tabela de alertas (com e-mail de aviso, AC-37, e envio ao grupo só se a chave estiver ligada, AC-13) e o comando de reenvio pode ser usado",
+      "testable": "integration",
+      "test_notes": "Mock do envio retornando erro 131047/132xxx (códigos exatos na Fase 2); afirmar que nenhum fallback de texto livre é tentado, que o alerta existe no banco e que o e-mail foi disparado."
+    },
+    {
+      "id": "AC-18",
+      "group": "Opt-in",
+      "title": "Toque em Aceito libera o acesso",
+      "given": "usuário com status pending_optin",
+      "when": "toca em Aceito (resposta de botão vinculada à boas-vindas dele)",
+      "then": "status passa a active, accepted_at grava data e hora (timestamptz), telefone e BSUID do remetente ficam associados ao usuário, e ele recebe uma confirmação curta; a partir daí suas mensagens passam pela porta",
+      "testable": "integration",
+      "test_notes": "Verificar transição única e accepted_at preenchido; mensagem seguinte recebe o eco 'em construção'. Também vale para usuário reativado (AC-35)."
+    },
+    {
+      "id": "AC-19",
+      "group": "Opt-in",
+      "title": "Toque antigo em Aceito não reativa sozinho",
+      "given": "usuário já active, ou declined ou revoked",
+      "when": "toca em Aceito de um botão antigo (anterior ao reenvio vigente)",
+      "then": "em active nada muda (accepted_at original preservado); em declined ou revoked o toque não reativa nem altera status e é tratado como remetente bloqueado (silêncio, AC-27); a reativação de revogado ou recusado acontece SOMENTE por ação do administrador (AC-35), que o leva a pending_optin, e daí vale o novo toque em Aceito (AC-18)",
+      "testable": "unit",
+      "test_notes": "Tabela estado x toque; depois do reenvio pelo admin o toque passa a funcionar."
+    },
+    {
+      "id": "AC-20",
+      "group": "Opt-in",
+      "title": "Toque em Não aceito",
+      "given": "usuário com status pending_optin",
+      "when": "toca em Não aceito",
+      "then": "status passa a declined, recebe apenas o texto de recusa do aviso de privacidade (única mensagem enviada a ele), nenhum dado de conversa além do rastro é guardado, e o acesso continua negado; mensagens seguintes dele ficam em silêncio (AC-27); reativação só por reenvio do aceite pelo administrador (AC-35)",
+      "testable": "integration",
+      "test_notes": "Fluxo completo declined -> mensagem -> silêncio; depois comando de reenvio volta a pending_optin."
+    },
+    {
+      "id": "AC-21",
+      "group": "Opt-in",
+      "title": "Texto livre no lugar do botão durante o opt-in",
+      "given": "usuário com status pending_optin",
+      "when": "envia texto, áudio ou qualquer mensagem que não seja o toque em Aceito/Não aceito (inclusive digitar 'aceito' ou 'sim')",
+      "then": "nenhum aceite é registrado; nenhum conteúdo é entregue; ele recebe, no máximo uma vez a cada 24h, uma mensagem interativa com os botões Aceito / Não aceito (dentro da janela de 24h aberta por ele); áudio e imagem não são baixados",
+      "testable": "integration",
+      "test_notes": "Enviar 'aceito', 'sim', áudio: status continua pending_optin; 2º lembrete dentro de 24h não é enviado."
+    },
+    {
+      "id": "AC-22",
+      "group": "Revogação",
+      "title": "Revogação efetiva em até 1 minuto",
+      "given": "usuário active",
+      "when": "o administrador revoga (status revoked)",
+      "then": "toda mensagem recebida mais de 60 s depois (na prática a próxima) é bloqueada; a decisão de acesso lê o estado do banco, com cache de no máximo 30 s ou sem cache",
+      "testable": "integration",
+      "test_notes": "Revogar e enviar mensagem em t+61 s (relógio injetável) e imediatamente após; ambos bloqueados. Não depende de job periódico."
+    },
+    {
+      "id": "AC-23",
+      "group": "Revogação",
+      "title": "Revogação com conversa em andamento",
+      "given": "usuário active com uma mensagem já aceita e resposta em preparação",
+      "when": "a revogação ocorre antes do envio da resposta",
+      "then": "o acesso é reavaliado imediatamente antes do envio; a resposta pendente é descartada, o rastro registra a decisão 'revoked_before_send', e a mensagem seguinte é bloqueada",
+      "testable": "integration",
+      "test_notes": "Hook no envio que revoga no meio do pipeline; afirmar zero envios de conteúdo."
+    },
+    {
+      "id": "AC-26",
+      "group": "Revogação",
+      "title": "Troca de número",
+      "given": "usuário active com telefone A",
+      "when": "o administrador executa a troca para o telefone B",
+      "then": "na mesma transação o usuário de A é revogado e um novo cadastro para B é criado como pending_optin (novo aceite; boas-vindas enviadas a B); o aceite de A não é herdado; A e seu BSUID passam a ser bloqueados",
+      "testable": "integration",
+      "test_notes": "Transação atômica: falha no cadastro de B desfaz a revogação de A."
+    },
+    {
+      "id": "AC-27",
+      "group": "Bloqueio",
+      "title": "Usuário revogado ou recusado: silêncio (mesmo tratamento do desconhecido)",
+      "given": "usuário registrado com status revoked ou declined",
+      "when": "envia mensagem",
+      "then": "nenhuma mensagem é enviada a ele; nenhum conteúdo é entregue e nenhuma mídia, busca ou modelo é acionado; a tentativa é registrada com o motivo (revoked, declined) e contada, sem alerta, e-mail ou aviso ao grupo (AC-12); o texto da mensagem não é guardado",
+      "testable": "integration",
+      "test_notes": "Mesmos spies do AC-10; verificar que nenhum corpo é gravado e que não há alerta."
+    },
+    {
+      "id": "AC-28",
+      "group": "Mensagem ativa",
+      "title": "Palavra 'sair'",
+      "given": "usuário active",
+      "when": "envia exatamente 'sair' (sem diferenciar maiúsculas, acentos e espaços nas pontas)",
+      "then": "proactive_opt_out passa a verdadeiro com data e hora, ele recebe uma confirmação, e o acesso a consultas continua inalterado; a função de elegibilidade para mensagem ativa retorna falso se o usuário não estiver active com aceite, ou se estiver com proactive_opt_out; 'sair' de quem não está active não altera nada",
+      "testable": "unit",
+      "test_notes": "Testar o predicado can_send_proactive(user) em todas as combinações e o fluxo 'sair' seguido de uma consulta normal. Frase maior que contenha 'sair' não dispara."
+    },
+    {
+      "id": "AC-29",
+      "group": "Limite",
+      "title": "Limite de 60 mensagens por hora",
+      "given": "usuário active que já teve 60 mensagens aceitas nos últimos 60 minutos (janela deslizante de 60 min)",
+      "when": "envia a 61ª",
+      "then": "a mensagem é bloqueada sem processamento e rastreada com decisão 'rate_limited'; o usuário recebe uma única vez por janela o aviso 'Você atingiu o limite de mensagens por hora. Tente novamente em alguns minutos.' (mensagens seguintes bloqueadas na mesma janela ficam em silêncio); um alerta imediato é criado na tabela de alertas, no máximo 1 por hora por usuário, com e-mail de aviso (AC-37) e envio ao grupo só se a chave estiver ligada (AC-13); mensagens duplicadas (AC-7) e eventos de status não contam; mensagens bloqueadas não prolongam a janela",
+      "testable": "unit",
+      "test_notes": "Relógio injetável; 60 passam, 61ª bloqueada com aviso, 62ª bloqueada em silêncio, após a mais antiga sair da janela volta a passar; 1 alerta e 1 e-mail por hora; zero chamadas ao WAHA com a chave desligada."
+    },
+    {
+      "id": "AC-30",
+      "group": "Usuário autorizado",
+      "title": "Resposta fixa 'em construção' para texto de usuário autorizado",
+      "given": "usuário active, com aceite e abaixo do limite",
+      "when": "envia uma mensagem de texto",
+      "then": "recebe a mensagem fixa de 'em construção', sem chamada ao modelo ou busca; o rastro registra decisão 'allowed' e guarda o corpo da mensagem",
+      "testable": "integration",
+      "test_notes": "Spies de modelo/mídia com zero chamadas; texto exato da resposta vem de configuração (Q9)."
+    },
+    {
+      "id": "AC-31",
+      "group": "Ordem das verificações",
+      "title": "Acesso é decidido antes de qualquer outro custo",
+      "given": "qualquer mensagem com assinatura válida",
+      "when": "o pipeline processa a mensagem",
+      "then": "a ordem é: tamanho, assinatura, idempotência, identificação do remetente, decisão de acesso (lista e aceite), limite de taxa (coerente com o AC-4: o tamanho é checado antes da assinatura); nenhum passo que gere custo (download de mídia, busca, modelo) ocorre antes da decisão 'allowed'",
+      "testable": "integration",
+      "test_notes": "Teste de ordem de chamadas com mocks registrando a sequência; teste de intrusão do critério de pronto do épico (zero conteúdo a número fora da lista)."
+    },
+    {
+      "id": "AC-32",
+      "group": "Rastro",
+      "title": "Rastro por mensagem",
+      "given": "qualquer mensagem de usuário recebida com assinatura válida e não duplicada",
+      "when": "o processamento termina (inclusive em bloqueio, limite ou erro)",
+      "then": "existe exatamente 1 registro de rastro com: message_id, identificador do remetente (user_id ou chave de remetente desconhecido), tipo da mensagem, instante de recebimento, decisão de acesso e motivo, tipo de resposta enviada (ou 'none' em silêncio), message_id da resposta, instante de envio, latência em ms e resultado do envio; o corpo da mensagem é guardado apenas para usuário autorizado (retenção de 12 meses); a única exceção é o texto da 1ª mensagem de cada número desconhecido (AC-10), guardado no registro do remetente desconhecido e não no rastro; logs estruturados não contêm telefone completo, corpo nem o e-mail do destinatário",
+      "testable": "integration",
+      "test_notes": "Um teste por decisão (allowed, unknown, pending_optin, declined, revoked, rate_limited, escalated_media, send_failed) conferindo as colunas. Inspeção de logs capturados sem PII."
+    },
+    {
+      "id": "AC-33",
+      "group": "Rastro",
+      "title": "Falha no envio da resposta",
+      "given": "decisão tomada e resposta a enviar",
+      "when": "a Meta recusa ou o envio dá erro",
+      "then": "o rastro registra o erro (código sem PII), não há retentativa infinita (máximo definido na Fase 2) e, se o erro se repetir, um alerta é criado na tabela de alertas (com e-mail de aviso, AC-37, e envio ao grupo só se a chave estiver ligada, AC-13)",
+      "testable": "integration",
+      "test_notes": "Mock de envio com 4xx e 5xx; alerta presente no banco; e-mail disparado; zero chamadas ao WAHA com a chave desligada."
+    },
+    {
+      "id": "AC-34",
+      "group": "Administração",
+      "title": "Revogação por comando",
+      "given": "usuário em qualquer status",
+      "when": "o administrador executa o comando de revogação",
+      "then": "status vira revoked com data e autor; o comando é idempotente; usuário inexistente retorna erro claro; a ação fica em trilha de auditoria administrativa",
+      "testable": "integration",
+      "test_notes": "Revogar 2x; revogar inexistente."
+    },
+    {
+      "id": "AC-35",
+      "group": "Administração",
+      "title": "Reenvio do aceite e reativação de revogado",
+      "given": "usuário pending_optin, declined ou revoked",
+      "when": "o administrador executa o comando de reenvio/reativação",
+      "then": "o modelo de boas-vindas é reenviado e o usuário passa (ou volta) a pending_optin sem acesso; para revoked, o accepted_at anterior é zerado (o histórico fica na trilha de auditoria) e o acesso só volta quando ele tocar em Aceito de novo (AC-18); a ação registra autor e data; para usuário active o comando recusa com mensagem clara",
+      "testable": "integration",
+      "test_notes": "Tabela status x resultado: revoked -> pending_optin -> mensagem em silêncio -> Aceito -> active com novo accepted_at; active recusa."
+    },
+    {
+      "id": "AC-36",
+      "group": "Usuário autorizado",
+      "title": "Áudio, imagem e outras mídias de usuário autorizado: ticket escalado imediato, sem e-mail",
+      "status": "default adotado (registro só com tipo, usuário e message_id; arquivo nunca baixado); resposta curta confirmada pelo Caio em 2026-10-23",
+      "given": "usuário active, com aceite e abaixo do limite",
+      "when": "envia mensagem que não é texto (áudio, imagem, vídeo, documento, figurinha, localização etc.)",
+      "then": "o Jarvis NÃO baixa, transcreve nem interpreta o conteúdo; um TICKET ESCALADO é criado IMEDIATAMENTE (sem limiar de atraso), em tabela própria, com status 'aberto', usuário identificado, tipo da mensagem e message_id — NÃO é criado registro na tabela de alertas e NENHUM e-mail é enviado (decisão do Caio: ticket escalado não envia e-mail; o ticket aparece no painel); o envio ao grupo da equipe via WAHA ocorre somente se a chave estiver ligada (AC-13); o usuário recebe uma resposta curta informando que a equipe foi avisada; o rastro registra decisão 'escalated_media'; atendimento do ticket e encaminhar resposta do grupo de volta ao usuário NÃO fazem parte deste incremento",
+      "testable": "integration",
+      "test_notes": "Um caso por tipo de mensagem; spies de download de mídia/transcrição/modelo com zero chamadas; ticket no banco ao fim do processamento, zero linhas novas na tabela de alertas e ZERO chamadas ao cliente de e-mail; WAHA recebe 1 aviso sem anexo só com chave ligada; falha do WAHA não impede a resposta curta (texto em Q9)."
+    },
+    {
+      "id": "AC-37",
+      "group": "Avisos por e-mail",
+      "title": "E-mail imediato a cada novo alerta (somente alertas)",
+      "given": "e-mail do destinatário (corporativo do Caio) e credenciais do provedor configurados no servidor (padrão Resend do AUTO-1); o endereço não consta em spec, código versionado nem log",
+      "when": "um NOVO registro é criado na tabela de alertas (alertas suprimidos pela regra de 1 por hora do limite de mensagens, e duplicatas, não contam; tentativas de acesso não criam alerta, AC-12; ticket escalado não é alerta e não envia e-mail, AC-36)",
+      "then": "um e-mail de aviso é enviado imediatamente (disparado no mesmo processamento, sem esperar o resultado para responder ao webhook), contendo tipo do alerta, identificador mascarado, contagem e instante, e NUNCA o texto de mensagem de usuário; falha do e-mail (provedor fora do ar, credencial ausente, destinatário não configurado) jamais bloqueia ou atrasa o processamento da mensagem: é registrada em log sem PII, o registro de entrega do e-mail fica marcado como falho e o envio é retentado depois (limite de tentativas na Fase 2); o envio de e-mail não depende da chave do grupo WAHA e acontece com ela ligada ou desligada",
+      "testable": "integration",
+      "test_notes": "Mock do cliente de e-mail: (a) alerta novo -> 1 e-mail; (b) ticket escalado novo -> 0 e-mails; (c) alerta de limite suprimido ou duplicata -> 0 e-mails; (d) provedor com erro/timeout -> mensagem processada normalmente, entrega marcada como falha, retentativa agendada; (e) destinatário não configurado -> processamento normal e log; (f) chave WAHA desligada e ligada -> e-mail igual nos dois casos; (g) corpo do e-mail sem texto de mensagem e logs sem o endereço; (h) tentativa de desconhecido ou revogado -> 0 e-mails."
+    }
+  ],
+  "non_functional": {
+    "performance": "200 do webhook em < 1 s em condições normais (a Meta reentrega se demorar); decisão de acesso < 50 ms (consulta indexada por telefone e BSUID); p95 do eco 'em construção' <= 8 s (meta PRD §6); alerta e ticket escalado criados no mesmo processamento da mensagem; e-mail de alerta disparado sem bloquear a resposta ao webhook",
+    "security": "HMAC SHA-256 sobre bytes brutos com comparação em tempo constante; App Secret, verify token, credencial do provedor de e-mail e endereço do destinatário só em variáveis de ambiente/cofre, nunca em spec, código versionado ou log; payload limitado; unicidade de message_id por constraint no banco; falha de segurança descarta sem eco de erro; chave do grupo WAHA desligada por padrão (nada sai para grupo sem ativação explícita); nenhum arquivo .env lido ou versionado",
+    "accessibility": "não se aplica (sem interface; mensagens de texto curto em PT-BR, até 700 caracteres)",
+    "observability": "rastro por mensagem no banco (AC-32); tabelas de alertas, de tickets escalados e de tentativas de acesso são a fonte do painel; logs JSON estruturados sem PII com request_id; contadores: assinatura inválida, payload grande, duplicadas, bloqueios por motivo, tentativas de acesso, rate_limited, tickets escalados, alertas por canal de entrega (painel, e-mail ok/falho, grupo ok/falho)",
+    "lgpd": "remetente desconhecido: guarda-se identificador, contadores, tipo/tamanho e SOMENTE o texto da 1ª mensagem, condicionado à validação jurídica (Q17); mensagens seguintes de desconhecido e de bloqueado nunca têm corpo guardado; e-mails e avisos ao grupo nunca levam texto de mensagem; usuário autorizado: corpo guardado por 12 meses, igual ao AUTO-1 (PRD §7); accepted_at com versão do aviso aceito (campo a detalhar na Fase 2); retenção do rastro 12 meses"
+  },
+  "out_of_scope": [
+    "Qualquer resposta com conteúdo (produto, preço, argumentos, arquivos) — incremento 2 em diante",
+    "Alertas, e-mails ou avisos ao grupo para tentativas de acesso de número desconhecido ou bloqueado (decisão de 2026-10-22: só registro para o painel)",
+    "E-mail para tickets escalados (mídia ou qualquer outro escalonamento futuro): decisão do Caio, tickets não enviam e-mail",
+    "O painel web em si (telas 'Pessoas autorizadas → Pedindo acesso', alertas, tickets, cadastro) — incremento 5; este incremento só grava os dados que o painel vai exibir (tabelas de alertas, de tickets escalados e de tentativas de acesso)",
+    "Fluxo de atendimento do ticket escalado (atribuir, responder ao usuário, fechar, SLA, lembretes): história futura de escalonamento; aqui o ticket só é criado com status 'aberto'",
+    "Expiração automática de acesso por data (validade de 180 dias), revalidação em lote e aviso de vencimento: removidos por decisão do Caio em 2026-10-21; valid_until existe nulo no modelo para uso futuro, sem bloqueio por data",
+    "Transcrição de áudio e interpretação de imagens: o Jarvis não processa áudio nem imagem (RF-02 removido do MVP; mídia só gera ticket escalado e a resposta curta de equipe avisada, AC-36)",
+    "Download ou encaminhamento do arquivo de mídia a qualquer destino",
+    "Ativar o envio ao grupo da equipe: o caminho WAHA é implementado e testado, mas a chave fica desligada; ligar, escolher o grupo e a sessão é decisão e configuração posteriores",
+    "E-mails para outros destinatários, resumo/digest de e-mails, agrupamento de avisos e templates de e-mail elaborados",
+    "Encaminhar de volta ao usuário a resposta que a equipe der no grupo (história futura de escalonamento)",
+    "Dashboard interno de alertas/escalonamentos (como o do AUTO-1) — história futura",
+    "Painel web de cadastro, importação e revogação (RF-20 completo) — incremento 5; aqui só comando/script administrativo e CSV via SSH",
+    "Lista completa de usuários: o cadastro inicial é só o telefone do Caio, para teste; o restante vem depois",
+    "Uso do modelo de linguagem",
+    "Mensagens ativas além do modelo de boas-vindas (renovação de acesso, comunicados, alertas ao vendedor) — apenas o predicado de elegibilidade e a palavra 'sair' entram",
+    "Reconciliação mensal com a lista de vendedores ativos (3C)",
+    "Filtro de conteúdo por perfil/UF/canal/marca (RF-18) — os campos são guardados mas ainda não usados",
+    "Provisionamento do droplet, DNS, nginx, banco, conta/domínio do provedor de e-mail e pipeline de deploy (tarefas de fundação técnica)",
+    "Aprovação jurídica do aviso de privacidade e aprovação do modelo na Meta (dependências externas)",
+    "Direito de exclusão de dados a pedido do usuário (exclusão pelo painel)"
+  ],
+  "decisions_2026_10_21": [
+    "Q1/Q2/Q15: número desconhecido NÃO recebe resposta (silêncio); toda tentativa registrada; revogado/recusado têm o mesmo tratamento.",
+    "Q3: avisos de alerta/escalonamento poderão ir a um grupo de WhatsApp da equipe via WAHA (padrão AUTO-1); encaminhar respostas do grupo fica fora. (Reformulado em 2026-10-22: grupo desligado por chave; ver decisões 4 a 9.)",
+    "Q4: cadastro por CLI/CSV via SSH; usuário de teste inicial = telefone do Caio; lista completa vem depois.",
+    "Q11: corpo da mensagem de usuário autorizado é guardado (como no AUTO-1), retenção de 12 meses.",
+    "Q14: o Jarvis não processa áudio nem imagem; mídia de usuário autorizado é escalada e o usuário recebe resposta curta; RF-02 sai do MVP.",
+    "Q6: sem expiração de acesso por ora. valid_until fica nulo no modelo; removidos AC-24/AC-25 e a validade padrão. Revogação em até 1 minuto permanece.",
+    "Q7: limite de 60 msg/h mantido, janela deslizante de 60 min; um aviso por janela ao usuário ('Você atingiu o limite de mensagens por hora. Tente novamente em alguns minutos.') e alerta.",
+    "Q2' (default de alertar no 1º contato e na 3ª tentativa): SUBSTITUÍDO em 2026-10-22 (decisão 8): tentativas de acesso não geram alerta.",
+    "Q16 (default adotado): o registro de mídia leva só tipo, usuário e message_id; o arquivo nunca é baixado."
+  ],
+  "decisions_2026_10_22": [
+    "1. Número desconhecido continua SEM resposta, mas o texto da PRIMEIRA mensagem de cada número é guardado (só a primeira; as seguintes guardam apenas contagem e instantes) para o painel exibir em 'Pedindo acesso'. Dependente de validação jurídica (LGPD); retenção é questão para o jurídico (Q17).",
+    "2. Revogado pode ser reativado pelo administrador: volta a pending_optin e precisa tocar em Aceito de novo (AC-19, AC-35).",
+    "3. Cadastro exige todos os campos do PRD: nome, telefone, perfil, empresa, UFs, canais, marcas e gestor responsável (AC-15, AC-16).",
+    "4. Alertas e tickets escalados são sempre gravados no banco (visíveis no painel). O envio ao grupo da equipe via WAHA existe, mas fica DESLIGADO por chave de configuração, desligada por padrão; desligado, nada é enviado a nenhum grupo (AC-13).",
+    "5. O escalonamento é imediato, sem limiar de atraso.",
+    "6. Escalonamento de mídia (AC-36) NÃO é alerta: cria um ticket escalado em tabela própria. Limite por hora, conflito de BSUID e falhas de envio continuam sendo alertas.",
+    "7. Todo novo ALERTA dispara e-mail imediato ao e-mail corporativo do Caio, configurado no servidor (o endereço nunca é escrito na spec), no padrão Resend do AUTO-1. Falha de e-mail nunca bloqueia o processamento: é logada e retentada. Independe da chave do grupo WAHA (AC-37).",
+    "8. Tentativas de número desconhecido (e de revogado/recusado) NÃO geram alerta: nem no 1º contato, nem na 3ª tentativa, nem e-mail, nem aviso ao grupo. São apenas registradas para 'Pessoas autorizadas → Pedindo acesso' do painel (AC-10, AC-11, AC-12, AC-14, AC-27). O default Q2' deixa de existir.",
+    "9. Tickets escalados (mídia de AC-36 e qualquer outro escalonamento) NÃO enviam e-mail. O e-mail é só para novos alertas (AC-37); o ticket fica no banco/painel (e no grupo, se a chave estiver ligada)."
+  ],
+  "decisions_2026_10_23": [
+    "10. Mídia de usuário autorizado (áudio, foto etc.) RECEBE a resposta curta de 'equipe avisada', exatamente como o AC-36 aprovado. O Caio confirmou em 2026-10-23, revertendo a nota do PRD §10 de 2026-10-22 ('Áudio e foto não recebem resposta'), que precisa ser corrigida no Decision Log do PRD. A chave MEDIA_ACK_ENABLED existe, ligada por padrão. Resolve a antiga Q20.",
+    "11. AC-31 reordenado para 'tamanho, assinatura, ...', coerente com o AC-4 (413 antes de validar a assinatura)."
+  ],
+  "open_questions": [
+    "Q17 (jurídico): Guardar o texto da 1ª mensagem de número desconhecido tem base legal LGPD? Qual a retenção (ex.: apagar após X dias se o número não for cadastrado)? O aviso de privacidade não cobre quem nunca aceitou; o texto pode conter dado pessoal de terceiros. Até a resposta, AC-10 fica com o armazenamento do texto condicionado (implementar atrás de configuração ou decidir antes da Fase 3).",
+    "Q18 (baixa prioridade): Quando e quem liga a chave do grupo da equipe? Qual grupo e sessão WAHA? O que o aviso enviado ao grupo pode conter (assumido: sem texto de mensagem)?",
+    "Q19 (baixa prioridade): E-mail de aviso de alerta: confirmar o conteúdo mínimo assumido (tipo, identificador mascarado, contagem, instante, sem texto de mensagem), o limite de retentativas, e se a conta/domínio de remetente do Resend do AUTO-1 pode ser reutilizado ou se o Jarvis precisa de remetente próprio.",
+    "Q4 (baixa prioridade): Layout do CSV (colunas, separador, como representar lista de UFs/canais/marcas num campo) e valores válidos de perfil (vendedor, gestor, executivo, parceiro externo, administrador?). Os campos obrigatórios já estão decididos.",
+    "Q5: A Meta já envia o BSUID no payload do nosso app/versão da API? Como cadastrar quem só tem nome de usuário (sem telefone para o modelo de boas-vindas)?",
+    "Q8: Modelo de boas-vindas: nome, categoria (utility ou marketing, muda o custo), idioma, ainda não submetido/aprovado; forma de pagamento no WhatsApp Manager pendente (STATE.md); aviso completo como PDF ou link (pendência jurídica, aviso-privacidade.md); texto dos botões e payloads. Sem isso AC-15 a AC-18 só são testáveis com mock.",
+    "Q9: Textos fixos a aprovar: eco 'em construção', confirmação do aceite, confirmação de 'sair', lembrete de aceite (AC-21) e a resposta curta de 'equipe avisada' (AC-36). O texto de recusa está no aviso de privacidade e o aviso de limite foi definido por Caio (AC-29).",
+    "Q10: Confirmar o limite de payload do webhook (64 KB no AUTO-1; payloads da Meta com várias mensagens costumam ser bem menores).",
+    "Q12: Conta WhatsApp: desenvolvimento no número de teste (+1 555 670 8419); a conta Positive Co foi autorizada por engano e compartilha webhooks (STATE.md). O webhook do Jarvis só deve ser inscrito na conta de teste/dedicada. Quem resolve e quando?",
+    "Q13: LGPD: confirmar com o responsável que armazenar telefone, BSUID, corpo das mensagens, rastro e o envio de avisos de alerta por e-mail (provedor externo) no droplet/serviços fora do Brasil é aceitável (pendência do ADR de 2026-10-20).",
+    "Q21 (nova, Fase 2): Tipos de mensagem sem tratamento previsto nos AC: reação, system, unsupported, botão/interativo de usuário ativo. Padrão do desenho: só rastro (decisão 'ignored_type'), sem resposta nem ticket. Também: o 'tamanho' da mídia na 1ª mensagem de desconhecido (AC-10) não vem no payload da Meta (obter exigiria chamada à Graph API); padrão: guardar tipo e mime_type.",
+    "Q22 (nova, Fase 2): Erro inesperado (bug, não falha de banco) ao processar uma mensagem. Padrão: log de erro + rastro 'error' + resposta 200 (reentregar um bug por 7 dias só gera ruído), sem alerta novo. Quer alerta?",
+    "Q23 (nova, Fase 2): O AC-37 pede 'identificador mascarado' no e-mail de alerta, mas o painel (PN-65) pede e-mail sem telefone nem nome. Padrão: 'usuário #id' (id interno), nunca telefone, nome ou texto.",
+    "Q24 (nova, Fase 2): Infraestrutura: porta do serviço (8010 proposta, a confirmar livre), diretório /opt/jarvis, subdomínio jarvis.positiveco.com.br, quem gerencia o DNS e qual mecanismo de certificado o site do AUTO-1 usa.",
+    "Q25 (nova, Fase 2): Ambiente de desenvolvimento: onde rodam Python 3.12 e Postgres para os testes (a máquina do Caio não tinha Python no piloto) e existe repositório remoto/CI? Padrão: testes de integração no CI com Postgres 16.",
+    "Q26 (nova, Fase 2): Quem constrói a rotina de expurgo dos 12 meses e a exclusão a pedido do usuário. Padrão: painel (PN-57/58); nesta tarefa nada é expurgado."
+  ],
+  "resolved_questions": [
+    "Q20 (nova na Fase 2, resolvida em 2026-10-23): resposta a mídia de usuário autorizado. O Caio confirmou o AC-36 como aprovado (resposta curta 'equipe avisada'); a nota do PRD §10 de 2026-10-22 deve ser corrigida."
+  ]
+}

@@ -1,0 +1,93 @@
+{# Formulario da FAQ (PN-T27; PN-23, PN-24, PN-26). Fragmento injetado em #modal-body (base.html);
+   layout e textos vem do prototipo. Contexto: values (FormValues), editing, version, action,
+   errors, conflict (FaqRecord com o texto atual), from_ticket, was_all_brands, brand_options,
+   category_options, question_max, csrf_token. Variacoes: linhas de textarea com o mesmo nome;
+   js/faq_form.js so adiciona e remove linhas (o formulario funciona sem ele para salvar). #}
+{% from "_macros.html" import csrf_field, error_list, modal_head %}
+{{ modal_head('Editar pergunta' if editing else 'Adicionar pergunta') }}
+<form method="post" action="{{ action }}" hx-post="{{ action }}" hx-target="#modal-body" hx-swap="innerHTML"
+      hx-disabled-elt="find button" class="px-4 py-4 space-y-4" data-faq-form>
+  {{ csrf_field(csrf_token) }}
+  {% if editing %}<input type="hidden" name="version" value="{{ version }}">{% endif %}
+
+  {% if from_ticket %}
+  <p role="status" class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">Preenchido a partir do ticket <strong class="font-mono">{{ from_ticket }}</strong>. Escreva a resposta e confira a marca e a categoria.</p>
+  {% endif %}
+
+  {% if conflict %}
+  <div role="alert" tabindex="-1" data-faq-conflict class="rounded-lg border border-amber-300 bg-amber-50 px-3 py-3 text-xs text-amber-900 space-y-2">
+    <p class="font-semibold">Este item mudou desde que você abriu.</p>
+    <p>Última alteração por <strong>{{ conflict.updated_by }}</strong> em {{ conflict.updated_at | sp_dt }}. Texto atual na FAQ:</p>
+    <div class="rounded-md bg-white border border-amber-200 px-3 py-2 space-y-1.5 text-ink-800">
+      <p><span class="text-ink-400">Pergunta:</span> <span class="whitespace-pre-wrap">{{ conflict.question }}</span></p>
+      <p><span class="text-ink-400">Resposta:</span> <span class="whitespace-pre-wrap">{% if conflict.answer %}{{ conflict.answer }}{% else %}—{% endif %}</span></p>
+      {% for v in conflict.variations %}<p><span class="text-ink-400">Variação {{ loop.index }}:</span> <span class="whitespace-pre-wrap">{{ v }}</span></p>{% endfor %}
+      {% if not conflict.bot_responde %}<p class="text-amber-800">O Jarvis não responde sozinho: escala para a equipe.</p>{% endif %}
+    </div>
+    <p>Se gravar agora, o que está na tela substitui esse texto. Para partir do texto atual, <a href="/dashboard/faq/{{ conflict.id }}/editar" hx-get="/dashboard/faq/{{ conflict.id }}/editar" hx-target="#modal-body" hx-swap="innerHTML" class="font-semibold underline">abra de novo</a> (o que você digitou aqui se perde).</p>
+  </div>
+  {% endif %}
+
+  {{ error_list(errors) }}
+
+  <div class="grid grid-cols-2 gap-2">
+    <div>
+      <label for="fm-brand" class="block text-xs font-medium text-ink-600">Marca</label>
+      <select id="fm-brand" name="brand" class="mt-1 w-full rounded-lg border border-ink-300 px-2 py-1 text-sm">
+        {% for value, label in (brand_options or []) %}<option value="{{ value }}"{% if values.brand == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="fm-category" class="block text-xs font-medium text-ink-600">Categoria</label>
+      <select id="fm-category" name="category" class="mt-1 w-full rounded-lg border border-ink-300 px-2 py-1 text-sm">
+        {% for value, label in (category_options or []) %}<option value="{{ value }}"{% if values.category == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+  </div>
+  <p class="text-xs text-ink-400 -mt-2">{% if was_all_brands %}<strong class="text-amber-700">Hoje ela vale para as cinco marcas</strong> — escolher uma marca remove das outras.{% else %}A marca decide em quais filtros a pergunta aparece. "Todas as marcas" vale para as cinco.{% endif %}</p>
+
+  <div>
+    <label for="fm-question" class="block text-xs font-medium text-ink-600">Pergunta</label>
+    <textarea id="fm-question" name="question" rows="2" maxlength="{{ question_max or 500 }}" class="mt-1 w-full rounded-lg border border-ink-300 px-2 py-1 text-sm">{{ values.question }}</textarea>
+  </div>
+  <div>
+    <label for="fm-answer" class="block text-xs font-medium text-ink-600">Resposta</label>
+    <textarea id="fm-answer" name="answer" rows="5" class="mt-1 w-full rounded-lg border border-ink-300 px-2 py-1 text-sm">{{ values.answer }}</textarea>
+    <p class="mt-0.5 text-xs text-ink-400">Sem telefone, e-mail ou link de fora do site oficial.</p>
+  </div>
+
+  <div>
+    <p class="text-xs font-medium text-ink-600">Variações da resposta <span class="font-normal text-ink-400">(opcional)</span></p>
+    <p class="text-[11px] text-ink-400">O Jarvis alterna entre a resposta e as variações, para não repetir sempre o mesmo texto.</p>
+    <div data-faq-vars class="mt-1 space-y-1.5">
+      {% for text in (values.variations or []) %}
+      <div data-faq-var class="flex gap-1.5">
+        <textarea name="variations" rows="2" aria-label="Variação da resposta" class="flex-1 rounded-lg border border-ink-300 px-2 py-1 text-sm">{{ text }}</textarea>
+        <button type="button" data-faq-var-remove class="self-start px-2 py-1 text-xs text-ink-400 hover:text-red-700" title="Remover variação" aria-label="Remover variação">✕</button>
+      </div>
+      {% endfor %}
+    </div>
+    <template data-faq-var-template>
+      <div data-faq-var class="flex gap-1.5">
+        <textarea name="variations" rows="2" aria-label="Variação da resposta" class="flex-1 rounded-lg border border-ink-300 px-2 py-1 text-sm"></textarea>
+        <button type="button" data-faq-var-remove class="self-start px-2 py-1 text-xs text-ink-400 hover:text-red-700" title="Remover variação" aria-label="Remover variação">✕</button>
+      </div>
+    </template>
+    <button type="button" data-faq-var-add class="mt-1.5 text-xs font-medium text-mint-700 hover:text-mint-900">+ Adicionar variação</button>
+  </div>
+
+  <label class="flex items-start gap-2 text-xs text-ink-700">
+    <input type="checkbox" name="bot_responde" value="1"{% if values.bot_responde %} checked{% endif %} class="mt-0.5 rounded border-ink-300">
+    <span><strong>O Jarvis responde sozinho.</strong> Desmarcado, o tema escala para a equipe.</span>
+  </label>
+
+  <div class="flex items-center gap-2 pt-1">
+    {% if conflict %}
+    <button type="submit" name="force" value="1" class="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700">Gravar mesmo assim</button>
+    {% else %}
+    <button type="submit" class="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-ink-800">{{ 'Salvar' if editing else 'Criar' }}</button>
+    {% endif %}
+    <button type="button" data-overlay-close class="rounded-lg border border-ink-300 bg-white px-3 py-1.5 text-xs font-medium text-ink-700 hover:bg-ink-50">Cancelar</button>
+  </div>
+</form>
+<script src="{{ static_v('js/faq_form.js') }}"></script>

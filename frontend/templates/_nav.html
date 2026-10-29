@@ -1,0 +1,29 @@
+{# Menu lateral do prototipo (grupos Operacao, Analise, Admin). O seletor de marca saiu do menu
+   (pedido do Caio, 2026-10-27): o painel mostra todas as marcas. Contexto opcional: active = chave da tela. #}
+{% set MENU = [
+  ['Operação', [
+    ['tickets', '/dashboard/tickets', '🎫 Tickets'],
+    ['inbox', '/dashboard/inbox', '📥 Inbox'],
+    ['escalados', '/dashboard/escalados', '🚩 Escalados'],
+    ['faq', '/dashboard/faq', '❓ FAQ'],
+    ['pessoas', '/dashboard/pessoas', '👥 Pessoas autorizadas'],
+  ]],
+  ['Análise', [
+    ['metrics', '/dashboard/metrics', '📊 Métricas'],
+    ['alerts', '/dashboard/alerts', '🔔 Alertas'],
+    ['relatorios', '/dashboard/relatorios', '📄 Relatórios'],
+  ]],
+  ['Admin', [
+    ['logs', '/dashboard/logs', '🖥️ Logs'],
+    ['perguntas', '/dashboard/assistente-perguntas', '💬 Perguntas'],
+  ]],
+] %}
+<nav aria-label="Navegação principal" class="text-sm">
+  {% for group, items in MENU %}
+  <p class="px-3 pt-4 pb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-400">{{ group }}</p>
+  {% for key, href, label in items %}
+  <a href="{{ href }}" {% if key == active %}aria-current="page"{% endif %}
+     class="block rounded-lg px-3 py-2 font-medium {{ 'bg-ink-900 text-white' if key == active else 'text-ink-600 hover:bg-ink-100' }}">{{ label }}</a>
+  {% endfor %}
+  {% endfor %}
+</nav>

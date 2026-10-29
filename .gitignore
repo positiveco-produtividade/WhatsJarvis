@@ -1,0 +1,15 @@
+# Dados licenciados (Nielsen) e internos (GMR) e planilhas de origem: nunca versionar
+*.xlsx
+docs/designs/dados/
+
+# Piloto técnico: chaves e logs locais
+piloto/.env
+piloto/logs/
+.env
+
+backend/.venv/
+.env*
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

@@ -1,0 +1,27 @@
+{# Aba Problemas (PN-T60; PN-54, PN-43). Contexto: rows (ProblemRow: ticket, when, problem,
+   detail). Telefone ja mascarado e nenhum corpo de mensagem chega aqui. #}
+{% from "_macros.html" import empty_row %}
+<div id="logs-problemas" class="bg-white rounded-2xl border border-ink-200 p-3">
+  <div class="bg-white rounded-xl overflow-x-auto">
+    <table class="w-full text-sm min-w-[640px]">
+      <thead class="bg-ink-50 text-ink-500 text-xs uppercase tracking-wide"><tr>
+        <th scope="col" class="px-4 py-2 text-left font-medium">Ticket</th>
+        <th scope="col" class="px-4 py-2 text-left font-medium">Data</th>
+        <th scope="col" class="px-4 py-2 text-left font-medium">Problema</th>
+        <th scope="col" class="px-4 py-2 text-left font-medium">Detalhe</th>
+      </tr></thead>
+      <tbody>
+        {% for r in (rows or []) %}
+        <tr class="border-t border-ink-100">
+          <td class="px-4 py-2.5 font-mono text-xs">{{ r.ticket }}</td>
+          <td class="px-4 py-2.5 text-ink-500 whitespace-nowrap">{{ r.when }}</td>
+          <td class="px-4 py-2.5 text-red-700">{{ r.problem }}</td>
+          <td class="px-4 py-2.5 text-xs text-ink-600 max-w-md break-words">{{ r.detail }}</td>
+        </tr>
+        {% else %}
+        {{ empty_row(4, 'Nenhum problema registrado. Tudo certo por aqui.') }}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>

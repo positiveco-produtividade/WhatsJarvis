@@ -1,0 +1,178 @@
+{
+  "task_id": "PORTA-FECHADA-1",
+  "phase": "2-design",
+  "story_points": 21,
+  "size": "XL",
+  "rationale": "37 criterios de aceite ativos sobre uma base de codigo que ainda nao existe (esqueleto Python, schema de ~12 tabelas, CI). Tem 4 integracoes externas (Meta entrada/saida, Resend, WAHA, Postgres), uma maquina de estados de opt-in, concorrencia que precisa ser correta no banco (idempotencia, limite deslizante, transicoes de status), CLI administrativo e uma suite de seguranca/intrusao que e criterio de pronto do epico. O padrao do AUTO-1 reduz a camada HTTP, config, log, alertas, e-mail, WAHA e deploy a adaptacao; o que e novo (identidade, opt-in, limite no Postgres, outbox, auditoria imutavel) e a parte cara. E tambem o dono do modelo de dados e de quatro servicos que o painel.1 reutiliza (chat.tickets/ops.v_tickets, users.validate_row/register, raise_alert com email, flags + ReplyPolicy; pedidos R1-R4 aceitos em 2026-10-23, +~4 h), entao erros aqui custam retrabalho la. Deve ser quebrada em ~14-18 tarefas de 2-8 h na Fase 3 (ver 8.1); nao e implementavel como uma tarefa unica.",
+  "estimated_hours": {
+    "min": 84,
+    "max": 135,
+    "expected": 104
+  },
+  "risk_factors": [
+    {
+      "factor": "Forma do payload da Meta para BSUID e para respostas de botao ainda nao confirmada (Q5); fixtures iniciais serao construidas a partir da documentacao",
+      "impact": "medium",
+      "mitigation": "Extracao do remetente isolada em services/inbound.py::extract_sender; capturar payloads reais no numero de teste (texto, botao, audio, imagem, status) cedo no marco M2 e trocar as fixtures; teste de contrato do parser com esses arquivos."
+    },
+    {
+      "factor": "Modelo de boas-vindas ainda nao submetido/aprovado e forma de pagamento pendente (Q8): sem isso AC-15..AC-18 so rodam com mock e o smoke test real nao fecha",
+      "impact": "high",
+      "mitigation": "Submeter o modelo a Meta assim que o texto for aprovado (aprovacao tem prazo proprio); construtor do payload em funcao unica; interface de canal permite testar todo o fluxo com FakeChannel; o roteiro manual so e executado depois da aprovacao."
+    },
+    {
+      "factor": "Webhook e por app: a conta Positive Co (producao da empresa) pode entregar eventos de outro phone_number_id ao nosso URL (Q12)",
+      "impact": "high",
+      "mitigation": "Descarte por phone_number_id antes de qualquer acesso a banco (AC-6), contador de wrong_recipient sem PII, teste dedicado; nao inscrever o URL do Jarvis ate confirmar que a Positive Co saiu do app; checklist de go-live."
+    },
+    {
+      "factor": "Armazenar o texto da 1a mensagem de desconhecido sem base legal confirmada (Q17) e dados fora do Brasil (Q13)",
+      "impact": "high",
+      "mitigation": "Chave UNKNOWN_FIRST_TEXT_STORE desligada em producao; texto em tabela separada (DROP/TRUNCATE simples, permissao propria); e-mail e grupo nunca levam texto; ligar so apos resposta do juridico."
+    },
+    {
+      "factor": "Concorrencia: duplicata simultanea, 61a mensagem simultanea, aceite e revogacao simultaneos",
+      "impact": "medium",
+      "mitigation": "Corretude no banco: UNIQUE(wa_message_id) como primeiro INSERT, lock FOR UPDATE da linha do usuario, CHECKs de estado, claims atomicos com SKIP LOCKED; testes de concorrencia contra Postgres real (nao mocks)."
+    },
+    {
+      "factor": "Ambiente de desenvolvimento sem Python/Postgres (o piloto foi em Node por esse motivo) e testes de integracao dependem de Postgres real (Q25)",
+      "impact": "medium",
+      "mitigation": "Definir ambiente antes da Fase 4 (Python 3.12 + Postgres 16 locais ou somente CI com service container); testes marcados 'db' pulam sem TEST_DATABASE_URL; nunca usar o banco do droplet para testes."
+    },
+    {
+      "factor": "Dependencia de infraestrutura nao controlada por esta tarefa: DNS do subdominio (dono desconhecido), certificado, banco/role no droplet, porta livre (Q24)",
+      "impact": "medium",
+      "mitigation": "Codigo e testes nao dependem disso; artefatos de deploy entregues como arquivos versionados; checklist com confirmacao do Caio antes de cada mudanca no servidor compartilhado; plano B temporario com tunel (como no piloto) para o smoke test."
+    },
+    {
+      "factor": "Servidor unico compartilhado (2,4 GB livres, ~10 apps) e SLA de 99,5%; queda gera backlog de reentregas da Meta (ate 7 dias) e respostas tardias",
+      "impact": "medium",
+      "mitigation": "1 worker leve (limite de memoria 300 MB), /health com checagem de banco e migrations; tratar backlog como risco operacional documentado no runbook; pausa global (flag paused + ReplyPolicy, R4) disponivel desde esta tarefa; comecar com poucos usuarios (so o Caio)."
+    },
+    {
+      "factor": "Contrato do modelo de dados e dos servicos compartilhados com o painel.1 (chat.tickets, users, alerts, flags, reply_policy): dois donos editando os mesmos arquivos ou colunas faltando/sobrando",
+      "impact": "medium",
+      "mitigation": "Dono unico por arquivo (PF cria flags.py, reply_policy.py, users.py, alerts.py; o painel so chama); numeracao de migrations separada (PF 001-099, painel 101-107); tabela de contrato no 4.2.8 e decisoes R1-R4 no 4.11; mudancas sempre aditivas; painel ajusta a migration 102 e a lista de arquivos dele."
+    },
+    {
+      "factor": "Cronograma: etapa 5 do plano tem 3 semanas (23/11 a 11/12/2026) para ~104 h",
+      "impact": "high",
+      "mitigation": "Quebra em tarefas paralelizaveis com escopos de escrita disjuntos (parser/telefone/acesso puros; migrations; clientes de saida; CLI; flags/reply_policy); ondas da skill sdd-waves; funcoes puras primeiro para destravar testes."
+    },
+    {
+      "factor": "Entrega em duplicidade ou perda no envio ao usuario (at-most-once vs at-least-once) em queda do processo",
+      "impact": "low",
+      "mitigation": "Resposta ao usuario e at-most-once (status 'sending' vira 'unknown' apos crash, sem reenviar); e-mail/grupo toleram duplicata; varredura marca respostas pendentes como abandonadas apos 5 min."
+    },
+    {
+      "factor": "Normalizacao de telefone fora do caso brasileiro (quirks de MX/AR) e lista de DDDs desatualizada",
+      "impact": "low",
+      "mitigation": "Tabela de testes por pais conhecido; telefones nao brasileiros so validados como E.164; lista de DDDs conferida contra a Anatel na implementacao; parceiros externos previstos como brasileiros."
+    },
+    {
+      "factor": "Retencao de 12 meses: nada expurga os dados nesta tarefa (rotina fica no painel, PN-58)",
+      "impact": "low",
+      "mitigation": "Nenhum dado completa 12 meses antes de ~outubro/2027; indices por received_at/stored_at prontos; Q26 registra o responsavel; nada precisa ser apagado antes disso."
+    },
+    {
+      "factor": "Abuso da porta publica (inundacao de mensagens de numeros desconhecidos, payloads grandes, assinaturas forjadas)",
+      "impact": "low",
+      "mitigation": "Assinatura exigida antes de qualquer parse/banco; teto de 64 KB lido em stream; bucket HTTP por IP real; contadores de seguranca agregados em memoria e gravados em lote; so remetentes reais do WhatsApp chegam ao banco."
+    },
+    {
+      "factor": "Mapa de codigos de erro da Meta e parametros do modelo nao verificados em documentacao oficial nesta fase",
+      "impact": "low",
+      "mitigation": "Classificacao por status HTTP e codigo cru no banco; mapa de codigos so decora o texto do alerta e fica em uma tabela substituivel; verificar na pagina oficial na implementacao."
+    }
+  ],
+  "dependencies": {
+    "blocks_on": [],
+    "blocks_on_notes": [
+      "Nenhuma tarefa de codigo bloqueia esta (greenfield). Para o go-live dependem de FUNDACAO-TECNICA (etapa 4): banco jarvis, /opt/jarvis, DNS+certificado e site nginx - todos com confirmacao do Caio.",
+      "Aprovacao do modelo de boas-vindas (Q8) e textos fixos (Q9) bloqueiam so o smoke test real, nao a implementacao."
+    ],
+    "blocks": ["PAINEL-1 (implementacao depende das migrations 001-005 e de users, alerts, flags, reply_policy)", "DADOS-ESTRUTURADOS (incremento 2, usa o AnswerProvider e o modelo de dados)"]
+  },
+  "parallelizable_with": [
+    "PAINEL-1 (Fase 2/3 do painel pode rodar em paralelo; implementacao do painel so apos as migrations 001-005 e os servicos R1-R4 estarem mesclados)",
+    "Submissao do modelo de boas-vindas e pagamento no WhatsApp Manager (trilha de negocio)",
+    "Validacao juridica do aviso e da 1a mensagem de desconhecido (Q17)"
+  ],
+  "files_touched": {
+    "create": [
+      "backend/app/__init__.py",
+      "backend/app/main.py",
+      "backend/app/config.py",
+      "backend/app/cli.py",
+      "backend/app/api/__init__.py",
+      "backend/app/api/webhook.py",
+      "backend/app/core/__init__.py",
+      "backend/app/core/clock.py",
+      "backend/app/core/errors.py",
+      "backend/app/core/logging_json.py",
+      "backend/app/core/log_redaction.py",
+      "backend/app/core/security.py",
+      "backend/app/core/values.py",
+      "backend/app/db/__init__.py",
+      "backend/app/db/connection.py",
+      "backend/app/db/migrate.py",
+      "backend/app/services/__init__.py",
+      "backend/app/services/phone.py",
+      "backend/app/services/inbound.py",
+      "backend/app/services/access.py",
+      "backend/app/services/identity.py",
+      "backend/app/services/pipeline.py",
+      "backend/app/services/users.py",
+      "backend/app/services/optin.py",
+      "backend/app/services/attempts.py",
+      "backend/app/services/limits.py",
+      "backend/app/services/trace.py",
+      "backend/app/services/outbox.py",
+      "backend/app/services/reply_policy.py",
+      "backend/app/services/channel.py",
+      "backend/app/services/whatsapp.py",
+      "backend/app/services/replies.py",
+      "backend/app/services/answering.py",
+      "backend/app/services/alerts.py",
+      "backend/app/services/tickets.py",
+      "backend/app/services/deliveries.py",
+      "backend/app/services/notifications.py",
+      "backend/app/services/waha.py",
+      "backend/app/services/flags.py",
+      "backend/app/services/audit.py",
+      "backend/app/services/rate_limit.py",
+      "backend/app/services/counters.py",
+      "backend/app/services/workers.py",
+      "backend/migrations/001_schemas_ops_base.sql",
+      "backend/migrations/002_access.sql",
+      "backend/migrations/003_chat.sql",
+      "backend/migrations/004_ops_alerts_deliveries.sql",
+      "backend/migrations/005_chat_tickets.sql",
+      "backend/tests/conftest.py",
+      "backend/tests/fixtures/meta/*.json",
+      "backend/tests/unit/*.py",
+      "backend/tests/integration/*.py",
+      "backend/tests/security/*.py",
+      "backend/requirements.txt",
+      "backend/requirements-dev.txt",
+      "backend/pytest.ini",
+      "backend/ruff.toml",
+      "backend/mypy.ini",
+      "backend/configuracao-modelo.txt",
+      "deploy/ecosystem.config.js",
+      "deploy/nginx/jarvis.conf.template",
+      "deploy/RUNBOOK.md",
+      ".github/workflows/ci.yml",
+      ".gitignore"
+    ],
+    "modify": [
+      "docs/architecture/overview.md (2 ADRs, ja redigidos nesta fase)",
+      "docs/tasks/porta-fechada.1/spec/requirements.json (ja atualizado: decisao 10, AC-31, AC-36, Q21-Q26)",
+      "docs/stories/porta-fechada.1.md (ja sincronizada com o spec)",
+      ".claude/CLAUDE.md (secao Verification commands, ao fim da implementacao)",
+      "docs/STATE.md (AD/L entries ao fim de cada tarefa)"
+    ],
+    "delete": []
+  }
+}

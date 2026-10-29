@@ -1,0 +1,7 @@
+-r requirements.txt
+pytest==9.0.3
+pytest-asyncio==1.3.0
+ruff==0.15.15
+mypy==2.3.1
+# playwright (E2E, T65/T66): opcional e NAO instalado nesta maquina; sem ele os
+# testes E2E ficam "nao executados". Nao fixado aqui de proposito.

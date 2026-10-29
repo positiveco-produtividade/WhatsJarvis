@@ -1,0 +1,151 @@
+{# Macros do painel (PN-T07). Importar com: {% from "_macros.html" import status_chip %}
+   Rotulos espelham app.panel.values (conferidos por test_templates_rules.py).
+   Tudo passa pelo autoescape: nenhum filtro de "marcar como seguro". #}
+
+{% set STATUS_META = {
+  'answered_bot': ['Respondido pelo bot', 'bg-mint-500'],
+  'answered_human': ['Respondido por humano', 'bg-mint-600'],
+  'awaiting': ['Aguardando atendimento', 'bg-red-500'],
+  'send_error': ['Erro no envio', 'bg-red-500'],
+} %}
+{% set CLASS_META = {
+  'PRODUTO': ['Produto', 'bg-sky-100 text-sky-500'],
+  'PRECO': ['Preço', 'bg-amber-100 text-amber-700'],
+  'ARGUMENTO': ['Argumento', 'bg-lavender-100 text-lavender-500'],
+  'MATERIAL': ['Material', 'bg-mint-100 text-mint-600'],
+  'CAMPANHA': ['Campanha', 'bg-red-100 text-red-700'],
+  'MIDIA': ['Mídia', 'bg-ink-100 text-ink-500'],
+  'NAO_IDENTIFICADO': ['Sem classificação', 'bg-ink-100 text-ink-500'],
+} %}
+{# marca -> [rotulo, agente, imagem do rosto] #}
+{% set BRAND_META = {
+  'jungle': ['Jungle', 'Duda', 'rosto-jungle.png'],
+  'plant_power': ['Plant Power', 'Léo', 'rosto-plant.png'],
+  'possible': ['Possible', 'Nico', 'rosto-possible.png'],
+  'a_tal_da_castanha': ['A Tal da Castanha', 'Rita', 'rosto-atal.png'],
+  'zaya': ['Zaya', 'Tati', 'rosto-zaya.png'],
+} %}
+{% set COORDINATOR_FACE = 'rosto-positive.png' %}
+
+{# Estado do ticket: bolinha colorida + rotulo. #}
+{% macro status_chip(status) %}
+  {%- set m = STATUS_META.get(status) -%}
+  {%- if m -%}
+  <span class="inline-flex items-center gap-1.5 whitespace-nowrap"><span class="w-1.5 h-1.5 rounded-full {{ m[1] }} shrink-0"></span>{{ m[0] }}</span>
+  {%- else -%}
+  <span class="text-ink-300 text-xs">—</span>
+  {%- endif -%}
+{% endmacro %}
+
+{# Classificacao do ticket. #}
+{% macro class_chip(classification) %}
+  {%- set m = CLASS_META.get(classification) -%}
+  {%- if m -%}
+  <span class="px-2 py-0.5 rounded-full text-xs font-semibold {{ m[1] }}">{{ m[0] }}</span>
+  {%- else -%}
+  <span class="text-ink-300 text-xs">—</span>
+  {%- endif -%}
+{% endmacro %}
+
+{# Marca do ticket/pergunta; sem marca mostra traco. #}
+{% macro brand_chip(brand) %}
+  {%- set m = BRAND_META.get(brand) -%}
+  {%- if m -%}
+  <span class="inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-ink-100 text-ink-600">{{ m[0] }}</span>
+  {%- else -%}
+  <span class="text-ink-300 text-xs">—</span>
+  {%- endif -%}
+{% endmacro %}
+
+{# Rosto do agente da marca (sem marca ou varias = Jarvis). #}
+{% macro agent_face(brand, px=20) %}
+  {%- set m = BRAND_META.get(brand) -%}
+  {%- set file = m[2] if m else COORDINATOR_FACE -%}
+  {%- set name = m[1] if m else 'Jarvis' -%}
+  <img src="{{ static_v('img/bots/' ~ file) }}" alt="" title="{{ name }}" width="{{ px }}" height="{{ px }}"
+       class="inline-block shrink-0 rounded-full ring-1 ring-ink-200 bg-white object-cover"
+       style="width:{{ px }}px;height:{{ px }}px;object-position:50% 20%;image-rendering:pixelated">
+{% endmacro %}
+
+{# Telefone: o valor JA vem mascarado do servidor (mask_phone_display). #}
+{% macro phone_cell(masked) %}
+  <span class="font-mono text-xs text-ink-600 whitespace-nowrap">{{ masked or '—' }}</span>
+{% endmacro %}
+
+{# Percentual seguro: sem divisao por zero (PN-43). #}
+{% macro pct(part, total) -%}
+  {%- if total -%}{{ ((part or 0) * 100 / total) | round | int }}%{%- else -%}—{%- endif -%}
+{%- endmacro %}
+
+{# Campo oculto de CSRF para formularios e uploads. #}
+{% macro csrf_field(token) %}
+  <input type="hidden" name="csrf" value="{{ token or '' }}">
+{% endmacro %}
+
+{# Cartao de numero (KPI). href opcional; tone: '', 'red', 'mint', 'ink'. #}
+{% macro kpi(value, label, tone='', hint='', href='') %}
+  {%- set color = {'red': 'text-red-600', 'mint': 'text-mint-600', 'ink': 'text-ink-700'}.get(tone, '') -%}
+  {%- set border = 'border-red-300 hover:border-red-400 transition' if tone == 'red' else 'border-ink-200' -%}
+  {%- if href -%}<a href="{{ href }}" class="block bg-white rounded-2xl p-5 border {{ border }}">
+  {%- else -%}<div class="bg-white rounded-2xl p-5 border {{ border }}">{%- endif %}
+    <div class="text-3xl font-bold tracking-tight {{ color }}">{{ value }}</div>
+    <div class="text-xs text-ink-500 mt-1">{{ label }}</div>
+    {% if hint %}<div class="text-xs text-ink-400 mt-0.5">{{ hint }}</div>{% endif %}
+  {% if href %}</a>{% else %}</div>{% endif %}
+{% endmacro %}
+
+{# Linha de tabela para lista vazia. #}
+{% macro empty_row(colspan, text) %}
+  <tr><td colspan="{{ colspan }}" class="px-4 py-12 text-center text-ink-400">{{ text }}</td></tr>
+{% endmacro %}
+
+{# Caixa de estado vazio fora de tabela. #}
+{% macro empty_box(text) %}
+  <div class="px-4 py-12 text-center text-sm text-ink-400">{{ text }}</div>
+{% endmacro %}
+
+{# Paginacao HTMX. qs = filtros ja codificados, sem "page". #}
+{% macro pagination(page, pages, total, url, target, qs='') %}
+  {%- if pages and pages > 1 -%}
+  <div class="flex items-center justify-between gap-3 text-sm mt-4">
+    <p class="text-ink-500">Página {{ page }} de {{ pages }} — {{ total }} itens total</p>
+    <div class="flex gap-2">
+      {% if page > 1 %}<a href="{{ url }}?{{ qs }}&page={{ page - 1 }}" hx-get="{{ url }}?{{ qs }}&page={{ page - 1 }}" hx-target="{{ target }}" hx-push-url="true"
+         class="px-3 py-1.5 rounded-lg border border-ink-200 text-ink-700 hover:bg-ink-100">← Anterior</a>{% endif %}
+      {% if page < pages %}<a href="{{ url }}?{{ qs }}&page={{ page + 1 }}" hx-get="{{ url }}?{{ qs }}&page={{ page + 1 }}" hx-target="{{ target }}" hx-push-url="true"
+         class="px-3 py-1.5 rounded-lg border border-ink-200 text-ink-700 hover:bg-ink-100">Próxima →</a>{% endif %}
+    </div>
+  </div>
+  {%- endif -%}
+{% endmacro %}
+
+{# Cabecalho do modal (titulo + fechar). #}
+{% macro modal_head(title, subtitle='') %}
+  <div class="flex items-center justify-between gap-3 border-b border-ink-100 px-4 h-12">
+    <h2 class="text-sm font-semibold text-ink-800">{{ title }}{% if subtitle %} <span class="font-normal text-ink-400">{{ subtitle }}</span>{% endif %}</h2>
+    <button type="button" data-overlay-close class="p-2 rounded-lg text-ink-500 hover:bg-ink-100" aria-label="Fechar">✕</button>
+  </div>
+{% endmacro %}
+
+{# Cabecalho do drawer lateral. #}
+{% macro drawer_head(title, subtitle='') %}
+  <header class="sticky top-0 flex items-center justify-between gap-2 px-4 py-3 bg-white border-b border-ink-100">
+    <h2 class="text-sm font-semibold text-ink-800">{{ title }}{% if subtitle %} <span class="font-normal text-ink-400">{{ subtitle }}</span>{% endif %}</h2>
+    <button type="button" data-overlay-close class="p-2 rounded-lg text-ink-500 hover:bg-ink-100" aria-label="Fechar">✕</button>
+  </header>
+{% endmacro %}
+
+{# Aviso de sucesso. #}
+{% macro notice_ok(text) %}
+  <div role="status" class="mb-4 rounded-lg border border-mint-200 bg-mint-50 px-4 py-3"><p class="text-sm text-mint-900">{{ text }}</p></div>
+{% endmacro %}
+
+{# Lista de problemas de validacao (todos de uma vez). #}
+{% macro error_list(errors) %}
+  {%- if errors -%}
+  <div role="alert" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+    <p class="text-xs font-semibold text-red-800">Não salvei — {{ errors | length }} problema{{ 's' if errors | length != 1 else '' }}:</p>
+    <ul class="mt-1 ml-4 list-disc text-xs text-red-800 space-y-0.5">{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+  </div>
+  {%- endif -%}
+{% endmacro %}

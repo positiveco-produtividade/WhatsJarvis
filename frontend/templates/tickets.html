@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{# Tickets (PN-T18; PN-7..9, PN-43). Contexto: kpis, page, filters, qs, class_options,
+   status_options, period_options. O resultado (KPIs + tabela) e trocado pelo HTMX em
+   #tickets-resultado. Sem Alpine: o clique na linha vive em static/js/tickets.js. #}
+{% block title %}Tickets{% endblock %}
+{% block head %}<script defer src="{{ static_v('js/tickets.js') }}"></script>{% endblock %}
+{% block content %}
+<section>
+  <div class="flex items-end justify-between mb-6">
+    <div>
+      <h1 class="text-3xl font-bold tracking-tight">Tickets</h1>
+      <p class="text-sm text-ink-500 mt-1">Histórico de atendimentos · clique em uma linha para detalhar</p>
+    </div>
+    <a href="/dashboard/metrics" class="text-sm text-ink-600 hover:text-ink-900 hover:underline">Ver métricas →</a>
+  </div>
+
+  <form method="get" action="/dashboard/tickets" hx-get="/dashboard/tickets" hx-target="#tickets-resultado"
+        hx-push-url="true" hx-trigger="submit, keyup changed delay:400ms from:#tk-q, change"
+        class="bg-white rounded-2xl border border-ink-200 p-3 mb-4">
+    <div class="flex flex-wrap gap-2 items-center">
+      <label for="tk-q" class="sr-only">Buscar</label>
+      <input id="tk-q" name="q" type="search" value="{{ filters.q }}" maxlength="200" autocomplete="off"
+             placeholder="Buscar por mensagem, ticket ou vendedor…"
+             class="flex-1 min-w-[200px] border border-ink-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-ink-900 focus:outline-none">
+      <label for="tk-class" class="sr-only">Classificação</label>
+      <select id="tk-class" name="classification" class="border border-ink-200 rounded-lg px-3 py-1.5 text-sm">
+        <option value="">Todas classificações</option>
+        {% for value, label in class_options %}<option value="{{ value }}" {% if filters.classification == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+      <label for="tk-status" class="sr-only">Status</label>
+      <select id="tk-status" name="status" class="border border-ink-200 rounded-lg px-3 py-1.5 text-sm">
+        <option value="">Todos status</option>
+        {% for value, label in status_options %}<option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+      <label for="tk-days" class="sr-only">Período</label>
+      <select id="tk-days" name="days" class="border border-ink-200 rounded-lg px-3 py-1.5 text-sm">
+        {% for d in period_options %}<option value="{{ d }}" {% if filters.days == d %}selected{% endif %}>{{ d }} dias</option>{% endfor %}
+      </select>
+      <button type="submit" class="bg-ink-900 hover:bg-ink-700 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition">Filtrar</button>
+    </div>
+  </form>
+
+  <div id="tickets-resultado" aria-live="polite">
+    {% include "_tickets_tabela.html" %}
+  </div>
+</section>
+{% endblock %}

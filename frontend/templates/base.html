@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+{# Base do painel Jarvis (PN-T07). Layout, menu, modal, drawer e toast vem do prototipo
+   docs/designs/painel-prototipo.html. Sem CDN: tudo em /static (CSP script-src 'self').
+   Contexto (todo opcional): active, brand, csrf_token, admin_name, estado, flash.
+   Alpine CSP: x-data so com nome de componente registrado em static/js/base.js; as expressoes
+   sao apenas nomes de propriedade/metodo (nada de eval, objeto literal ou onclick inline). #}
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="htmx-config" content='{"allowEval": false}'>
+<title>{% block title %}Painel{% endblock %} — Jarvis</title>
+<link rel="stylesheet" href="{{ static_v('css/tailwind.css') }}">
+<style>
+  .skip-link { position: absolute; left: .5rem; top: -3rem; z-index: 70; background: #0A0A0A; color: #fff;
+    padding: .5rem .875rem; border-radius: .5rem; font-size: .875rem; font-weight: 600; transition: top 150ms ease-out; }
+  .skip-link:focus { top: .5rem; }
+  .htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
+  .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { opacity: 1; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: #C2C2C2; border-radius: 4px; }
+</style>
+<script defer src="{{ static_v('vendor/htmx.min.js') }}"></script>
+<script defer src="{{ static_v('js/base.js') }}"></script>
+<script defer src="{{ static_v('vendor/alpine-csp.min.js') }}"></script>
+{% block head %}{% endblock %}
+</head>
+<body class="text-ink-800 bg-ink-50 min-h-screen antialiased" hx-headers='{{ {"X-CSRF-Token": csrf_token or ""} | tojson }}'>
+<a href="#conteudo" class="skip-link">Pular para o conteúdo</a>
+<div id="htmx-loading" class="htmx-indicator fixed top-0 left-0 right-0 h-0.5 bg-mint-400 z-[60]"></div>
+
+<div class="flex min-h-screen">
+  <aside class="w-60 shrink-0 border-r border-ink-200 bg-white px-3 py-4 hidden md:block">
+    <a href="/dashboard" class="flex items-center gap-2 px-3 pb-2">
+      <div class="w-8 h-8 rounded-lg bg-ink-900 text-white grid place-items-center font-bold">J</div>
+      <div><p class="font-semibold leading-tight">Jarvis</p><p class="text-xs text-ink-500">Positive Company</p></div>
+    </a>
+    {% include "_nav.html" %}
+    <div class="mt-8 px-3 text-xs text-ink-500">
+      Logado como <b>{{ admin_name or 'admin' }}</b> · admin
+      <form method="post" action="/dashboard/sair" class="mt-1">
+        <input type="hidden" name="csrf" value="{{ csrf_token or '' }}">
+        <button type="submit" class="text-ink-600 hover:text-ink-900 hover:underline">Sair</button>
+      </form>
+    </div>
+  </aside>
+
+  <div class="flex-1 min-w-0 flex flex-col">
+    <header x-data="mobileMenu" class="md:hidden sticky top-0 z-30 bg-white border-b border-ink-200">
+      <div class="flex items-center gap-3 px-4 h-14">
+        <a href="/dashboard" class="flex items-center gap-2 font-semibold">
+          <span class="w-8 h-8 rounded-lg bg-ink-900 text-white grid place-items-center font-bold">J</span>Jarvis
+        </a>
+        <div class="flex-1"></div>
+        <button type="button" @click="toggle" :aria-expanded="expanded" aria-controls="menu-mobile" aria-label="Menu"
+                class="p-2.5 rounded-lg text-ink-600 hover:bg-ink-100 transition">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+        </button>
+      </div>
+      <div id="menu-mobile" x-show="open" style="display:none" class="border-t border-ink-100 px-2 pb-4 max-h-[70vh] overflow-y-auto">
+        {% include "_nav.html" %}
+      </div>
+    </header>
+
+    {% include "_banner_estado.html" %}
+
+    <main id="conteudo" tabindex="-1" class="flex-1 min-w-0 p-6">
+      {% if flash %}
+      <div role="status" class="mb-4 rounded-lg border border-mint-200 bg-mint-50 px-4 py-3"><p class="text-sm text-mint-900">{{ flash }}</p></div>
+      {% endif %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+
+{# Drawer lateral (ticket). O HTMX injeta em #drawer-body; base.js abre. #}
+<div id="drawer" x-data="drawer" x-show="open" style="display:none" class="fixed inset-0 z-40">
+  <div data-overlay-close class="absolute inset-0 bg-ink-900/40 backdrop-blur-sm"></div>
+  <aside x-ref="panel" tabindex="-1" role="dialog" aria-modal="true" aria-label="Detalhe do ticket"
+         class="absolute right-0 top-0 h-full w-full sm:w-[560px] bg-white shadow-2xl overflow-y-auto focus:outline-none">
+    <div id="drawer-body"></div>
+  </aside>
+</div>
+
+{# Modal centralizado. O HTMX injeta em #modal-body; fecha no Esc, no fundo e em [data-overlay-close]. #}
+<div id="modal" x-data="modal" x-show="open" style="display:none" class="fixed inset-0 z-50 grid place-items-center p-4">
+  <div data-overlay-close class="absolute inset-0 bg-ink-900/40 backdrop-blur-sm"></div>
+  <div x-ref="panel" tabindex="-1" role="dialog" aria-modal="true" aria-label="Janela"
+       class="relative w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-2xl focus:outline-none">
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+{# Avisos rapidos (evento "toast", vindo de HX-Trigger ou de base.js). Sem janelas nativas do navegador. #}
+{# Desenhado por base.js em DOM puro: o Alpine CSP nao avalia caminhos como item.message. #}
+<div id="toasts" aria-live="polite" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[70] space-y-2 w-[min(92vw,26rem)]"></div>
+
+{% include "_assistant_widget.html" ignore missing %}
+</body>
+</html>

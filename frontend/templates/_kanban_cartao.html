@@ -1,0 +1,52 @@
+{# Cartao do quadro Escalados (PN-T23; PN-19, PN-63, PN-21). Contexto: t (BoardCard), col_label,
+   scope_all, board (media_view), urgency_options, csrf_token, tickets_path, inbox_path, board_path.
+   Urgencia editavel e "Mover para Concluida" sao formularios HTMX que trocam #escalados-board. #}
+{% from "_macros.html" import csrf_field, brand_chip %}
+{% set base = board_path ~ '/' ~ t.number %}
+{% set target = '#escalados-board' %}
+<article data-href="{{ inbox_path }}?u={{ t.user_id }}" data-ticket="{{ t.number }}" class="group bg-white rounded-xl p-3 space-y-2 border border-ink-200/70 shadow-sm hover:shadow-md hover:border-ink-300 transition cursor-pointer">
+  <div class="flex items-start justify-between gap-2">
+    <div class="flex items-center gap-1.5">
+      <button type="button" hx-get="{{ tickets_path }}/{{ t.number }}" hx-target="#drawer-body" hx-swap="innerHTML"
+              class="font-mono text-[11px] font-medium text-ink-500 hover:text-ink-900 hover:underline" aria-label="Detalhar o ticket {{ t.number }}">{{ t.number }}</button>
+      <span class="text-[10px] text-ink-400">{{ col_label }}</span>
+    </div>
+    <div class="flex flex-col items-end gap-1">
+      {% if t.urgency == 'muito_urgente' %}
+      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border bg-red-50 text-red-700 border-red-200 motion-safe:animate-pulse">⚠ Muito urgente</span>
+      {% elif t.urgency == 'urgente' %}
+      <span class="inline-flex items-center gap-1.5 text-[10px] font-semibold text-amber-700"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Urgente</span>
+      {% else %}
+      <span class="inline-flex items-center gap-1.5 text-[10px] font-medium text-ink-400"><span class="w-1.5 h-1.5 rounded-full bg-ink-300"></span>Pouco urgente</span>
+      {% endif %}
+      {% if t.is_media %}<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-500 leading-none">mídia</span>{% endif %}
+    </div>
+  </div>
+  <p class="text-[13px] text-ink-900 font-medium leading-snug">{{ t.message | truncate(220) if t.message else '—' }}</p>
+  {% if t.summary and t.summary != t.message %}<p class="text-[11px] text-ink-500 italic leading-snug">{{ t.summary | truncate(220) }}</p>{% endif %}
+  <footer class="flex items-center justify-between gap-2 text-[10px] text-ink-400 pt-1 border-t border-ink-100">
+    {% if scope_all and t.brand %}{{ brand_chip(t.brand) }}{% endif %}
+    <span class="truncate">{{ t.user_name }}</span><span class="whitespace-nowrap">{{ t.created_at | sp_dt }}</span>
+  </footer>
+  <div class="grid grid-cols-2 gap-1.5">
+    <form method="post" action="{{ base }}/urgencia" hx-post="{{ base }}/urgencia" hx-trigger="change" hx-target="{{ target }}" hx-select="{{ target }}" hx-swap="outerHTML">
+      {{ csrf_field(csrf_token) }}
+      <input type="hidden" name="midias" value="{{ '1' if board.media_view else '' }}">
+      <label for="urg-{{ t.number }}" class="sr-only">Urgência de {{ t.number }}</label>
+      <select id="urg-{{ t.number }}" name="urgency" class="w-full text-[10px] text-ink-600 bg-ink-50 border border-ink-200 rounded-md px-1.5 py-1">
+        {% for key, label in urgency_options %}<option value="{{ key }}"{% if key == t.urgency %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+      <noscript><button type="submit" class="text-[10px] underline">Salvar</button></noscript>
+    </form>
+    <form method="post" action="{{ base }}/mover" hx-post="{{ base }}/mover" hx-trigger="change" hx-target="{{ target }}" hx-select="{{ target }}" hx-swap="outerHTML">
+      {{ csrf_field(csrf_token) }}
+      <input type="hidden" name="midias" value="{{ '1' if board.media_view else '' }}">
+      <label for="mv-{{ t.number }}" class="sr-only">Mover {{ t.number }} para</label>
+      <select id="mv-{{ t.number }}" name="destino" class="w-full text-[10px] text-ink-600 bg-ink-50 border border-ink-200 rounded-md px-1.5 py-1">
+        <option value="">Mover para…</option>
+        <option value="concluida">Concluída</option>
+      </select>
+      <noscript><button type="submit" class="text-[10px] underline">Mover</button></noscript>
+    </form>
+  </div>
+</article>

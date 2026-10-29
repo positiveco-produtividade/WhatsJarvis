@@ -1,0 +1,33 @@
+{# Uma linha da FAQ (PN-22). Contexto: item (FaqRow), inactive. Editar/desativar/reativar
+   chamam rotas da tarefa do formulario; a lista recarrega no evento faqChanged. #}
+{% from "_macros.html" import class_chip, brand_chip %}
+<tr class="border-t border-ink-100 hover:bg-ink-50 transition">
+  <td class="px-4 py-2.5 text-ink-500 font-mono text-xs align-top" title="id {{ item.id }} no banco">{{ item.number }}</td>
+  <td class="px-4 py-2.5 align-top">{{ class_chip(item.category) }}
+    <div class="mt-1">
+      {% if item.brand == 'todas' %}<span class="inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-sky-50 text-sky-500 ring-1 ring-inset ring-sky-200" title="Vale para as cinco marcas — editar aqui muda a resposta em todas">todas as marcas</span>
+      {% else %}{{ brand_chip(item.brand) }}{% endif %}
+    </div></td>
+  <td class="px-4 py-2.5 text-ink-800 max-w-xs align-top">{{ item.question }}
+    {% if item.origin == 'nielsen' %}<span class="ml-1.5 inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-200" title="Gerada automaticamente da base Nielsen">Nielsen{% if item.origin_ref %} · {{ item.origin_ref }}{% endif %}</span>
+    {% elif item.origin == 'gmr' %}<span class="ml-1.5 inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded bg-teal-50 text-teal-700 ring-1 ring-inset ring-teal-200" title="Gerada automaticamente da base GMR">GMR{% if item.origin_ref %} · {{ item.origin_ref }}{% endif %}</span>{% endif %}
+    {% if not item.bot_responde %}<span class="block mt-1 text-xs font-medium text-amber-800">⚠ o Jarvis não responde — escala para a equipe</span>{% endif %}</td>
+  <td class="px-4 py-2.5 text-ink-600 max-w-sm align-top">
+    <details class="group cursor-pointer"><summary class="line-clamp-2 group-open:line-clamp-none list-none whitespace-pre-wrap">{% if item.answer %}{{ item.answer }}{% else %}<span class="text-ink-300">—</span>{% endif %}</summary></details>
+    {% if item.variations %}
+    <details class="mt-1.5 text-xs"><summary class="cursor-pointer text-mint-700 hover:text-mint-900 select-none">+ {{ item.variations | length }} {{ 'variação' if item.variations | length == 1 else 'variações' }}</summary>
+      <ol class="mt-1 ml-3 list-decimal space-y-1 text-ink-500">{% for v in item.variations %}<li class="whitespace-pre-wrap">{{ v }}</li>{% endfor %}</ol></details>
+    {% endif %}</td>
+  <td class="px-4 py-2.5 text-ink-500 text-xs align-top">{{ item.updated_at | sp_dt }}
+    {% if item.origin != 'seed' and item.updated_by %}<span class="block text-ink-400">por {{ item.updated_by }}</span>{% endif %}</td>
+  <td class="px-4 py-2.5 text-right align-top whitespace-nowrap">
+    {% if inactive %}
+    <button type="button" hx-post="/dashboard/faq/{{ item.id }}/reativar" hx-swap="none" title="Volta a linha para o ar"
+            class="rounded-md border border-mint-300 bg-mint-50 px-2 py-1 text-xs font-semibold text-mint-800 hover:bg-mint-100">Reativar</button>
+    {% else %}
+    <button type="button" hx-get="/dashboard/faq/{{ item.id }}/editar" hx-target="#modal-body" hx-swap="innerHTML"
+            class="rounded-md border border-ink-200 bg-white px-2 py-1 text-xs font-medium text-ink-700 hover:bg-ink-50 hover:border-ink-300">Editar</button><br>
+    <button type="button" hx-post="/dashboard/faq/{{ item.id }}/desativar" hx-swap="none" title="Tira do ar sem apagar — dá para reativar depois"
+            class="mt-1 rounded-md border border-ink-200 bg-white px-2 py-1 text-xs font-medium text-ink-500 hover:bg-red-50 hover:text-red-700 hover:border-red-200">Desativar</button>
+    {% endif %}</td>
+</tr>

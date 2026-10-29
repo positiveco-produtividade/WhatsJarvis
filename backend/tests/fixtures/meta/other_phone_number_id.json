@@ -1,0 +1,40 @@
+{
+  "_nota": "formato documentado, não capturado (WhatsApp Cloud API); substituir por captura real do número de teste. Números e ids fictícios.",
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "200000000000001",
+      "changes": [
+        {
+          "field": "messages",
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "15550000001",
+              "phone_number_id": "100000000000999"
+            },
+            "contacts": [
+              {
+                "profile": {
+                  "name": "Pessoa Teste"
+                },
+                "wa_id": "551199990001"
+              }
+            ],
+            "messages": [
+              {
+                "from": "551199990001",
+                "id": "wamid.OTH00001",
+                "timestamp": "1761200000",
+                "type": "text",
+                "text": {
+                  "body": "oi"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

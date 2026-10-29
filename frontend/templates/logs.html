@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{# Logs e Erros (PN-T60; PN-54, PN-43). Contexto: tab, tabs ((chave, titulo, rota)), rows, lines,
+   max_lines. Problemas e Servidor vem inline na aba inicial; Auditoria (T59) e Retencao (T62)
+   carregam suas sub-rotas por HTMX. So admin. #}
+{% block title %}Logs e Erros{% endblock %}
+{% block content %}
+<section>
+  <h1 class="text-2xl font-bold tracking-tight mb-1">Logs e Erros</h1>
+  <p class="text-sm text-ink-500 mb-4">Problemas por ticket, final do log do servidor, auditoria e retenção. Sem telefone completo e sem texto de mensagem.</p>
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4" role="tablist">
+    {% for key, title, url in (tabs or []) %}
+    <a href="/dashboard/logs?aba={{ key }}" hx-get="{{ url }}" hx-target="#logs-conteudo" hx-swap="innerHTML" hx-push-url="/dashboard/logs?aba={{ key }}"
+       role="tab" aria-selected="{{ 'true' if key == tab else 'false' }}"
+       class="text-center rounded-xl px-3 py-2 border bg-white text-sm font-semibold transition {{ 'border-ink-900 ring-1 ring-ink-900' if key == tab else 'border-ink-200 hover:border-ink-400' }}">{{ title }}</a>
+    {% endfor %}
+  </div>
+  <div id="logs-conteudo" aria-live="polite">
+    {% if tab == 'servidor' %}
+    {% include "_logs_servidor.html" %}
+    {% elif tab == 'auditoria' %}
+    <div hx-get="/dashboard/logs/auditoria" hx-trigger="load" hx-swap="outerHTML" class="p-10 text-center text-ink-400">Carregando…</div>
+    {% elif tab == 'retencao' %}
+    <div hx-get="/dashboard/logs/retencao" hx-trigger="load" hx-swap="outerHTML" class="p-10 text-center text-ink-400">Carregando…</div>
+    {% else %}
+    {% include "_logs_problemas.html" %}
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

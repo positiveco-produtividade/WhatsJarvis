@@ -1,0 +1,66 @@
+{# Cadastro de pessoa e autorizacao de pedido (PN-T34; PN-32, PN-33, PN-36). Fragmento injetado em
+   #modal-body (base.html); layout e textos vem do prototipo. Contexto: values (FormValues), action,
+   errors, pedido (Pedido ou None), profile_options, uf_options, channel_options, brand_options,
+   csrf_token. UFs, canais e marcas sao grupos de caixinhas com o mesmo nome; js/pessoa_form.js so
+   marca/limpa o grupo (o formulario funciona sem ele). #}
+{% from "_macros.html" import csrf_field, error_list, modal_head %}
+{% macro grupo(titulo, nome, opcoes, marcadas) %}
+  <fieldset>
+    <legend class="flex items-center gap-2 text-xs font-medium text-ink-600">{{ titulo }}
+      <button type="button" data-pf-all class="text-[11px] font-medium text-mint-700 hover:text-mint-900">marcar todas</button>
+      <button type="button" data-pf-none class="text-[11px] font-medium text-ink-400 hover:text-ink-700">limpar</button>
+    </legend>
+    <div data-pf-group class="mt-1 flex flex-wrap gap-1.5">
+      {% for value, label in opcoes %}
+      <label class="inline-flex items-center gap-1 rounded-full border border-ink-200 px-2 py-0.5 text-[11px] cursor-pointer has-[:checked]:bg-ink-900 has-[:checked]:text-white has-[:checked]:border-ink-900 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ink-900"><input type="checkbox" name="{{ nome }}" value="{{ value }}"{% if value in marcadas %} checked{% endif %} class="sr-only">{{ label }}</label>
+      {% endfor %}
+    </div>
+  </fieldset>
+{% endmacro %}
+{{ modal_head('Autorizar número' if pedido else 'Cadastrar pessoa') }}
+<form method="post" action="{{ action }}" hx-post="{{ action }}" hx-target="#modal-body" hx-swap="innerHTML"
+      hx-disabled-elt="find button[type=submit]" class="px-4 py-4 space-y-3" data-pessoa-form>
+  {{ csrf_field(csrf_token) }}
+  {% if pedido %}<input type="hidden" name="pedido" value="{{ pedido.id }}">{% endif %}
+
+  {% if pedido and pedido.attempts %}
+  <p role="status" class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-ink-600">Este número mandou {{ pedido.attempts }} mensage{{ 'ns' if pedido.attempts != 1 else 'm' }}. Ao salvar, o pedido sai de “Pedindo acesso”.</p>
+  {% endif %}
+
+  {{ error_list(errors) }}
+
+  <div>
+    <label for="pf-nome" class="block text-xs font-medium text-ink-600">Nome</label>
+    <input id="pf-nome" name="nome" value="{{ values.name }}" maxlength="200" autocomplete="off" class="mt-1 w-full rounded-lg border border-ink-300 px-2 py-1.5 text-sm">
+  </div>
+  <div>
+    <label for="pf-telefone" class="block text-xs font-medium text-ink-600">Telefone (com DDD)</label>
+    <input id="pf-telefone" name="telefone" value="{{ values.phone }}" maxlength="30" inputmode="tel" autocomplete="off" placeholder="+55 85 9XXXX-XXXX" class="mt-1 w-full rounded-lg border border-ink-300 px-2 py-1.5 text-sm font-mono">
+  </div>
+  <div class="grid grid-cols-2 gap-2">
+    <div>
+      <label for="pf-perfil" class="block text-xs font-medium text-ink-600">Perfil</label>
+      <select id="pf-perfil" name="perfil" class="mt-1 w-full rounded-lg border border-ink-300 px-2 py-1.5 text-sm">
+        {% for value, label in (profile_options or []) %}<option value="{{ value }}"{% if values.profile == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="pf-empresa" class="block text-xs font-medium text-ink-600">Empresa</label>
+      <input id="pf-empresa" name="empresa" value="{{ values.company }}" maxlength="200" autocomplete="off" class="mt-1 w-full rounded-lg border border-ink-300 px-2 py-1.5 text-sm">
+    </div>
+  </div>
+  {{ grupo('UFs', 'ufs', uf_options or [], values.ufs) }}
+  {{ grupo('Canais', 'canais', channel_options or [], values.channels) }}
+  {{ grupo('Marcas', 'marcas', brand_options or [], values.brands) }}
+  <div>
+    <label for="pf-gestor" class="block text-xs font-medium text-ink-600">Gestor responsável</label>
+    <input id="pf-gestor" name="gestor" value="{{ values.manager }}" maxlength="200" autocomplete="off" placeholder="Nome do gestor" class="mt-1 w-full rounded-lg border border-ink-300 px-2 py-1.5 text-sm">
+  </div>
+
+  <p class="text-[11px] text-ink-400">Ao salvar, o Jarvis manda a mensagem de boas-vindas com o aviso de privacidade. O acesso só libera depois do <strong>Aceito</strong>.</p>
+  <div class="flex items-center gap-2 pt-1">
+    <button type="submit" class="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-ink-800">{{ 'Autorizar' if pedido else 'Cadastrar' }}</button>
+    <button type="button" data-overlay-close class="rounded-lg border border-ink-300 bg-white px-3 py-1.5 text-xs font-medium text-ink-700 hover:bg-ink-50">Cancelar</button>
+  </div>
+</form>
+<script src="{{ static_v('js/pessoa_form.js') }}"></script>

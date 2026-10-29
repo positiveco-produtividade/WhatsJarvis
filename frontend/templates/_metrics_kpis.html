@@ -1,0 +1,13 @@
+{# 4 KPIs de Metricas (PN-41). Contexto: view.kpis (lista de KpiCard com value/label/hint ja formatados).
+   Sem view: traco em tudo (PN-43). #}
+{% from "_macros.html" import kpi %}
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+  {% for card in (view.kpis if view and view.kpis else []) %}
+  {{ kpi(card.value, card.label, hint=card.hint) }}
+  {% else %}
+  {{ kpi('—', 'Usuários ativos') }}
+  {{ kpi('—', 'Tickets') }}
+  {{ kpi('—', 'Resolvidos sem escalar') }}
+  {{ kpi('—', 'Avaliados como úteis') }}
+  {% endfor %}
+</div>

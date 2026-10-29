@@ -1,0 +1,52 @@
+{# Resultado de Metricas: KPIs + graficos (PN-41, PN-43). Contexto: view (MetricsView).
+   Os dados dos graficos vao em <script type="application/json"> (CSP) e so quando ha dados:
+   sem dados nao existe <canvas>, so a mensagem de estado vazio. #}
+{% from "_macros.html" import empty_box %}
+{% macro stat_rows(rows) %}
+  {% for r in rows %}
+  <div>
+    <div class="flex justify-between"><span>{{ r.label }}</span><span class="text-ink-500">{{ r.text }}</span></div>
+    <div class="h-2 bg-ink-100 rounded"><div class="h-2 bg-ink-800 rounded" style="width:{{ r.width }}%"></div></div>
+  </div>
+  {% endfor %}
+{% endmacro %}
+
+{% include "_metrics_kpis.html" %}
+
+{% if view and view.is_empty %}
+<div class="bg-white rounded-2xl border border-ink-200 mb-4">
+  {{ empty_box('Sem dados neste período. As métricas aparecem assim que houver mensagens ou tickets.') }}
+</div>
+{% endif %}
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+  <div class="bg-white rounded-2xl border border-ink-200 p-4">
+    <h2 class="font-semibold mb-3">Mensagens por dia</h2>
+    {% if view and view.has_messages %}
+    <div class="h-48 relative"><canvas id="chart-days" role="img" aria-label="Mensagens por dia"></canvas></div>
+    {% else %}
+    <p class="text-sm text-ink-400 py-8 text-center">Nenhuma mensagem no período.</p>
+    {% endif %}
+  </div>
+  <div class="bg-white rounded-2xl border border-ink-200 p-4">
+    <h2 class="font-semibold mb-3">Por marca</h2>
+    {% if view and view.has_brands %}
+    <div class="h-48 relative"><canvas id="chart-brands" role="img" aria-label="Tickets por marca"></canvas></div>
+    <div class="mt-3 space-y-2 text-sm">{{ stat_rows(view.brand_rows) }}</div>
+    {% else %}
+    <p class="text-sm text-ink-400 py-8 text-center">Nenhum ticket com marca no período.</p>
+    {% endif %}
+  </div>
+  <div class="bg-white rounded-2xl border border-ink-200 p-4">
+    <h2 class="font-semibold mb-3">Tempo de resposta</h2>
+    <div class="space-y-2 text-sm">{{ stat_rows(view.response_rows if view else []) }}</div>
+  </div>
+  <div class="bg-white rounded-2xl border border-ink-200 p-4">
+    <h2 class="font-semibold mb-3">Bloqueios</h2>
+    <div class="space-y-2 text-sm">{{ stat_rows(view.block_rows if view else []) }}</div>
+  </div>
+</div>
+
+{% if view and (view.has_messages or view.has_brands) %}
+<script type="application/json" id="metrics-data">{{ view.chart | tojson }}</script>
+{% endif %}
