@@ -10,6 +10,8 @@ REQUIRED = {
     "whatsapp_access_token": "access-token-xyz",
     "whatsapp_phone_number_id": "123456789",
 }
+# Estes testes cobrem o canal da Meta (canal-waha.1, WA-3): o padrao agora e `waha`.
+META = {"channel_provider": "meta"}
 
 
 @pytest.fixture(autouse=True)
@@ -27,7 +29,7 @@ def _isolated_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def make(**overrides: object) -> Settings:
-    return Settings(_env_file=None, **{**REQUIRED, **overrides})  # type: ignore[arg-type]
+    return Settings(_env_file=None, **{**META, **REQUIRED, **overrides})  # type: ignore[arg-type]
 
 
 def test_defaults() -> None:
@@ -74,7 +76,7 @@ def test_text_override() -> None:
 def test_missing_required_fails(missing: str) -> None:
     data = {k: v for k, v in REQUIRED.items() if k != missing}
     with pytest.raises(ValidationError):
-        Settings(_env_file=None, **data)  # type: ignore[arg-type]
+        Settings(_env_file=None, **META, **data)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize("empty", list(REQUIRED))
@@ -182,4 +184,4 @@ def test_empty_required_env_var_still_fails(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setenv("WHATSAPP_PHONE_NUMBER_ID", "")
     data = {k: v for k, v in REQUIRED.items() if k != "whatsapp_phone_number_id"}
     with pytest.raises(ValidationError):
-        Settings(_env_file=None, **data)  # type: ignore[arg-type]
+        Settings(_env_file=None, **META, **data)  # type: ignore[arg-type]

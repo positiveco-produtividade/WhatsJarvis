@@ -31,6 +31,26 @@ def _load_test_url_from_env_file() -> None:
 
 _load_test_url_from_env_file()
 
+# A suite nunca le o backend/.env de quem roda (CANAL-WAHA-1, T01): antes, campos do .env
+# (chaves da Meta, PRODUCTION, DEV_AUTH_EMAIL) mudavam o resultado e quebravam o CI.
+# So TEST_DATABASE_URL vem do .env (acima). Valores abaixo sao ficticios e so preenchem o
+# que e obrigatorio; o ambiente real (CI, terminal) continua podendo sobrescreve-los.
+from app.config import Settings  # noqa: E402  (depois de carregar TEST_DATABASE_URL)
+
+Settings.model_config["env_file"] = None
+
+_TEST_SETTINGS_DEFAULTS = {
+    # Suites existentes cobrem a Meta (WA-3); as do WAHA fixam `waha` explicitamente.
+    "CHANNEL_PROVIDER": "meta",
+    "DATABASE_URL": "postgresql://ficticio:ficticio@localhost:5432/ficticio_test",
+    "WHATSAPP_APP_SECRET": "segredo-de-teste",
+    "WHATSAPP_VERIFY_TOKEN": "token-de-verificacao-de-teste",
+    "WHATSAPP_ACCESS_TOKEN": "token-de-acesso-de-teste",
+    "WHATSAPP_PHONE_NUMBER_ID": "100000000000001",
+}
+for _name, _value in _TEST_SETTINGS_DEFAULTS.items():
+    os.environ.setdefault(_name, _value)
+
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     if os.environ.get(_KEY):

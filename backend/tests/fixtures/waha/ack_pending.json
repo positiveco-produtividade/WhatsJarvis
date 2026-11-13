@@ -1,0 +1,25 @@
+{
+  "id": "evt_18",
+  "timestamp": 1763049600000,
+  "event": "message.ack",
+  "session": "jarvis",
+  "metadata": {},
+  "me": {
+    "id": "5500000000001@c.us",
+    "pushName": "Jarvis"
+  },
+  "payload": {
+    "id": "true_5500000000002@c.us_DDDDDDDDDDDDDDDDDDD18",
+    "from": "5500000000002@c.us",
+    "participant": null,
+    "fromMe": true,
+    "ack": 0,
+    "ackName": "PENDING"
+  },
+  "engine": "GOWS",
+  "environment": {
+    "version": "fixture",
+    "engine": "GOWS",
+    "tier": "CORE"
+  }
+}

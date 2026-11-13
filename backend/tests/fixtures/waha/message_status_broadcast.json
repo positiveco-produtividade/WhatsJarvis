@@ -1,0 +1,33 @@
+{
+  "id": "evt_05",
+  "timestamp": 1763049600000,
+  "event": "message",
+  "session": "jarvis",
+  "metadata": {},
+  "me": {
+    "id": "5500000000001@c.us",
+    "pushName": "Jarvis"
+  },
+  "payload": {
+    "id": "false_status@broadcast_AAAAAAAAAAAAAAAAAAA5",
+    "timestamp": 1763049600,
+    "from": "status@broadcast",
+    "fromMe": false,
+    "source": "app",
+    "to": "5500000000001@c.us",
+    "body": "status",
+    "hasMedia": false,
+    "media": null,
+    "ack": 1,
+    "ackName": "SERVER",
+    "vCards": [],
+    "_data": {},
+    "participant": "5500000000002@c.us"
+  },
+  "engine": "GOWS",
+  "environment": {
+    "version": "fixture",
+    "engine": "GOWS",
+    "tier": "CORE"
+  }
+}

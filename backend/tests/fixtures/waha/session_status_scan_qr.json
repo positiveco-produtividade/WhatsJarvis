@@ -1,0 +1,20 @@
+{
+  "id": "evt_17",
+  "timestamp": 1763049600000,
+  "event": "session.status",
+  "session": "jarvis",
+  "metadata": {},
+  "me": {
+    "id": "5500000000001@c.us",
+    "pushName": "Jarvis"
+  },
+  "payload": {
+    "status": "SCAN_QR_CODE"
+  },
+  "engine": "GOWS",
+  "environment": {
+    "version": "fixture",
+    "engine": "GOWS",
+    "tier": "CORE"
+  }
+}

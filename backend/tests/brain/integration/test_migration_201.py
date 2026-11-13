@@ -81,6 +81,12 @@ async def test_migration_idempotente(db_conn: asyncpg.Connection) -> None:
     await db_conn.execute(sql)
     user_id = await factories.create_active_user(db_conn, NOW)
     await _insert(db_conn, user_id, "brain_notice")
+    # Reexecutar a 201 recria o CHECK de `kind` com a lista dela; as migrations posteriores
+    # que ampliam essa lista (ex.: 301, brand_poll) sao reaplicadas para nao vazar o estado
+    # antigo para os testes seguintes da mesma sessao (canal-waha.1, WA-T03).
+    for later in migrate.discover(MIGRATIONS_DIR):
+        if later.number > 201:
+            await db_conn.execute(later.sql)
 
 
 async def test_migrate_check_sem_pendentes(db_conn: asyncpg.Connection) -> None:

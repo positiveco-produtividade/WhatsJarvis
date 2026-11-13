@@ -1,0 +1,32 @@
+{
+  "id": "evt_06",
+  "timestamp": 1763049600000,
+  "event": "message",
+  "session": "jarvis",
+  "metadata": {},
+  "me": {
+    "id": "5500000000001@c.us",
+    "pushName": "Jarvis"
+  },
+  "payload": {
+    "id": "false_120363000000000001@newsletter_AAAAAAAAAAAAAAAAAAA6",
+    "timestamp": 1763049600,
+    "from": "120363000000000001@newsletter",
+    "fromMe": false,
+    "source": "app",
+    "to": "5500000000001@c.us",
+    "body": "canal",
+    "hasMedia": false,
+    "media": null,
+    "ack": 1,
+    "ackName": "SERVER",
+    "vCards": [],
+    "_data": {}
+  },
+  "engine": "GOWS",
+  "environment": {
+    "version": "fixture",
+    "engine": "GOWS",
+    "tier": "CORE"
+  }
+}

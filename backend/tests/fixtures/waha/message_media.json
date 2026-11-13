@@ -1,0 +1,36 @@
+{
+  "id": "evt_02",
+  "timestamp": 1763049600000,
+  "event": "message",
+  "session": "jarvis",
+  "metadata": {},
+  "me": {
+    "id": "5500000000001@c.us",
+    "pushName": "Jarvis"
+  },
+  "payload": {
+    "id": "false_5500000000002@c.us_AAAAAAAAAAAAAAAAAAA2",
+    "timestamp": 1763049600,
+    "from": "5500000000002@c.us",
+    "fromMe": false,
+    "source": "app",
+    "to": "5500000000001@c.us",
+    "body": "",
+    "hasMedia": true,
+    "media": {
+      "url": null,
+      "mimetype": "audio/ogg; codecs=opus",
+      "filename": null
+    },
+    "ack": 1,
+    "ackName": "SERVER",
+    "vCards": [],
+    "_data": {}
+  },
+  "engine": "GOWS",
+  "environment": {
+    "version": "fixture",
+    "engine": "GOWS",
+    "tier": "CORE"
+  }
+}

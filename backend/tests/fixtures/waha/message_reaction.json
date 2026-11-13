@@ -1,0 +1,29 @@
+{
+  "id": "evt_08",
+  "timestamp": 1763049600000,
+  "event": "message.reaction",
+  "session": "jarvis",
+  "metadata": {},
+  "me": {
+    "id": "5500000000001@c.us",
+    "pushName": "Jarvis"
+  },
+  "payload": {
+    "id": "false_5500000000002@c.us_AAAAAAAAAAAAAAAAAAA8",
+    "from": "5500000000002@c.us",
+    "fromMe": false,
+    "participant": "5500000000002@c.us",
+    "to": "5500000000001@c.us",
+    "timestamp": 1763049600,
+    "reaction": {
+      "text": "👍",
+      "messageId": "true_5500000000002@c.us_BBBBBBBBBBBBBBBBBBB1"
+    }
+  },
+  "engine": "GOWS",
+  "environment": {
+    "version": "fixture",
+    "engine": "GOWS",
+    "tier": "CORE"
+  }
+}

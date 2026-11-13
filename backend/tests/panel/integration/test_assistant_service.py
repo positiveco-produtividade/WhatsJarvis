@@ -240,6 +240,10 @@ async def test_papel_real_executa_todas_as_ferramentas(as_assistant: asyncpg.Con
 async def test_resposta_registrada_com_ferramentas(
     db_pool: asyncpg.Pool, world: factories.PanelWorld, clock: FakeClock
 ) -> None:
+    # ticket_stats filtra pelo now() do banco (janela de 7 dias), nao pelo relogio falso:
+    # traz os tickets semeados em data fixa para perto de hoje, senao o teste vence com o tempo.
+    async with db_pool.acquire() as conn:
+        await conn.execute("UPDATE chat.tickets SET created_at = now() - interval '1 hour'")
     provider = ScriptedProvider([("ticket_stats", {}), ("list_tickets", {"limit": 3})])
     answer = await _service(db_pool, provider, clock).ask(
         asked_by=ADMIN, question="Quantos tickets abertos?"

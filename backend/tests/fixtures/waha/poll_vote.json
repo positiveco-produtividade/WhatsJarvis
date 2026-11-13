@@ -1,0 +1,35 @@
+{
+  "id": "evt_10",
+  "timestamp": 1763049600000,
+  "event": "poll.vote",
+  "session": "jarvis",
+  "metadata": {},
+  "me": {
+    "id": "5500000000001@c.us",
+    "pushName": "Jarvis"
+  },
+  "payload": {
+    "vote": {
+      "id": "false_5500000000002@c.us_AAAAAAAAAAAAAAAAAA10",
+      "to": "5500000000001@c.us",
+      "from": "5500000000002@c.us",
+      "fromMe": false,
+      "selectedOptions": [
+        "Jungle"
+      ],
+      "timestamp": 1763049602
+    },
+    "poll": {
+      "id": "true_5500000000002@c.us_CCCCCCCCCCCCCCCCCCC1",
+      "to": "5500000000002@c.us",
+      "from": "5500000000001@c.us",
+      "fromMe": true
+    }
+  },
+  "engine": "GOWS",
+  "environment": {
+    "version": "fixture",
+    "engine": "GOWS",
+    "tier": "CORE"
+  }
+}

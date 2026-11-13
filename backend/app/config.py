@@ -6,6 +6,7 @@ maiúsculas; pydantic-settings ignora a caixa, então os campos ficam em minúsc
 `TEST_DATABASE_URL` não pertence a esta classe: só os testes a leem.
 """
 
+import re
 from functools import lru_cache
 from typing import Literal, Self
 from urllib.parse import urlparse
@@ -17,6 +18,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 _GRAPH_ALLOWED_HOSTS: frozenset[str] = frozenset({"graph.facebook.com"})
 _WAHA_ALLOWED_HOSTS: frozenset[str] = frozenset({"127.0.0.1", "localhost"})
 _IAM_ALLOWED_HOSTS: frozenset[str] = frozenset({"accounts.positiveco.com.br"})
+_E164 = re.compile(r"\+[1-9]\d{7,14}")
 
 
 def _check_host(name: str, url: str, allowed: frozenset[str]) -> str:
@@ -31,12 +33,16 @@ class Settings(BaseSettings):
         env_file=".env", env_file_encoding="utf-8", extra="ignore", env_ignore_empty=True
     )
 
-    # Banco e WhatsApp (obrigatórios; ausência ou vazio derruba a subida)
+    # Canal dos vendedores (spec canal-waha.1, WA-1, D5): `waha` (padrão) ou `meta`.
+    channel_provider: Literal["waha", "meta"] = "waha"
+
+    # Banco (obrigatório). WhatsApp Cloud API da Meta: obrigatórios só com
+    # CHANNEL_PROVIDER=meta (ausência ou vazio derruba a subida; `_channel_requirements`).
     database_url: SecretStr
-    whatsapp_app_secret: SecretStr
-    whatsapp_verify_token: SecretStr
-    whatsapp_access_token: SecretStr
-    whatsapp_phone_number_id: str
+    whatsapp_app_secret: SecretStr = SecretStr("")
+    whatsapp_verify_token: SecretStr = SecretStr("")
+    whatsapp_access_token: SecretStr = SecretStr("")
+    whatsapp_phone_number_id: str = ""
     whatsapp_graph_version: str = "v25.0"
     whatsapp_api_base: str = "https://graph.facebook.com"
     welcome_template_name: str = ""
@@ -50,6 +56,17 @@ class Settings(BaseSettings):
     optin_reminder_interval_hours: int = 24
     unknown_first_text_store: bool = False
     media_ack_enabled: bool = True
+
+    # WAHA do Jarvis (canal dos vendedores; spec canal-waha.1 9.5, D3, D4). Instalação
+    # separada da do grupo da equipe/AUTO-1 (WAHA_* abaixo). Obrigatórios com `waha`.
+    jarvis_waha_base_url: str = "http://127.0.0.1:3001"
+    jarvis_waha_api_key: SecretStr = SecretStr("")
+    jarvis_waha_session: str = "jarvis"
+    jarvis_waha_hmac_key: SecretStr = SecretStr("")
+    jarvis_whatsapp_number: str = ""
+    outbound_reply_only: bool = True
+    waha_typing_max_seconds: float = 2.5
+    brand_session_minutes: int = 30
 
     # Grupo da equipe (WAHA)
     team_group_enabled: bool = False
@@ -166,17 +183,48 @@ class Settings(BaseSettings):
     text_brain_ask_brand: str = "De qual marca você está falando?"
     text_brain_rating_thanks: str = "Obrigado, avisei a equipe para melhorar essa resposta."
 
-    @field_validator(
-        "database_url",
-        "whatsapp_app_secret",
-        "whatsapp_verify_token",
-        "whatsapp_access_token",
+    # Textos do canal sem botões e da marca da conversa (spec canal-waha.1 9.5, D6).
+    # TEXT_OPTIN_NOTICE é RASCUNHO: a aprovação jurídica é condição de go-live (D6).
+    text_optin_notice: str = (
+        "Olá! Eu sou o Jarvis, o assistente da equipe comercial da Positive Company.\n\n"
+        "Para ativar seu acesso, precisamos do seu aceite: guardamos seu nome, telefone, "
+        "região e as conversas com o Jarvis, só para uso interno da equipe comercial.\n\n"
+        "Responda *ACEITO* para continuar ou *NÃO* para recusar."
     )
+    text_brand_poll_start: str = "Sobre qual marca você quer falar?"
+    text_brand_poll_question: str = "Sobre qual marca é a sua pergunta?"
+    text_brand_selected: str = "Certo, vamos falar de {marca}. Pode perguntar!"
+
+    @field_validator("database_url")
     @classmethod
     def _secret_not_empty(cls, v: SecretStr) -> SecretStr:
         if not v.get_secret_value().strip():
             raise ValueError("valor obrigatório não pode ser vazio")
         return v
+
+    @model_validator(mode="after")
+    def _channel_requirements(self) -> Self:
+        """WA-1: exige só a configuração do canal escolhido (nomes das variáveis na mensagem)."""
+        if self.channel_provider == "meta":
+            required: dict[str, str] = {
+                "WHATSAPP_APP_SECRET": self.whatsapp_app_secret.get_secret_value(),
+                "WHATSAPP_VERIFY_TOKEN": self.whatsapp_verify_token.get_secret_value(),
+                "WHATSAPP_ACCESS_TOKEN": self.whatsapp_access_token.get_secret_value(),
+                "WHATSAPP_PHONE_NUMBER_ID": self.whatsapp_phone_number_id,
+            }
+        else:
+            required = {
+                "JARVIS_WAHA_API_KEY": self.jarvis_waha_api_key.get_secret_value(),
+                "JARVIS_WAHA_HMAC_KEY": self.jarvis_waha_hmac_key.get_secret_value(),
+                "JARVIS_WHATSAPP_NUMBER": self.jarvis_whatsapp_number,
+                "JARVIS_WAHA_SESSION": self.jarvis_waha_session,
+            }
+        missing = [name for name, value in required.items() if not value.strip()]
+        if missing:
+            raise ValueError(
+                f"CHANNEL_PROVIDER={self.channel_provider} exige: " + ", ".join(missing)
+            )
+        return self
 
     @field_validator(
         "monitor_volume_factor",
@@ -199,12 +247,44 @@ class Settings(BaseSettings):
             raise ValueError("MONITOR_ERROR_RATE: use um valor entre 0 e 1")
         return v
 
-    @field_validator("whatsapp_phone_number_id")
+    @field_validator("whatsapp_phone_number_id", "jarvis_waha_session")
     @classmethod
-    def _phone_id_not_empty(cls, v: str) -> str:
-        if not v.strip():
-            raise ValueError("valor obrigatório não pode ser vazio")
+    def _strip(cls, v: str) -> str:
         return v.strip()
+
+    @field_validator("jarvis_waha_base_url")
+    @classmethod
+    def _jarvis_waha_host(cls, v: str) -> str:
+        return _check_host("JARVIS_WAHA_BASE_URL", v, _WAHA_ALLOWED_HOSTS)
+
+    @field_validator("jarvis_whatsapp_number")
+    @classmethod
+    def _jarvis_number_e164(cls, v: str) -> str:
+        value = v.strip()
+        if value and not _E164.fullmatch(value):
+            raise ValueError("JARVIS_WHATSAPP_NUMBER: use o formato E.164, ex.: +5585999999999")
+        return value
+
+    @field_validator("waha_typing_max_seconds")
+    @classmethod
+    def _typing_range(cls, v: float) -> float:
+        if not 0 <= v <= 10:
+            raise ValueError("WAHA_TYPING_MAX_SECONDS: use um valor entre 0 e 10")
+        return v
+
+    @field_validator("brand_session_minutes")
+    @classmethod
+    def _brand_session_not_negative(cls, v: int) -> int:
+        if v < 0:
+            raise ValueError("BRAND_SESSION_MINUTES não pode ser negativo (0 desliga)")
+        return v
+
+    @field_validator("text_brand_selected")
+    @classmethod
+    def _brand_selected_placeholder(cls, v: str) -> str:
+        if "{marca}" not in v:
+            raise ValueError("TEXT_BRAND_SELECTED precisa conter {marca}")
+        return v
 
     @field_validator("whatsapp_api_base")
     @classmethod
