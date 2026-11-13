@@ -1,0 +1,256 @@
+{
+  "task_id": "CANAL-WAHA-1",
+  "title": "Vendedores pelo WAHA, Meta como segunda opção",
+  "story": "docs/stories/canal-waha.1.md",
+  "epic": "docs/epics/canal-waha.md",
+  "phase": "2-design",
+  "status": "draft",
+  "revision": "2026-11-13 — Fase 1 aprovada; revisoes de WA-8 e WA-15 (+WA-21 a WA-25) combinadas com o Caio durante a Fase 2",
+  "user_story": {
+    "as_a": "responsável pelo Jarvis",
+    "i_want": "que os vendedores conversem com ele por um número operado pelo WAHA, mantendo a Meta pronta para ser ligada por configuração",
+    "so_that": "o Jarvis entre no ar sem esperar as pendências da Meta, sem perder as garantias de acesso, privacidade e rastro"
+  },
+  "conventions": {
+    "ears": "Cada AC é GIVEN/WHEN/THEN. 'Sem efeito' = sem rastro de mensagem, sem resposta e sem chamada externa; só contador de segurança.",
+    "terms": {
+      "pipeline": "processamento atual a partir de um InboundMessage (Pipeline.handle_message)",
+      "sessão do Jarvis": "sessão do WAHA configurada em WAHA_JARVIS_SESSION, distinta da sessão do grupo da equipe"
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "id": "WA-1",
+      "title": "Canal por configuração",
+      "given": "CHANNEL_PROVIDER=waha ou meta",
+      "when": "o app sobe",
+      "then": "exige só a configuração do canal escolhido; com waha os campos WHATSAPP_* não são exigidos; valor ausente ou inválido impede a subida com mensagem clara",
+      "testable": "unit",
+      "test_notes": "Settings sem ler o .env do desenvolvedor"
+    },
+    {
+      "id": "WA-2",
+      "title": "Só uma porta aberta",
+      "given": "um canal escolhido",
+      "when": "chega requisição no webhook do outro canal",
+      "then": "404 sem efeito",
+      "testable": "integration"
+    },
+    {
+      "id": "WA-3",
+      "title": "Meta preservada",
+      "given": "CHANNEL_PROVIDER=meta",
+      "when": "a suíte atual roda",
+      "then": "porta-fechada.1, painel.1 e cerebro.1 passam sem alteração de comportamento",
+      "testable": "integration"
+    },
+    {
+      "id": "WA-4",
+      "title": "Ordem de validação do webhook",
+      "given": "POST /webhook/waha",
+      "when": "chega uma requisição",
+      "then": "limite por IP → tamanho → HMAC SHA-512 (X-Webhook-Hmac, algoritmo sha512, tempo constante) → JSON → sessão; falha devolve 429/413/403/400 sem tocar no banco e incrementa o contador",
+      "testable": "integration",
+      "test_notes": "espião no pool: zero acquire antes da assinatura"
+    },
+    {
+      "id": "WA-5",
+      "title": "Sessão esperada",
+      "given": "evento assinado",
+      "when": "session ≠ WAHA_JARVIS_SESSION",
+      "then": "descartado sem efeito, conta wrong_recipient",
+      "testable": "integration"
+    },
+    {
+      "id": "WA-6",
+      "title": "Filtros",
+      "given": "evento message",
+      "when": "fromMe, grupo (@g.us), status@broadcast, canal ou newsletter",
+      "then": "descartado sem efeito e sem resposta",
+      "testable": "unit"
+    },
+    {
+      "id": "WA-7",
+      "title": "Tradução de conteúdo",
+      "given": "message de contato individual",
+      "when": "texto, mídia (hasMedia), outro tipo ou message.reaction",
+      "then": "vira InboundMessage de texto, mídia sem download, unsupported ou reação",
+      "testable": "unit",
+      "test_notes": "fixtures com payloads de exemplo do WAHA"
+    },
+    {
+      "id": "WA-8",
+      "title": "Identificação do remetente",
+      "given": "remetente @c.us ou @lid",
+      "when": "o pipeline identifica o usuário",
+      "then": "@c.us usa o numero E.164 com tolerancia ao 9o digito; @lid e resolvido pelo WAHA; se nao resolver, aparece em 'Pedindo acesso' como 'Numero oculto' (identificador no lugar do BSUID), nunca como autorizado; ao autorizar, o admin informa o telefone e o @lid e gravado em access.users.bsuid",
+      "testable": "integration",
+      "test_notes": "mecanismo de resolução na Fase 2",
+      "revised": "2026-11-13 com o Caio"
+    },
+    {
+      "id": "WA-9",
+      "title": "Idempotência",
+      "given": "o WAHA reentrega o mesmo evento",
+      "when": "o id da mensagem já foi registrado",
+      "then": "nenhum efeito se repete",
+      "testable": "integration"
+    },
+    {
+      "id": "WA-10",
+      "title": "Mesmo pipeline",
+      "given": "InboundMessage vindo do WAHA",
+      "when": "é processado",
+      "then": "lista positiva, limite de 60/h, pausa, rastro, tickets, alertas e cérebro iguais aos da Meta",
+      "testable": "integration",
+      "test_notes": "suíte de pipeline parametrizada pela origem"
+    },
+    {
+      "id": "WA-11",
+      "title": "Cadastro não dispara mensagem",
+      "given": "CHANNEL_PROVIDER=waha",
+      "when": "uma pessoa é cadastrada (painel, importação ou CLI)",
+      "then": "nada é enviado; a ficha mostra link wa.me com texto pronto; 'Reenviar boas-vindas' vira 'Copiar link'",
+      "testable": "integration",
+      "decision": "D1"
+    },
+    {
+      "id": "WA-12",
+      "title": "Aviso na primeira mensagem",
+      "given": "pessoa em pending_optin",
+      "when": "manda a primeira mensagem",
+      "then": "recebe o aviso (NOTICE_VERSION) terminado em 'Responda ACEITO para continuar ou NÃO para recusar.'",
+      "testable": "integration"
+    },
+    {
+      "id": "WA-13",
+      "title": "Aceite e recusa por texto",
+      "given": "pending_optin que já recebeu o aviso",
+      "when": "responde aceito/aceitar/sim/1 ou não/nao/recuso/2 (sem diferenciar maiúsculas e acentos)",
+      "then": "grava aceite (data, hora, versão) ou recusa como hoje; outra resposta recebe o lembrete no máximo 1 por OPTIN_REMINDER_INTERVAL_HOURS",
+      "testable": "integration"
+    },
+    {
+      "id": "WA-14",
+      "title": "Sem avaliação no WAHA",
+      "given": "CHANNEL_PROVIDER=waha",
+      "when": "uma resposta do cérebro é enviada ou o vendedor reage a ela",
+      "then": "sai sem pedido de avaliação e sem botões (partes como brain_answer, nunca brain_answer_rate); reações não gravam avaliação nem abrem ticket (só rastro, fora do limite de 60/h); o KPI 'Avaliados como úteis' mostra 'sem dados'; com meta, a avaliação por botões continua como hoje",
+      "testable": "integration",
+      "decision": "D2"
+    },
+    {
+      "id": "WA-15",
+      "title": "Enquete de marca depois do aceite",
+      "given": "vendedor que acabou de aceitar o aviso",
+      "when": "o aceite e gravado",
+      "then": "recebe a confirmacao e, com 2+ marcas, enquete de escolha unica com as marcas do cadastro dele; com 1 marca, ela vira a marca da conversa sem enquete",
+      "testable": "integration",
+      "revised": "2026-11-13 com o Caio (opcao A)"
+    },
+    {
+      "id": "WA-16",
+      "title": "Só responde, nunca inicia",
+      "given": "CHANNEL_PROVIDER=waha",
+      "when": "o outbox vai enviar a um vendedor",
+      "then": "só envia se houver mensagem recebida dele nas últimas 24 h; senão registra no_inbound_window e não envia",
+      "testable": "integration",
+      "decision": "D1"
+    },
+    {
+      "id": "WA-17",
+      "title": "Envio humano e em ordem",
+      "given": "uma resposta",
+      "when": "é despachada",
+      "then": "marca como vista, mostra 'digitando' proporcional ao texto, envia; partes em ordem, cada uma após a anterior ser aceita; p95 ≤ 8 s",
+      "testable": "integration"
+    },
+    {
+      "id": "WA-18",
+      "title": "Erros e status",
+      "given": "envio ao WAHA",
+      "when": "falha antes de sair, esgota o tempo depois de sair, ou devolve 463/475; ou chega message.ack",
+      "then": "transitório retentável; ambíguo não retentado; 463/475 definitivo com alerta; ack -1 = falha com o fluxo atual, 2/3 = entregue/lida",
+      "testable": "unit"
+    },
+    {
+      "id": "WA-19",
+      "title": "Sessão caída",
+      "given": "a sessão do Jarvis",
+      "when": "session.status ≠ WORKING ou a checagem periódica não a encontra WORKING",
+      "then": "alerta imediato com dedup (e-mail e painel), faixa de canal fora no painel, /health informa o canal; volta a WORKING encerra a faixa",
+      "testable": "integration"
+    },
+    {
+      "id": "WA-20",
+      "title": "Privacidade e segredos",
+      "given": "qualquer caminho deste canal",
+      "when": "algo vai para o log",
+      "then": "sem telefone, @lid, texto, chave do WAHA ou segredo HMAC; WAHA só em localhost; sessão do Jarvis distinta da do grupo",
+      "testable": "security",
+      "decision": "D3"
+    },
+    {
+      "id": "WA-21",
+      "title": "Escolha da marca",
+      "given": "enquete de marca enviada",
+      "when": "o vendedor vota ou escreve so o nome de uma das suas marcas",
+      "then": "vira a marca da conversa por BRAND_SESSION_MINUTES (30) desde a ultima mensagem; sem pergunta pendente responde TEXT_BRAND_SELECTED; com pendente responde a ela; voto fora do cadastro ou em enquete antiga nao tem efeito",
+      "testable": "integration"
+    },
+    {
+      "id": "WA-22",
+      "title": "Pergunta com marca da conversa",
+      "given": "marca da conversa valida",
+      "when": "chega pergunta sem marca, com outra marca do cadastro, ou com marca fora do cadastro",
+      "then": "busca so na marca da conversa (mais 'todas'); marca do cadastro citada vira a nova marca da conversa; fora do cadastro segue como hoje (pedido de acesso)",
+      "testable": "integration"
+    },
+    {
+      "id": "WA-23",
+      "title": "Marca vencida ou ausente",
+      "given": "vendedor com 2+ marcas sem marca valida",
+      "when": "chega pergunta sem marca, ou o texto 'trocar marca'",
+      "then": "guarda a pergunta e manda a enquete; o voto responde a pergunta guardada; 'trocar marca' manda a enquete",
+      "testable": "integration"
+    },
+    {
+      "id": "WA-24",
+      "title": "Qualidade preservada",
+      "given": "WA-15 e WA-21 a WA-23",
+      "when": "rodam os gates",
+      "then": "eval palavras APROVADO com casos novos; eval ia >= 98% factual e 100% preco",
+      "testable": "eval"
+    },
+    {
+      "id": "WA-25",
+      "title": "Escolha de marca na Meta",
+      "given": "CHANNEL_PROVIDER=meta",
+      "when": "o Jarvis manda a escolha de marca",
+      "then": "botoes (ate 3 marcas) ou texto com as marcas (4+); o resto igual",
+      "testable": "integration"
+    }
+  ],
+  "open_questions": [],
+  "out_of_scope": [
+    "Remover ou alterar o comportamento do canal da Meta",
+    "Enviar a primeira mensagem a quem não escreveu (boas-vindas ativas, campanhas, envio em massa): história futura pela Meta (D1)",
+    "Configurar conta, número e token da Meta (só na história futura)",
+    "Grupos de WhatsApp como canal de vendedores",
+    "Baixar, guardar ou interpretar mídia",
+    "Recuperar mensagens recebidas com a sessão fora do ar",
+    "Parear o número (QR code) pelo painel do Jarvis",
+    "Várias sessões ou vários números do Jarvis",
+    "Enquetes para outros usos alem da escolha de marca"
+  ],
+  "decisions": [
+    "D1 (Caio, 2026-11-13): no WAHA o vendedor inicia (link wa.me) e o Jarvis só responde; OUTBOUND_REPLY_ONLY configurável; camada de canal admite vários canais ligados, cada conversa no canal por onde chegou; envio ativo a comerciantes = história futura pela Meta, em número próprio no portfólio da Positive.",
+    "D2 (Caio, 2026-11-13): sem avaliação 👍/👎 no canal WAHA.",
+    "D3 (Caio, 2026-11-13): número do Jarvis no WAHA +5585994102873, chip exclusivo.",
+    "D4 (Caio, 2026-11-13): WAHA próprio do Jarvis, separado do AUTO-1 (Core gratuito, outra porta em 127.0.0.1); engine a fechar na Fase 2 (recomendado GOWS/NOWEB).",
+    "D5 (Caio, 2026-11-13): CHANNEL_PROVIDER padrão = waha; todo o Jarvis opera pelo WAHA.",
+    "D6 (Caio, 2026-11-13, opção A): construir com o rascunho do aviso; aprovação jurídica é condição de go-live; texto em configuração com NOTICE_VERSION.",
+    "WA-15 (Caio, 2026-11-13, opcao A): marca da conversa escolhida por enquete logo apos o aceite, valida 30 min desde a ultima mensagem; troca citando outra marca ou 'trocar marca'.",
+    "WA-8 (Caio, 2026-11-13): @lid nao resolvido aparece em 'Pedindo acesso' como 'Numero oculto'; autorizar liga o @lid ao cadastro."
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "task_id": "CANAL-WAHA-1",
+  "phase": "2-design",
+  "date": "2026-11-13",
+  "exploration_summary": "Lidos: STATE.md, overview.md (ADRs 2026-10-19 e 2026-10-20), specs de porta-fechada.1 e cerebro.1 (trechos), e o codigo: api/webhook.py, main.py, config.py, services/channel.py, whatsapp.py, waha.py (grupo da equipe), inbound.py, access.py, optin.py, pipeline.py (opt-in, ativo, status), outbox.py, workers.py, answering.py, brain/provider.py (ask_brand), core/values.py, migrations 002-005 e 201. Documentacao oficial do WAHA consultada em 2026-11-13: eventos/webhooks, envio de mensagens, como evitar bloqueio. Nenhum .env lido. Servidor farol NAO acessado (sem chave SSH nesta maquina): premissas de infraestrutura ficam no checklist de go-live.",
+  "verified_in_code": [
+    "O parser da Meta ja produz objetos de dominio (InboundMessage, InboundStatus, ButtonReply); opt-in, avaliacao e pipeline so enxergam esses objetos.",
+    "A decisao de opt-in e tomada em um unico ponto: access._accepted_open_notice (so aceita ContentKind.BUTTON hoje).",
+    "AccessUser ja traz optin_reminder_at e open_notice_id: suficiente para exigir 'aviso ja mostrado' antes de aceitar por texto.",
+    "issue_notice (optin.py) e o unico lugar que enfileira WELCOME_TEMPLATE; chamado por users.register/resend/swap.",
+    "O 'qual marca?' do cerebro e texto puro (TEXT_BRAIN_ASK_BRAND), sem botoes; a resposta seguinte e tratada pela memoria de contexto.",
+    "Reacao de usuario ativo ja e IGNORED_TYPE e nao conta no limite (AD-003); sem botoes de avaliacao, nada mais a fazer.",
+    "chat.message_trace.wa_message_id e text UNIQUE; outbound_messages.status ja inclui 'discarded'; ops.alerts.kind sem CHECK; indice (user_id, received_at DESC) em message_trace.",
+    "O canal ja e injetado no lifespan (main.py) e nos Workers (from_app): a fabrica entra num ponto so.",
+    "WAHA_BASE_URL atual (grupo da equipe) ja tem allow-list de localhost em config.py.",
+    "O desfecho ask_brand ja entra na memoria de contexto (memory._ELIGIBLE_OUTCOMES): a pergunta guardada antes da enquete e respondida pela mesma juncao de hoje.",
+    "O provedor ja busca com uma lista de marcas (source.search(brands=...)) e detecta marca citada (matching.detect_brand): a marca da conversa entra nesse filtro."
+  ],
+  "verified_in_docs": [
+    "Webhook HMAC: cabecalhos X-Webhook-Hmac (HMAC do corpo bruto) e X-Webhook-Hmac-Algorithm = sha512; chave em config.webhooks[].hmac.key.",
+    "Retentativa de webhook configuravel (constant/linear/exponential, attempts).",
+    "message.ack: ack -1 ERROR, 0 PENDING, 1 SERVER, 2 DEVICE, 3 READ, 4 PLAYED.",
+    "message.reaction: reaction.text (vazio = removida) e reaction.messageId.",
+    "POST /api/sendText (session, chatId, text, reply_to, linkPreview); POST /api/sendSeen; POST /api/startTyping e /api/stopTyping (WEBJS, WPP, GOWS, NOWEB).",
+    "Contra bloqueio: so responder, nunca iniciar; marcar visto; 'digitando' com espera variavel; sem rajadas; perfil com foto, nome e recado; erros 463 (reachout timelock) e 475 (message capping) para contatos novos."
+  ],
+  "unverified_assumptions": [
+    {
+      "id": "R1",
+      "assumption": "Formato do remetente @lid nos eventos e endpoint de resolucao lid -> numero na versao do WAHA a instalar (documentado em forks como /lids/{lid}).",
+      "risk": "medio",
+      "mitigation": "waha_lid.py isolado; sem resolucao, vai para 'Pedindo acesso' como 'Numero oculto' (nunca autoriza). Capturar payload real no passo 4 do go-live."
+    },
+    {
+      "id": "R2",
+      "assumption": "Resposta de POST /api/sendText traz o id da mensagem enviada (no WEBJS, id._serialized, como em waha.py; formato do GOWS/NOWEB a confirmar).",
+      "risk": "medio",
+      "mitigation": "Extrator de id tolerante a mais de um formato; 2xx sem id = ambiguo."
+    },
+    {
+      "id": "R3",
+      "assumption": "Os erros 463/475 chegam no corpo da resposta HTTP do WAHA de forma reconhecivel.",
+      "risk": "baixo",
+      "mitigation": "Classificacao por tabela substituivel; sem reconhecer, cai em ambiguo e o ack -1 dispara o fluxo de falha."
+    },
+    {
+      "id": "R4",
+      "assumption": "Memoria livre no farol suficiente para um segundo WAHA (D4).",
+      "risk": "medio",
+      "mitigation": "Checklist de go-live, passo 1; engine GOWS por padrao."
+    },
+    {
+      "id": "R5",
+      "assumption": "POST /api/sendPoll (poll: name, options, multipleAnswers=false) e evento poll.vote com vote.id, poll.id e selectedOptions na engine escolhida.",
+      "risk": "medio",
+      "mitigation": "Docs confirmam poll.vote em WEBJS, WPP, NOWEB e GOWS; capturar payload real no go-live; sem enquete, a pergunta em texto continua funcionando (WA-21 aceita o nome escrito)."
+    }
+  ],
+  "dependencies": "Uma dependencia nova, so de desenvolvimento: tzdata em requirements-dev.txt (base de fusos para Windows; no droplet Linux vem do sistema). Nenhuma dependencia de producao nova (httpx, hmac e hashlib ja disponiveis)."
+}

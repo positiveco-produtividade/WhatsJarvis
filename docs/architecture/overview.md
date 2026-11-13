@@ -76,6 +76,12 @@ contracts (API schemas, message envelopes), never via shared mutable state.
 
 Architectural Decision Records. New entries at the top.
 
+### 2026-11-13 — WAHA como canal dos vendedores; Meta como segunda opção (aceito pelo Caio em 2026-11-13, Fase 2 de canal-waha.1)
+- **Context:** O go-live pela WhatsApp Cloud API está parado em pendências da Meta (número próprio, verificação, pagamento, token permanente, modelo aprovado; B-001). O ADR de 2026-10-20 rejeitou o WAHA para vendedores por ser não oficial, ter risco de banimento e não ter listas interativas. A Positive já opera WAHA no droplet para o AUTO-1.
+- **Decision:** Os vendedores falam com o Jarvis por um **WAHA próprio do Jarvis** (instalação separada da do AUTO-1, em `127.0.0.1`), no número +55 85 99410-2873 (decisões D1–D6 de `docs/tasks/canal-waha.1/spec/spec.md`). A Meta continua no código atrás da mesma interface `Channel`, escolhida por `CHANNEL_PROVIDER` (`waha` padrão). No WAHA, o Jarvis **só responde** (o vendedor inicia pelo link `wa.me`); opt-in por texto ("ACEITO"/"NÃO"); sem avaliação 👍/👎. Iniciar conversa (comerciantes) fica para uma história futura pela Meta.
+- **Alternatives:** Esperar a Meta (adia o go-live sem prazo); WAHA no mesmo serviço do AUTO-1 com sessão nova (exige WAHA Plus e põe os dois no mesmo ponto de falha); enquetes do WhatsApp no lugar de botões (suporte variável entre engines).
+- **Consequences:** Risco aceito de restrição ou banimento do número, mitigado por "só responde", "visto" e "digitando", envio em sequência e alertas de sessão e restrição; reversão por configuração para a Meta. O KPI "Avaliados como úteis" fica sem dados no WAHA. Substitui em parte o ADR de 2026-10-20 (o WAHA deixa de ser só para avisos internos); o ADR de 2026-10-19 (interface de canal) continua valendo e é o que torna a troca barata.
+
 ### 2026-10-29 — Gemini pela API direta (chave de API), não pelo Vertex AI
 - **Context:** O PRD (§10, 2026-10-19) escolheu "Gemini via Vertex AI". O cérebro (cerebro.1) foi implementado contra a Gemini API direta (`generativelanguage.googleapis.com`, chave do nível pago, header `x-goog-api-key`) e deixou a troca em aberto como D12, junto com o aceite de LGPD para o envio de dados fora do Brasil.
 - **Decision:** **Aprovado pelo Caio em 2026-10-29:** o Jarvis usa o Gemini pela API direta, com chave do nível pago. Ao modelo vão só a pergunta, a janela de contexto e os itens da fonte, sem telefone, nome ou outra identificação do vendedor (CB-17, `brain/redaction.py`).

@@ -1,0 +1,46 @@
+{
+  "task_id": "CANAL-WAHA-1",
+  "phase": "2-design",
+  "story_points": 18,
+  "size": "L",
+  "rationale": "25 criterios de aceite concentrados na borda do canal. O pipeline, o cerebro, o painel e o banco ja tem os pontos de extensao (Channel injetado, parser que produz objetos de dominio, decisao de opt-in num ponto so, status 'discarded', alertas sem CHECK). Trabalho novo: cliente e parser do WAHA, webhook com HMAC, fabrica de canal, opt-in por texto, regra 'so responde', ordem das partes, monitor de sessao, tres ajustes no painel e a higiene dos testes. Sem dependencia nova; uma migration aditiva (301) so para a marca da conversa. Revisto em 2026-11-13: + marca da conversa (enquete, migration 301, mudanca na busca do cerebro e casos novos no gate), cerca de 16 h.",
+  "estimate_hours": 80,
+  "risks": [
+    {
+      "id": "K1",
+      "impact": "alto",
+      "description": "Regressao no caminho da Meta ao mexer em config, access, optin, answering e outbox.",
+      "mitigation": "Todo desvio depende de capabilities; suite atual fixada em CHANNEL_PROVIDER=meta sem mudar assercoes (WA-3)."
+    },
+    {
+      "id": "K2",
+      "impact": "alto",
+      "description": "Banimento ou restricao do numero no WAHA (canal nao oficial).",
+      "mitigation": "So responde (WA-16), visto e digitando, partes em sequencia, alerta de restricao e de sessao caida (WA-18, WA-19); Meta como reversao."
+    },
+    {
+      "id": "K3",
+      "impact": "medio",
+      "description": "Formato real dos eventos diferente da documentacao (lid, id de envio, erros).",
+      "mitigation": "Parser e extratores tolerantes; captura de payload real no go-live (research R1-R3)."
+    },
+    {
+      "id": "K4",
+      "impact": "medio",
+      "description": "Mudanca no despacho (soltar conexao durante o envio) introduzir corrida.",
+      "mitigation": "Claim condicional mantido; testes de outbox e de recuperacao de travados."
+    },
+    {
+      "id": "K5",
+      "impact": "baixo",
+      "description": "Latencia acima de 8 s em respostas de varias partes por causa do 'digitando'.",
+      "mitigation": "Teto configuravel (WAHA_TYPING_MAX_SECONDS); medir no piloto."
+    },
+    {
+      "id": "K6",
+      "impact": "medio",
+      "description": "Restringir a busca a marca da conversa piorar respostas (item certo em outra marca ou em 'todas').",
+      "mitigation": "Itens 'todas' sempre incluidos; marca citada vence a da conversa; gates palavras e ia com casos novos (WA-24); BRAND_SESSION_MINUTES=0 desliga."
+    }
+  ]
+}
