@@ -44,6 +44,9 @@ _EMAIL = re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")
 # (55 + DDD + 8/9 digitos).
 _PHONE_PLUS = re.compile(r"(?<![\w+])\+\d[\d ()\-]{8,17}\d")
 _PHONE_BR = re.compile(r"(?<![\d])55\d{10,11}(?!\d)")
+# Numero oculto do WhatsApp (canal-waha.1, WA-20): `<id>@lid`, tambem codificado em URL.
+_WHATSAPP_LID = re.compile(r"(?i)(?<!\d)\d{6,}(?:@|%40)lid(?![a-z0-9])")
+LID_MASK = "[LID]"
 
 _EXACT: list[str] = []
 
@@ -94,10 +97,22 @@ def redact(text: str) -> str:
     text = _DSN.sub(lambda m: f"{m.group(1)}:{MASK}@", text)
     text = _KEY_VALUE.sub(lambda m: f"{m.group(1)}={MASK}", text)
     text = _BEARER.sub(lambda m: f"{m.group(1)} {MASK}", text)
+    text = _WHATSAPP_LID.sub(LID_MASK, text)
     text = _EMAIL.sub(EMAIL_MASK, text)
     text = _PHONE_PLUS.sub(_mask_phone, text)
     text = _PHONE_BR.sub(_mask_phone, text)
     return text
+
+
+def _redact_arg(arg: object) -> object:
+    """Texto e redigido; numeros e None passam intactos (o `%d` do formato continua valendo);
+    qualquer outro objeto vira texto redigido. O httpx loga a URL como objeto `URL`, e o texto
+    dela pode levar dado pessoal (canal-waha.1: o `@lid` vai no caminho da consulta)."""
+    if isinstance(arg, str):
+        return redact(arg)
+    if arg is None or isinstance(arg, int | float):
+        return arg
+    return redact(str(arg))
 
 
 class RedactingFilter(logging.Filter):
@@ -112,11 +127,9 @@ class RedactingFilter(logging.Filter):
 
         if record.args:
             if isinstance(record.args, dict):
-                record.args = {
-                    k: redact(v) if isinstance(v, str) else v for k, v in record.args.items()
-                }
+                record.args = {k: _redact_arg(v) for k, v in record.args.items()}
             elif isinstance(record.args, tuple):
-                record.args = tuple(redact(a) if isinstance(a, str) else a for a in record.args)
+                record.args = tuple(_redact_arg(a) for a in record.args)
 
         if record.exc_text:
             record.exc_text = redact(record.exc_text)

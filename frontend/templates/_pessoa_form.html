@@ -23,6 +23,9 @@
   {{ csrf_field(csrf_token) }}
   {% if pedido %}<input type="hidden" name="pedido" value="{{ pedido.id }}">{% endif %}
 
+  {% if pedido and pedido.hidden_number %}
+  <p role="alert" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700"><strong>Número oculto:</strong> o WhatsApp não mostrou o telefone desta pessoa. Confirme com ela quem é (por exemplo, ligando) antes de autorizar e digite o telefone verdadeiro abaixo. Ao salvar, as próximas mensagens dela serão reconhecidas.</p>
+  {% endif %}
   {% if pedido and pedido.attempts %}
   <p role="status" class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-ink-600">Este número mandou {{ pedido.attempts }} mensage{{ 'ns' if pedido.attempts != 1 else 'm' }}. Ao salvar, o pedido sai de “Pedindo acesso”.</p>
   {% endif %}

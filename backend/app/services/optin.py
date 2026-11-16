@@ -20,7 +20,7 @@ from app.core.values import (
     optin_accept_payload,
     optin_decline_payload,
 )
-from app.services import audit, outbox
+from app.services import audit, brand_session, outbox
 from app.services.access import AccessUser, should_send_reminder
 
 ACTOR = "whatsapp"
@@ -80,7 +80,7 @@ class IssuedNotice:
     """Aviso aberto e a saida de boas-vindas enfileirada."""
 
     notice_id: int
-    outbound_id: int
+    outbound_id: int | None  # None no canal sem modelos (WAHA): nada e enviado no cadastro
 
 
 def _now(clock: Clock | None) -> datetime:
@@ -122,6 +122,10 @@ async def issue_notice(
     notice_id: int = await conn.fetchval(
         _INSERT_NOTICE, user.id, settings.notice_version, now, issued_by
     )
+    if settings.channel_provider == "waha":
+        # Canal sem modelos (canal-waha.1, WA-11): o cadastro so abre o aviso. O vendedor
+        # inicia pelo link wa.me e recebe o aviso completo na 1a mensagem (maybe_remind).
+        return IssuedNotice(notice_id=notice_id, outbound_id=None)
     outbound_id = await outbox.enqueue(
         conn,
         user,
@@ -177,6 +181,44 @@ async def accept(
         body=settings.text_optin_confirmed,
         inbound_trace_id=inbound_trace_id,
         optin_request_id=notice_id,
+        clock=clock,
+    )
+
+
+_USER_BRANDS = "SELECT brands FROM access.users WHERE id = $1::bigint"
+
+
+async def after_accept(
+    conn: Any,
+    user: NoticeTarget,
+    now: datetime,
+    *,
+    settings: Settings,
+    inbound_trace_id: int | None = None,
+    clock: Clock | None = None,
+) -> int | None:
+    """Marca da conversa logo depois do aceite (canal-waha.1, WA-15), na mesma transacao.
+
+    Com 2+ marcas no cadastro, enfileira a enquete "Sobre qual marca voce quer falar?" e
+    devolve o id; com 1 marca, ela ja vira a marca da conversa (sem enquete) e devolve None.
+    So no canal do WAHA e com `BRAND_SESSION_MINUTES` > 0; senao nao faz nada.
+    """
+    if settings.channel_provider != "waha" or not brand_session.enabled(
+        settings.brand_session_minutes
+    ):
+        return None
+    brands = brand_session.ordered(await conn.fetchval(_USER_BRANDS, user.id) or [])
+    if not brands:
+        return None
+    if len(brands) == 1:
+        await brand_session.set_brand(conn, user.id, brands[0], now)
+        return None
+    return await brand_session.enqueue_poll(
+        conn,
+        user,
+        settings.text_brand_poll_start,
+        brands,
+        inbound_trace_id=inbound_trace_id,
         clock=clock,
     )
 
@@ -248,7 +290,13 @@ async def maybe_remind(
         conn,
         user,
         OutboundKind.OPTIN_REMINDER,
-        body=settings.text_optin_reminder,
+        # No WAHA o lembrete e o aviso completo em texto, terminado em "Responda ACEITO..."
+        # (WA-12); na Meta, o texto curto de hoje com os botoes do aviso.
+        body=(
+            settings.text_optin_notice
+            if settings.channel_provider == "waha"
+            else settings.text_optin_reminder
+        ),
         inbound_trace_id=inbound_trace_id,
         optin_request_id=notice_id,
         clock=clock,

@@ -1,4 +1,4 @@
-"""Assinatura HMAC da Meta e comparacoes em tempo constante, sempre sobre bytes."""
+"""Assinaturas HMAC (Meta e WAHA) e comparacoes em tempo constante, sempre sobre bytes."""
 from __future__ import annotations
 
 import hashlib
@@ -35,6 +35,38 @@ def verify_hub_signature(raw: bytes, header: str | None, secret: str | SecretStr
     except UnicodeEncodeError:
         return False
     expected = compute_hub_signature(raw, secret).encode("ascii")
+    return hmac.compare_digest(received, expected)
+
+
+WAHA_HMAC_ALGORITHM = "sha512"
+
+
+def compute_waha_hmac(raw: bytes, secret: str | SecretStr) -> str:
+    """Valor esperado do header X-Webhook-Hmac do WAHA: HMAC SHA-512 hex do corpo bruto."""
+    return hmac.new(_secret_bytes(secret), raw, hashlib.sha512).hexdigest()
+
+
+def verify_waha_hmac(
+    raw: bytes,
+    header: str | None,
+    algorithm: str | None,
+    secret: str | SecretStr,
+) -> bool:
+    """Confere a assinatura do webhook do WAHA (spec canal-waha.1, WA-4).
+
+    Exige ``X-Webhook-Hmac-Algorithm`` igual a ``sha512`` e o HMAC hex do corpo bruto em
+    ``X-Webhook-Hmac`` (maiusculas ou minusculas). Header ausente, algoritmo diferente,
+    caractere nao ASCII ou segredo vazio devolvem False; nunca levanta excecao.
+    """
+    if not header or not _secret_bytes(secret):
+        return False
+    if (algorithm or "").strip().lower() != WAHA_HMAC_ALGORITHM:
+        return False
+    try:
+        received = header.strip().lower().encode("ascii")
+    except UnicodeEncodeError:
+        return False
+    expected = compute_waha_hmac(raw, secret).encode("ascii")
     return hmac.compare_digest(received, expected)
 
 

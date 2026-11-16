@@ -44,6 +44,7 @@ from app.services import (
     answering,
     attempts,
     audit,
+    brand_session,
     identity,
     limits,
     optin,
@@ -187,7 +188,9 @@ class Pipeline:
                 return MessageOutcome()
             ident = await identity.resolve(conn, msg.sender)
             now = self._clock.now()
-            decision = access.decide(ident.state, msg, now)
+            decision = access.decide(
+                ident.state, msg, now, text_optin=self._settings.channel_provider == "waha"
+            )
             ctx = MessageContext(conn, msg, trace_id, ident, decision, now)
             outcome = await self._handlers.get(decision, self._pending_hook)(ctx)
             await trace.ensure_finalized(conn, trace_id)
@@ -374,6 +377,14 @@ class Pipeline:
         parsed = None
         if ctx.msg.button is not None:
             parsed = parse_optin_payload(ctx.msg.button.payload)
+        pending = ctx.ident.state.user
+        if parsed is None and pending is not None and pending.open_notice_id is not None:
+            # Opt-in por texto (canal-waha.1, WA-13): `access.decide` ja conferiu que o texto
+            # responde ao aviso aberto; o id do aviso vem do proprio usuario.
+            if ctx.decision is AccessDecision.OPTIN_ACCEPTED:
+                parsed = (True, pending.open_notice_id)
+            elif ctx.decision is AccessDecision.OPTIN_DECLINED:
+                parsed = (False, pending.open_notice_id)
         if ctx.decision is AccessDecision.OPTIN_ACCEPTED and parsed is not None:
             return await self._answer_notice(ctx, user, accepted=True, notice_id=parsed[1])
         if ctx.decision is AccessDecision.OPTIN_DECLINED and parsed is not None:
@@ -399,8 +410,18 @@ class Pipeline:
             kind = ReplyKind.OPTIN_DECLINED
         if out_id is None:  # toque que nao vale (aviso fechado entre a decisao e agora)
             return await self._remind(ctx, user)
+        ids = [out_id]
+        if accepted:
+            # Enquete da marca da conversa logo apos a confirmacao (canal-waha.1, WA-15);
+            # sai depois dela: mesma mensagem recebida, id maior (ordem das partes, WA-17).
+            poll_id = await optin.after_accept(
+                ctx.conn, user, ctx.now, settings=self._settings,
+                inbound_trace_id=ctx.trace_id, clock=self._clock,
+            )  # fmt: skip
+            if poll_id is not None:
+                ids.append(poll_id)
         await self._finalize(ctx, ctx.decision, reply_kind=kind)
-        return MessageOutcome(outbound_ids=(out_id,))
+        return MessageOutcome(outbound_ids=tuple(ids))
 
     async def _remind(self, ctx: MessageContext, user: _User) -> MessageOutcome:
         out_id = await optin.maybe_remind(
@@ -539,6 +560,7 @@ class Pipeline:
             inbound_wa_message_id=ctx.msg.wa_message_id,
             received_at=ctx.now,
             trace_id=ctx.trace_id,
+            poll_vote_id=brand_session.vote_poll_id(ctx.msg),
         )
         request = answering.AnswerRequest(
             trace_id=ctx.trace_id, phone_e164=user.phone_e164, context=context

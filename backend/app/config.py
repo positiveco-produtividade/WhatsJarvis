@@ -8,17 +8,24 @@ maiúsculas; pydantic-settings ignora a caixa, então os campos ficam em minúsc
 
 import re
 from functools import lru_cache
-from typing import Literal, Self
+from typing import Any, Literal, Self
 from urllib.parse import urlparse
 
-from pydantic import SecretStr, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, SecretStr, field_validator, model_validator
+from pydantic.fields import FieldInfo
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+)
 
 # Hosts permitidos nas URLs base (evita SSRF por configuração errada).
 _GRAPH_ALLOWED_HOSTS: frozenset[str] = frozenset({"graph.facebook.com"})
 _WAHA_ALLOWED_HOSTS: frozenset[str] = frozenset({"127.0.0.1", "localhost"})
 _IAM_ALLOWED_HOSTS: frozenset[str] = frozenset({"accounts.positiveco.com.br"})
 _E164 = re.compile(r"\+[1-9]\d{7,14}")
+# Variavel so da suite de testes: liga o codigo da Meta, guardado desligado (D5 revisto).
+_TEST_CHANNEL_ENV = "JARVIS_TEST_CHANNEL_PROVIDER"
 
 
 def _check_host(name: str, url: str, allowed: frozenset[str]) -> str:
@@ -28,16 +35,71 @@ def _check_host(name: str, url: str, allowed: frozenset[str]) -> str:
     return url.rstrip("/")
 
 
+class _WithoutChannelName(PydanticBaseSettingsSource):
+    """Embrulha a leitura do .env/ambiente descartando `channel_provider` pelo nome do campo.
+
+    O Jarvis opera so pelo WAHA (D5 revisto): um CHANNEL_PROVIDER esquecido no .env ou no
+    ambiente nao pode trocar o canal. So a variavel de teste (alias) e o valor passado no
+    codigo (testes) chegam ao campo.
+    """
+
+    def __init__(self, inner: PydanticBaseSettingsSource) -> None:
+        super().__init__(inner.settings_cls)
+        self._inner = inner
+
+    def get_field_value(self, field: FieldInfo, field_name: str) -> tuple[Any, str, bool]:
+        return None, field_name, False
+
+    def __call__(self) -> dict[str, Any]:
+        return {k: v for k, v in self._inner().items() if k.lower() != "channel_provider"}
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore", env_ignore_empty=True
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        env_ignore_empty=True,
+        # Sem validate_by_name: o .env e o ambiente so leem `channel_provider` pelo alias de
+        # teste; um CHANNEL_PROVIDER esquecido no .env e ignorado (D5 revisto).
     )
 
-    # Canal dos vendedores (spec canal-waha.1, WA-1, D5): `waha` (padrão) ou `meta`.
-    channel_provider: Literal["waha", "meta"] = "waha"
+    # Canal dos vendedores (spec canal-waha.1, D5 revisto em 2026-11-16): o Jarvis opera SO
+    # pelo WAHA; nao ha opcao de canal no .env. O codigo da Meta fica guardado, desligado, e
+    # `meta` so pode ser ligado pela suite de testes (JARVIS_TEST_CHANNEL_PROVIDER), para os
+    # testes desse codigo continuarem valendo ate a Meta voltar (historia futura).
+    channel_provider: Literal["waha", "meta"] = Field(
+        default="waha", validation_alias=_TEST_CHANNEL_ENV
+    )
 
-    # Banco (obrigatório). WhatsApp Cloud API da Meta: obrigatórios só com
-    # CHANNEL_PROVIDER=meta (ausência ou vazio derruba a subida; `_channel_requirements`).
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        return (
+            init_settings,
+            _WithoutChannelName(env_settings),
+            _WithoutChannelName(dotenv_settings),
+            file_secret_settings,
+        )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _explicit_channel_wins(cls, data: Any) -> Any:
+        """Valor passado pelo nome do campo (`channel_provider=...`) vence a variavel de teste:
+        sem isto, o pydantic prefere o alias vindo do ambiente ao valor explicito."""
+        if isinstance(data, dict) and "channel_provider" in data:
+            data = dict(data)
+            data[_TEST_CHANNEL_ENV] = data.pop("channel_provider")
+        return data
+
+    # Banco (obrigatório). WhatsApp Cloud API da Meta (guardada, desligada): só usada pelos
+    # testes do código da Meta (`channel_provider="meta"`, ver `_channel_requirements`).
     database_url: SecretStr
     whatsapp_app_secret: SecretStr = SecretStr("")
     whatsapp_verify_token: SecretStr = SecretStr("")
@@ -65,7 +127,6 @@ class Settings(BaseSettings):
     jarvis_waha_hmac_key: SecretStr = SecretStr("")
     jarvis_whatsapp_number: str = ""
     outbound_reply_only: bool = True
-    waha_typing_max_seconds: float = 2.5
     brand_session_minutes: int = 30
 
     # Grupo da equipe (WAHA)
@@ -204,7 +265,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _channel_requirements(self) -> Self:
-        """WA-1: exige só a configuração do canal escolhido (nomes das variáveis na mensagem)."""
+        """WA-1: exige a configuração do WAHA (nomes das variáveis na mensagem). Com o canal
+        da Meta (só nos testes), exige a da Meta."""
         if self.channel_provider == "meta":
             required: dict[str, str] = {
                 "WHATSAPP_APP_SECRET": self.whatsapp_app_secret.get_secret_value(),
@@ -221,9 +283,8 @@ class Settings(BaseSettings):
             }
         missing = [name for name, value in required.items() if not value.strip()]
         if missing:
-            raise ValueError(
-                f"CHANNEL_PROVIDER={self.channel_provider} exige: " + ", ".join(missing)
-            )
+            canal = "WAHA" if self.channel_provider == "waha" else "Meta (só testes)"
+            raise ValueError(f"o canal {canal} exige: " + ", ".join(missing))
         return self
 
     @field_validator(
@@ -264,13 +325,6 @@ class Settings(BaseSettings):
         if value and not _E164.fullmatch(value):
             raise ValueError("JARVIS_WHATSAPP_NUMBER: use o formato E.164, ex.: +5585999999999")
         return value
-
-    @field_validator("waha_typing_max_seconds")
-    @classmethod
-    def _typing_range(cls, v: float) -> float:
-        if not 0 <= v <= 10:
-            raise ValueError("WAHA_TYPING_MAX_SECONDS: use um valor entre 0 e 10")
-        return v
 
     @field_validator("brand_session_minutes")
     @classmethod

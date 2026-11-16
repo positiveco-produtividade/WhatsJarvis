@@ -1,6 +1,6 @@
 {
   "task_id": "CANAL-WAHA-1",
-  "title": "Vendedores pelo WAHA, Meta como segunda opção",
+  "title": "Vendedores pelo WAHA, Meta guardada para depois",
   "story": "docs/stories/canal-waha.1.md",
   "epic": "docs/epics/canal-waha.md",
   "phase": "2-design",
@@ -21,28 +21,31 @@
   "acceptance_criteria": [
     {
       "id": "WA-1",
-      "title": "Canal por configuração",
-      "given": "CHANNEL_PROVIDER=waha ou meta",
+      "title": "So WAHA",
+      "given": "o Jarvis em qualquer ambiente",
       "when": "o app sobe",
-      "then": "exige só a configuração do canal escolhido; com waha os campos WHATSAPP_* não são exigidos; valor ausente ou inválido impede a subida com mensagem clara",
+      "then": "opera so pelo WAHA e exige a configuracao dele; nao ha opcao de canal no .env (CHANNEL_PROVIDER antiga e ignorada); WHATSAPP_* nao exigidos; configuracao ausente ou invalida impede a subida",
       "testable": "unit",
-      "test_notes": "Settings sem ler o .env do desenvolvedor"
+      "test_notes": "Settings sem ler o .env do desenvolvedor",
+      "revised": "2026-11-16 com o Caio"
     },
     {
       "id": "WA-2",
-      "title": "Só uma porta aberta",
-      "given": "um canal escolhido",
-      "when": "chega requisição no webhook do outro canal",
-      "then": "404 sem efeito",
-      "testable": "integration"
+      "title": "So a porta do WAHA",
+      "given": "o Jarvis no ar",
+      "when": "chega requisicao em /webhook/whatsapp",
+      "then": "404 sem efeito; so /webhook/waha e montado",
+      "testable": "integration",
+      "revised": "2026-11-16 com o Caio"
     },
     {
       "id": "WA-3",
-      "title": "Meta preservada",
-      "given": "CHANNEL_PROVIDER=meta",
-      "when": "a suíte atual roda",
-      "then": "porta-fechada.1, painel.1 e cerebro.1 passam sem alteração de comportamento",
-      "testable": "integration"
+      "title": "Meta guardada, desligada",
+      "given": "codigo da Meta mantido para historia futura",
+      "when": "a suite roda",
+      "then": "os testes desse codigo continuam passando; so a suite liga a Meta (JARVIS_TEST_CHANNEL_PROVIDER=meta)",
+      "testable": "integration",
+      "revised": "2026-11-16 com o Caio"
     },
     {
       "id": "WA-4",
@@ -108,7 +111,7 @@
     {
       "id": "WA-11",
       "title": "Cadastro não dispara mensagem",
-      "given": "CHANNEL_PROVIDER=waha",
+      "given": "o Jarvis no WAHA",
       "when": "uma pessoa é cadastrada (painel, importação ou CLI)",
       "then": "nada é enviado; a ficha mostra link wa.me com texto pronto; 'Reenviar boas-vindas' vira 'Copiar link'",
       "testable": "integration",
@@ -133,7 +136,7 @@
     {
       "id": "WA-14",
       "title": "Sem avaliação no WAHA",
-      "given": "CHANNEL_PROVIDER=waha",
+      "given": "o Jarvis no WAHA",
       "when": "uma resposta do cérebro é enviada ou o vendedor reage a ela",
       "then": "sai sem pedido de avaliação e sem botões (partes como brain_answer, nunca brain_answer_rate); reações não gravam avaliação nem abrem ticket (só rastro, fora do limite de 60/h); o KPI 'Avaliados como úteis' mostra 'sem dados'; com meta, a avaliação por botões continua como hoje",
       "testable": "integration",
@@ -151,7 +154,7 @@
     {
       "id": "WA-16",
       "title": "Só responde, nunca inicia",
-      "given": "CHANNEL_PROVIDER=waha",
+      "given": "o Jarvis no WAHA",
       "when": "o outbox vai enviar a um vendedor",
       "then": "só envia se houver mensagem recebida dele nas últimas 24 h; senão registra no_inbound_window e não envia",
       "testable": "integration",
@@ -159,10 +162,10 @@
     },
     {
       "id": "WA-17",
-      "title": "Envio humano e em ordem",
+      "title": "Envio rapido e em ordem",
       "given": "uma resposta",
       "when": "é despachada",
-      "then": "marca como vista, mostra 'digitando' proporcional ao texto, envia; partes em ordem, cada uma após a anterior ser aceita; p95 ≤ 8 s",
+      "then": "marca como vista e envia na hora, sem 'digitando' nem espera (decisao do Caio em 2026-11-16); partes em ordem, cada uma apos a anterior ser aceita; p95 <= 8 s",
       "testable": "integration"
     },
     {
@@ -225,7 +228,7 @@
     {
       "id": "WA-25",
       "title": "Escolha de marca na Meta",
-      "given": "CHANNEL_PROVIDER=meta",
+      "given": "o codigo da Meta ligado (so na suite de testes)",
       "when": "o Jarvis manda a escolha de marca",
       "then": "botoes (ate 3 marcas) ou texto com as marcas (4+); o resto igual",
       "testable": "integration"
@@ -246,11 +249,13 @@
   "decisions": [
     "D1 (Caio, 2026-11-13): no WAHA o vendedor inicia (link wa.me) e o Jarvis só responde; OUTBOUND_REPLY_ONLY configurável; camada de canal admite vários canais ligados, cada conversa no canal por onde chegou; envio ativo a comerciantes = história futura pela Meta, em número próprio no portfólio da Positive.",
     "D2 (Caio, 2026-11-13): sem avaliação 👍/👎 no canal WAHA.",
-    "D3 (Caio, 2026-11-13): número do Jarvis no WAHA +5585994102873, chip exclusivo.",
+    "D3 (Caio, 2026-11-13): número do Jarvis no WAHA +5585982080355, chip exclusivo.",
     "D4 (Caio, 2026-11-13): WAHA próprio do Jarvis, separado do AUTO-1 (Core gratuito, outra porta em 127.0.0.1); engine a fechar na Fase 2 (recomendado GOWS/NOWEB).",
     "D5 (Caio, 2026-11-13): CHANNEL_PROVIDER padrão = waha; todo o Jarvis opera pelo WAHA.",
     "D6 (Caio, 2026-11-13, opção A): construir com o rascunho do aviso; aprovação jurídica é condição de go-live; texto em configuração com NOTICE_VERSION.",
     "WA-15 (Caio, 2026-11-13, opcao A): marca da conversa escolhida por enquete logo apos o aceite, valida 30 min desde a ultima mensagem; troca citando outra marca ou 'trocar marca'.",
-    "WA-8 (Caio, 2026-11-13): @lid nao resolvido aparece em 'Pedindo acesso' como 'Numero oculto'; autorizar liga o @lid ao cadastro."
+    "WA-8 (Caio, 2026-11-13): @lid nao resolvido aparece em 'Pedindo acesso' como 'Numero oculto'; autorizar liga o @lid ao cadastro.",
+    "WA-17 (Caio, 2026-11-16): sem 'digitando' nem espera antes do envio; responder o mais rapido possivel. O 'visto' continua.",
+    "D5 (Caio, revisto em 2026-11-16): Jarvis so pelo WAHA, sem escolha de canal na subida; codigo da Meta guardado desligado (so a suite de testes o liga); Meta volta numa historia futura."
   ]
 }

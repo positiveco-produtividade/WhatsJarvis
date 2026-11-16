@@ -22,6 +22,7 @@ from app.services.access import (
     is_opt_out_text,
     normalize_keyword,
     should_send_reminder,
+    text_optin_answer,
 )
 from app.services.inbound import ButtonReply, ContentKind, InboundMessage, Sender
 from app.services.replies import build_optin_reminder, notice_buttons, text_for
@@ -46,6 +47,8 @@ NO_TEXT_KINDS = (
     ReplyKind.BRAIN_ANSWER,
     ReplyKind.BRAIN_ANSWER_RATE,
     ReplyKind.BRAIN_NOTICE,
+    # enquete de marca: pergunta e opcoes montadas na hora (canal-waha.1, WA-15)
+    ReplyKind.BRAND_POLL,
 )
 
 
@@ -232,3 +235,76 @@ def test_reminder_buttons_carry_notice_id(settings: Settings) -> None:
     assert parse_optin_payload(accept.id) == (True, 42)
     assert parse_optin_payload(decline.id) == (False, 42)
     assert all(len(b.title) <= 20 for b in notice_buttons(1))
+
+
+# ---- opt-in por texto no canal sem botoes (canal-waha.1, WA-13; task WA-T12) --------
+
+SHOWN = NOW - timedelta(minutes=5)
+
+
+def pending(*, shown: datetime | None = SHOWN, notice: int | None = NOTICE) -> SenderState:
+    return SenderState(
+        user=AccessUser(
+            status=UserStatus.PENDING_OPTIN, optin_reminder_at=shown, open_notice_id=notice
+        )
+    )
+
+
+@pytest.mark.parametrize("text", ["ACEITO", "aceito", "Aceito!", " aceitar ", "Sim", "sim.", "1"])
+def test_texto_de_aceite_com_aviso_mostrado(text: str) -> None:
+    decision = decide(pending(), msg(ContentKind.TEXT, text=text), NOW, text_optin=True)
+    assert decision is AccessDecision.OPTIN_ACCEPTED
+
+
+@pytest.mark.parametrize("text", ["NÃO", "não", "nao", "Recuso", "2"])
+def test_texto_de_recusa_com_aviso_mostrado(text: str) -> None:
+    decision = decide(pending(), msg(ContentKind.TEXT, text=text), NOW, text_optin=True)
+    assert decision is AccessDecision.OPTIN_DECLINED
+
+
+@pytest.mark.parametrize("text", ["oi", "aceito sim", "quero aceitar", "3", "", "talvez"])
+def test_outro_texto_e_lembrete(text: str) -> None:
+    decision = decide(pending(), msg(ContentKind.TEXT, text=text), NOW, text_optin=True)
+    assert decision is AccessDecision.PENDING_OPTIN
+
+
+def test_sim_na_primeira_mensagem_nao_aceita_aviso_nao_mostrado() -> None:
+    decision = decide(
+        pending(shown=None), msg(ContentKind.TEXT, text="sim"), NOW, text_optin=True
+    )
+    assert decision is AccessDecision.PENDING_OPTIN
+
+
+def test_sem_aviso_aberto_texto_nao_aceita() -> None:
+    decision = decide(
+        pending(notice=None), msg(ContentKind.TEXT, text="aceito"), NOW, text_optin=True
+    )
+    assert decision is AccessDecision.PENDING_OPTIN
+
+
+def test_meta_continua_so_com_botao() -> None:
+    """Sem `text_optin` (Meta), "aceito" em texto e lembrete, como hoje (WA-3)."""
+    decision = decide(pending(), msg(ContentKind.TEXT, text="aceito"), NOW)
+    assert decision is AccessDecision.PENDING_OPTIN
+    button = msg(ContentKind.BUTTON, payload=optin_accept_payload(NOTICE))
+    assert decide(pending(), button, NOW) is AccessDecision.OPTIN_ACCEPTED
+
+
+def test_botao_continua_valendo_no_canal_sem_botoes() -> None:
+    button = msg(ContentKind.BUTTON, payload=optin_decline_payload(NOTICE))
+    assert decide(pending(), button, NOW, text_optin=True) is AccessDecision.OPTIN_DECLINED
+
+
+def test_texto_de_opt_in_so_vale_para_pendente() -> None:
+    active = SenderState(user=AccessUser(status=UserStatus.ACTIVE, accepted_at=NOW))
+    assert decide(active, msg(ContentKind.TEXT, text="sim"), NOW, text_optin=True) is (
+        AccessDecision.ALLOWED
+    )
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"), [("ACEITO", True), ("NÃO", False), ("oi", None), (None, None)]
+)
+def test_text_optin_answer(text: str | None, expected: bool | None) -> None:
+    assert text_optin_answer(msg(ContentKind.TEXT, text=text)) is expected
+    assert text_optin_answer(msg(ContentKind.REACTION)) is None

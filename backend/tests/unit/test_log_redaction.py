@@ -143,3 +143,52 @@ def test_json_formatter_redacts_registered_secret_in_exception() -> None:
 
         rec = logging.LogRecord("t", logging.ERROR, __file__, 1, "erro", None, sys.exc_info())
     assert "segredo-no-traceback-1" not in JsonFormatter().format(rec)
+
+
+# ---- canal-waha.1 (WA-20; task WA-T09) ----------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "remetente 100000000000001@lid",
+        "GET http://127.0.0.1:3001/api/jarvis/lids/100000000000001%40lid",
+        "id false_184736291048573@LID_3EB0",
+    ],
+)
+def test_numero_oculto_do_whatsapp_mascarado(text: str) -> None:
+    out = redact(text)
+    assert "100000000000001" not in out and "184736291048573" not in out
+    assert "[LID]" in out
+
+
+def test_lid_nao_mascara_outras_coisas() -> None:
+    assert redact("lido 12 itens; lid=abc") == "lido 12 itens; lid=abc"
+
+
+class _UrlLike:
+    """Imita o `httpx.URL`: objeto (nao str) cujo texto leva dado pessoal."""
+
+    def __str__(self) -> str:
+        return "http://127.0.0.1:3001/api/jarvis/lids/100000000000001%40lid?n=5511987654321"
+
+
+def test_filtro_limpa_argumento_que_nao_e_texto() -> None:
+    rec = _record('HTTP Request: %s %s "%s %d %s"', "GET", _UrlLike(), "HTTP/1.1", 500, "Erro")
+    RedactingFilter().filter(rec)
+    message = rec.getMessage()
+    assert "100000000000001" not in message and "987654321" not in message
+    assert "[LID]" in message and " 500 " in message  # o %d continua recebendo inteiro
+
+
+def test_filtro_mantem_numeros_e_none() -> None:
+    rec = _record("%d %.1f %s", 7, 2.5, None)
+    RedactingFilter().filter(rec)
+    assert rec.getMessage() == "7 2.5 None"
+
+
+def test_filtro_limpa_argumento_de_dicionario() -> None:
+    rec = logging.LogRecord("t", logging.INFO, __file__, 1, "%(url)s", None, None)
+    rec.args = {"url": _UrlLike()}
+    RedactingFilter().filter(rec)
+    assert "100000000000001" not in rec.getMessage()

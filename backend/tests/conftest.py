@@ -40,8 +40,9 @@ from app.config import Settings  # noqa: E402  (depois de carregar TEST_DATABASE
 Settings.model_config["env_file"] = None
 
 _TEST_SETTINGS_DEFAULTS = {
-    # Suites existentes cobrem a Meta (WA-3); as do WAHA fixam `waha` explicitamente.
-    "CHANNEL_PROVIDER": "meta",
+    # Suites existentes cobrem o codigo da Meta, guardado desligado (WA-3); as do WAHA fixam
+    # `channel_provider="waha"`. Fora dos testes o Jarvis e sempre WAHA (D5 revisto).
+    "JARVIS_TEST_CHANNEL_PROVIDER": "meta",
     "DATABASE_URL": "postgresql://ficticio:ficticio@localhost:5432/ficticio_test",
     "WHATSAPP_APP_SECRET": "segredo-de-teste",
     "WHATSAPP_VERIFY_TOKEN": "token-de-verificacao-de-teste",

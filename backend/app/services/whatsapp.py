@@ -15,7 +15,14 @@ import httpx
 from app.config import Settings
 from app.core.security import verify_hub_signature
 from app.core.values import optin_accept_payload, optin_decline_payload
-from app.services.channel import ReplyButton, SendResult, TemplateMessage
+from app.services.channel import (
+    META_CAPABILITIES,
+    ChannelCapabilities,
+    PollOption,
+    ReplyButton,
+    SendResult,
+    TemplateMessage,
+)
 
 logger = logging.getLogger("jarvis.whatsapp")
 
@@ -148,9 +155,26 @@ class WhatsAppCloudChannel:
         self._client = client if client is not None else httpx.AsyncClient(timeout=HTTP_TIMEOUT)
         self._owns_client = client is None
 
+    @property
+    def capabilities(self) -> ChannelCapabilities:
+        return META_CAPABILITIES
+
     async def aclose(self) -> None:
         if self._owns_client:
             await self._client.aclose()
+
+    async def send_poll(
+        self, to: str, question: str, options: Sequence[PollOption]
+    ) -> SendResult:
+        """Escolha de marca na Meta (WA-25): ate 3 opcoes viram botoes de resposta (payload =
+        `id` da opcao); 4 ou mais, a pergunta em texto com as opcoes listadas."""
+        if not options:
+            raise ValueError("enquete precisa de ao menos uma opcao")
+        if len(options) <= MAX_REPLY_BUTTONS:
+            buttons = [ReplyButton(id=o.id, title=o.title[:BUTTON_TITLE_MAX]) for o in options]
+            return await self.send_reply_buttons(to, question, buttons)
+        listed = "\n".join(f"• {o.title}" for o in options)
+        return await self.send_text(to, f"{question}\n\n{listed}")
 
     async def send_text(self, to: str, body: str) -> SendResult:
         return await self._post(

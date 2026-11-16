@@ -8,12 +8,9 @@ DATABASE_URL=
 # Exemplo de forma: postgresql://jarvis_test:<senha>@localhost:5432/jarvis_test
 TEST_DATABASE_URL=
 
-# --- Canal dos vendedores (canal-waha.1) ---
-# waha (padrao) ou meta. Com waha, os campos JARVIS_WAHA_* e JARVIS_WHATSAPP_NUMBER sao
-# obrigatorios e os WHATSAPP_* da Meta nao; com meta, o contrario.
-CHANNEL_PROVIDER=
-
-# --- WAHA do Jarvis (instalacao propria, separada da do grupo/AUTO-1) ---
+# --- WAHA do Jarvis: o canal dos vendedores (canal-waha.1) ---
+# O Jarvis opera so pelo WAHA (instalacao propria, separada da do grupo/AUTO-1).
+# JARVIS_WAHA_API_KEY, JARVIS_WAHA_HMAC_KEY e JARVIS_WHATSAPP_NUMBER sao obrigatorios.
 # So 127.0.0.1/localhost. Padrao: http://127.0.0.1:3001
 JARVIS_WAHA_BASE_URL=
 JARVIS_WAHA_API_KEY=
@@ -25,8 +22,6 @@ JARVIS_WAHA_HMAC_KEY=
 JARVIS_WHATSAPP_NUMBER=
 # true (padrao): no WAHA o Jarvis so responde a quem escreveu nas ultimas 24 h.
 OUTBOUND_REPLY_ONLY=
-# Teto do "digitando", em segundos (0 a 10; padrao 2.5).
-WAHA_TYPING_MAX_SECONDS=
 # Validade da marca da conversa desde a ultima mensagem (padrao 30; 0 desliga).
 BRAND_SESSION_MINUTES=
 # Textos (opcional; vazio usa o padrao do codigo). TEXT_OPTIN_NOTICE e rascunho ate
@@ -36,7 +31,7 @@ TEXT_BRAND_POLL_START=
 TEXT_BRAND_POLL_QUESTION=
 TEXT_BRAND_SELECTED=
 
-# --- WhatsApp Cloud API (Meta; obrigatorios so com CHANNEL_PROVIDER=meta) ---
+# --- WhatsApp Cloud API (Meta): GUARDADA, DESLIGADA. Nao usados pelo Jarvis hoje ---
 WHATSAPP_APP_SECRET=
 WHATSAPP_VERIFY_TOKEN=
 WHATSAPP_ACCESS_TOKEN=

@@ -31,6 +31,7 @@ from app.services import flags as flags_module
 from app.services import users
 from app.services.flags import Flags
 from app.services.phone import InvalidPhoneError, mask_phone, normalize_phone
+from app.services.waha_channel import wa_me_link
 
 EXIT_OK = 0
 EXIT_FAIL = 1
@@ -156,6 +157,11 @@ async def _welcome_result(ctx: Context, user_id: int) -> str:
 
 
 async def _report_welcome(ctx: Context, user_id: int) -> int:
+    if ctx.settings.channel_provider == "waha":
+        # WAHA (canal-waha.1, WA-11): o cadastro nao envia nada; o gestor repassa o link.
+        link = wa_me_link(ctx.settings.jarvis_whatsapp_number)
+        _out(f"boas-vindas: nao enviada no WAHA; envie o link a pessoa: {link}")
+        return EXIT_OK
     outcome = await _welcome_result(ctx, user_id)
     _out(f"boas-vindas: {outcome}")
     return EXIT_FAIL if outcome.startswith("falhou") else EXIT_OK

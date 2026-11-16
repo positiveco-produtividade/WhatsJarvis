@@ -28,6 +28,7 @@ from app.panel.deps import (
     templates_for,
 )
 from app.panel.services.scope import Scope, parse_scope
+from app.services import session_monitor
 from app.services.flags import Flags
 
 router = APIRouter(route_class=PanelRoute)
@@ -98,9 +99,16 @@ async def estado(
     where = scope.sql_alert("payload", params)
     async with state.pool.acquire() as conn:
         paused = await flags.paused(conn=conn)
+        channel_down = session_monitor.is_down(await session_monitor.read_state(conn))
         unseen = await conn.fetchval(
             f"SELECT count(*) FROM ops.alerts WHERE acknowledged_at IS NULL AND {where}",
             *params,
         )
-    context = {"estado": {"paused": paused, "unseen_alerts": int(unseen or 0)}}
+    context = {
+        "estado": {
+            "paused": paused,
+            "unseen_alerts": int(unseen or 0),
+            "channel_down": channel_down,
+        }
+    }
     return templates_for(request).TemplateResponse(request, "_banner_estado.html", context)

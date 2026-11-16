@@ -10,13 +10,13 @@
       "id": "K1",
       "impact": "alto",
       "description": "Regressao no caminho da Meta ao mexer em config, access, optin, answering e outbox.",
-      "mitigation": "Todo desvio depende de capabilities; suite atual fixada em CHANNEL_PROVIDER=meta sem mudar assercoes (WA-3)."
+      "mitigation": "Todo desvio depende de capabilities; suite atual fixada em JARVIS_TEST_CHANNEL_PROVIDER=meta sem mudar assercoes (WA-3)."
     },
     {
       "id": "K2",
       "impact": "alto",
       "description": "Banimento ou restricao do numero no WAHA (canal nao oficial).",
-      "mitigation": "So responde (WA-16), visto e digitando, partes em sequencia, alerta de restricao e de sessao caida (WA-18, WA-19); Meta como reversao."
+      "mitigation": "So responde (WA-16), visto, partes em sequencia, alerta de restricao e de sessao caida (WA-18, WA-19); Meta como reversao."
     },
     {
       "id": "K3",
@@ -29,12 +29,6 @@
       "impact": "medio",
       "description": "Mudanca no despacho (soltar conexao durante o envio) introduzir corrida.",
       "mitigation": "Claim condicional mantido; testes de outbox e de recuperacao de travados."
-    },
-    {
-      "id": "K5",
-      "impact": "baixo",
-      "description": "Latencia acima de 8 s em respostas de varias partes por causa do 'digitando'.",
-      "mitigation": "Teto configuravel (WAHA_TYPING_MAX_SECONDS); medir no piloto."
     },
     {
       "id": "K6",

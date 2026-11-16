@@ -92,6 +92,7 @@ class PendingRow:
     first_msg_chars: int | None
     first_msg_mime: str | None
     first_text: str | None
+    hidden_number: bool = False  # so identificador oculto, sem telefone (canal-waha.1, WA-8)
 
 
 @dataclass(frozen=True, slots=True)
@@ -156,6 +157,7 @@ def _phone_terms(q: str, params: list[object], column: str) -> list[str]:
 
 # Quem teve os dados excluidos (LGPD, `anon:<id>`) fica so no banco, para o historico de
 # conversas, tickets e auditoria; nao aparece em nenhuma aba nem contagem.
+HIDDEN_NUMBER_LABEL = "Número oculto"
 _NOT_ANONYMIZED = "u.phone_key NOT LIKE 'anon:%'"
 
 
@@ -183,7 +185,10 @@ def _attempts_search(q: str, params: list[object]) -> str:
 # "+ Cadastrar" sem passar pelo Autorizar.
 _PENDING_BASE = (
     "a.user_id IS NULL AND a.dismissed_at IS NULL AND NOT EXISTS "
-    "(SELECT 1 FROM access.users u2 WHERE u2.phone_key = a.phone_key)"
+    "(SELECT 1 FROM access.users u2 WHERE u2.phone_key = a.phone_key) "
+    # numero oculto ja ligado a um cadastro tambem nao e mais pedido (canal-waha.1, WA-8)
+    "AND NOT (a.bsuid IS NOT NULL AND EXISTS "
+    "(SELECT 1 FROM access.users u3 WHERE u3.bsuid = a.bsuid))"
 )
 
 
@@ -272,7 +277,8 @@ async def people_page(
 
 
 _PENDING_SQL = """
-SELECT a.id, a.phone_key, a.reason, a.attempt_count, a.first_attempt_at, a.last_attempt_at,
+SELECT a.id, a.phone_key, a.bsuid IS NOT NULL AS has_hidden_id, a.reason, a.attempt_count,
+       a.first_attempt_at, a.last_attempt_at,
        a.first_msg_type, a.first_msg_chars, a.first_msg_mime, {text} AS first_text,
        count(*) OVER () AS total_rows
   FROM access.access_attempts a
@@ -287,9 +293,11 @@ _TEXT_JOIN = "LEFT JOIN access.unknown_first_messages m ON m.attempt_id = a.id"
 def _pending(r: asyncpg.Record) -> PendingRow:
     count = int(r["attempt_count"])
     phone = r["phone_key"]
+    hidden = phone is None and bool(r["has_hidden_id"])
     return PendingRow(
         id=int(r["id"]),
-        phone_masked=mask_phone_display(phone),
+        phone_masked=HIDDEN_NUMBER_LABEL if hidden else mask_phone_display(phone),
+        hidden_number=hidden,
         reason=r["reason"],
         attempt_count=count,
         highlight=count >= HIGHLIGHT_ATTEMPTS,

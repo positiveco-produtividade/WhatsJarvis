@@ -27,7 +27,7 @@ from app.core.values import (
 )
 from app.core.values import SendResult as TraceSendResult
 from app.services import alerts, trace
-from app.services.channel import Channel, ReplyButton, SendResult, TemplateMessage
+from app.services.channel import Channel, PollOption, ReplyButton, SendResult, TemplateMessage
 from app.services.flags import Flags
 from app.services.replies import notice_buttons
 from app.services.reply_policy import AllowAllPolicy, ReplyPolicy
@@ -50,6 +50,7 @@ REQUIRED_STATUS: Mapping[OutboundKind, UserStatus] = {
     OutboundKind.BRAIN_ANSWER: UserStatus.ACTIVE,
     OutboundKind.BRAIN_ANSWER_RATE: UserStatus.ACTIVE,
     OutboundKind.BRAIN_NOTICE: UserStatus.ACTIVE,
+    OutboundKind.BRAND_POLL: UserStatus.ACTIVE,
 }
 
 # Limites da Meta para mensagem interativa de botoes (verificacao-externa.md).
@@ -57,6 +58,10 @@ MAX_BUTTONS = 3
 MAX_BUTTON_TITLE = 20
 MAX_BUTTON_ID = 256
 MAX_INTERACTIVE_BODY = 1024
+# Enquete do WhatsApp (escolha de marca, WA-15): ate 12 opcoes.
+MAX_POLL_OPTIONS = 12
+MAX_POLL_OPTION_TITLE = 100
+REPLY_WINDOW = timedelta(hours=24)  # WAHA: so envia a quem escreveu nesse intervalo (WA-16)
 
 _INSERT = (
     "INSERT INTO chat.outbound_messages "
@@ -142,6 +147,15 @@ _FINISH = (
     "WHERE id = $1::bigint"
 )
 _TRACE_RECEIVED_AT = "SELECT received_at FROM chat.message_trace WHERE id = $1::bigint"
+_RECENT_INBOUND = (
+    "SELECT 1 FROM chat.message_trace WHERE user_id = $1::bigint AND received_at >= $2 LIMIT 1"
+)
+
+
+def reply_only_for(settings: Settings, channel: Channel) -> bool:
+    """Regra "so responde" (WA-16): ligada por OUTBOUND_REPLY_ONLY no canal sem modelos (WAHA),
+    onde o Jarvis nunca inicia conversa. Na Meta (so nos testes), sempre desligada."""
+    return settings.outbound_reply_only and not channel.capabilities.templates
 
 
 def set_reply_policy(policy: ReplyPolicy) -> None:
@@ -194,6 +208,27 @@ def _buttons_from(raw: Any) -> tuple[ReplyButton, ...]:
     return tuple(buttons)
 
 
+def _poll_options_from(raw: Any) -> tuple[PollOption, ...]:
+    """Opcoes da enquete guardadas em `reply_buttons` (id = payload, title = texto exibido)."""
+    data = json.loads(raw) if isinstance(raw, str) else raw
+    if not isinstance(data, list) or not 1 <= len(data) <= MAX_POLL_OPTIONS:
+        raise InvalidValue("reply_buttons", f"a enquete exige de 1 a {MAX_POLL_OPTIONS} opcoes")
+    options: list[PollOption] = []
+    for item in data:
+        if not isinstance(item, Mapping):
+            raise InvalidValue("reply_buttons", "opcao invalida")
+        option_id = str(item.get("id") or "")
+        title = str(item.get("title") or "").strip()
+        if not option_id or len(option_id) > MAX_BUTTON_ID:
+            raise InvalidValue("reply_buttons", "id da opcao vazio ou acima do limite")
+        if not title or len(title) > MAX_POLL_OPTION_TITLE:
+            raise InvalidValue("reply_buttons", "titulo da opcao vazio ou acima do limite")
+        options.append(PollOption(id=option_id, title=title))
+    if len({o.title.casefold() for o in options}) != len(options):
+        raise InvalidValue("reply_buttons", "opcoes repetidas na enquete")
+    return tuple(options)
+
+
 async def _send_once(channel: Channel, row: Any) -> SendResult:
     kind = OutboundKind(row["kind"])
     to: str = row["to_phone"]
@@ -204,6 +239,8 @@ async def _send_once(channel: Channel, row: Any) -> SendResult:
         return await channel.send_reply_buttons(to, body, notice_buttons(row["optin_request_id"]))
     if kind is OutboundKind.BRAIN_ANSWER_RATE:
         return await channel.send_reply_buttons(to, body, _buttons_from(row["reply_buttons"]))
+    if kind is OutboundKind.BRAND_POLL:
+        return await channel.send_poll(to, body, _poll_options_from(row["reply_buttons"]))
     return await channel.send_text(to, body)
 
 
@@ -221,18 +258,34 @@ def _validate_content(row: Any) -> None:
         _buttons_from(row["reply_buttons"])
         if len(row["body"]) > MAX_INTERACTIVE_BODY:
             raise InvalidValue("body", "texto acima do limite da mensagem interativa")
+    if kind is OutboundKind.BRAND_POLL:
+        _poll_options_from(row["reply_buttons"])
 
 
 def _retryable(result: SendResult) -> bool:
     return not result.ok and result.transient and not result.ambiguous
 
 
-async def _send_with_retry(conn: Any, channel: Channel, row: Any) -> SendResult:
+async def _send_with_retry(pool: Any, channel: Channel, row: Any) -> SendResult:
+    """Envio fora de qualquer conexao do banco: a chamada ao canal pode demorar segundos, e
+    segurar a conexao esgotava o pool sob lentidao do canal (achado da analise; WA-T14)."""
     result = await _send_once(channel, row)
     if _retryable(result) and row["attempts"] < MAX_SEND_ATTEMPTS:
-        await conn.execute(_BUMP_ATTEMPT, row["id"])
+        async with pool.acquire() as conn:
+            await conn.execute(_BUMP_ATTEMPT, row["id"])
         result = await _send_once(channel, row)
     return result
+
+
+async def _discard_outside_window(conn: Any, row: Any, now: datetime) -> bool:
+    """WA-16: sem mensagem do usuario nas ultimas 24 h, descarta sem chamar o canal."""
+    if await conn.fetchval(_RECENT_INBOUND, row["user_id"], now - REPLY_WINDOW) is not None:
+        return False
+    await _finish(
+        conn, row, OutboundStatus.DISCARDED, discard_reason=DiscardReason.NO_INBOUND_WINDOW.value
+    )
+    await _trace_discarded(conn, row, None)
+    return True
 
 
 def _error_text(result: SendResult) -> str:
@@ -362,6 +415,7 @@ async def dispatch(
     channel: Channel,
     policy: ReplyPolicy | None = None,
     clock: Clock | None = None,
+    reply_only: bool = False,
 ) -> OutboundStatus | None:
     """Despacha uma saida `pending` (spec 4.4.7); devolve o status final ou None sem claim.
 
@@ -369,6 +423,9 @@ async def dispatch(
     tentativas, a 2a so se a requisicao nao saiu) -> atualiza fila e rastro. Conteudo
     invalido (ex.: nome do modelo vazio) marca `failed` e levanta `InvalidValue`. Uma excecao
     inesperada do canal deixa a linha `sending` para a recuperacao (PF-30).
+
+    A chamada ao canal acontece SEM conexao do banco (claim e gravacao em conexoes separadas).
+    `reply_only` (WA-16, ver `reply_only_for`): descarta a quem nao escreveu em 24 h.
     """
     active_policy = policy or _policy
     time = clock or SystemClock()
@@ -380,12 +437,15 @@ async def dispatch(
         recipient = _Recipient(row["user_id"], row["to_phone"], status)
         if await _discard_if_blocked(conn, row, recipient, active_policy):
             return OutboundStatus.DISCARDED
+        if reply_only and await _discard_outside_window(conn, row, time.now()):
+            return OutboundStatus.DISCARDED
         try:
             _validate_content(row)
         except InvalidValue as error:
             await _fail_invalid(conn, row, error)
             raise
-        result = await _send_with_retry(conn, channel, row)
+    result = await _send_with_retry(pool, channel, row)
+    async with pool.acquire() as conn:
         return await _record_outcome(conn, row, result, time.now())
 
 

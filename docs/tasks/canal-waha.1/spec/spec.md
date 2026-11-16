@@ -10,7 +10,7 @@ design_approved_by: Caio
 design_approved_at: 2026-11-13
 ---
 
-# Spec — Vendedores pelo WAHA, Meta como segunda opção (CANAL-WAHA-1)
+# Spec — Vendedores pelo WAHA, Meta guardada para depois (CANAL-WAHA-1)
 
 > **Story:** [canal-waha.1](../../../stories/canal-waha.1.md) · **Epic:** [canal-waha](../../../epics/canal-waha.md)
 > **Status:** Fase 1 (Requisitos, WA-1 a WA-20, decisões D1–D6) **aprovada por Caio em 2026-11-13**. Fase 2 (design: seções 9 a 11, `research.json`, `complexity.json`, ADR proposto em `overview.md`) **aprovada por Caio em 2026-11-13**, com as revisões de WA-8 e WA-15 (+WA-21 a WA-25). Fase 3 (tarefas: [`../task.md`](../task.md), 25 tarefas em 8 ondas, 74,5 h) **aprovada por Caio em 2026-11-13**. Fase 4 (implementação) em andamento. **Size:** L (18 pontos, ~80 h, com a marca da conversa).
@@ -21,7 +21,7 @@ design_approved_at: 2026-11-13
 Hoje o Jarvis fala com os vendedores só pela WhatsApp Cloud API da Meta
 (`/webhook/whatsapp`, `WhatsAppCloudChannel`). O go-live está parado em pendências
 da Meta (B-001). Esta história torna o **WAHA** o canal principal dos vendedores e
-mantém a **Meta como segunda opção**, escolhida por `CHANNEL_PROVIDER`.
+mantém o código da **Meta guardado, desligado**, para uma história futura (D5 revisto em 2026-11-16).
 
 Tudo o que já existe depois da borda do canal continua igual: lista positiva,
 limite de 60 mensagens/hora, idempotência, rastro, tickets, alertas, cérebro,
@@ -36,12 +36,12 @@ borda.
 ## 2. Escopo
 
 **Dentro:**
-- Chave `CHANNEL_PROVIDER` (`waha` | `meta`) e configuração própria de cada canal.
+- Configuração do WAHA do Jarvis; Meta guardada, desligada (só a suíte de testes a liga).
 - Webhook `POST /webhook/waha`: limite por IP, tamanho, HMAC SHA-512, JSON, sessão esperada, filtros e delegação ao pipeline existente.
 - Tradução dos eventos do WAHA (`message`, `message.reaction`, `message.ack`, `session.status`) para o domínio atual.
 - Opt-in iniciado pelo vendedor e aceito por texto.
 - Respostas sem avaliação no WAHA; "qual marca?" por opção numerada.
-- Envio com "visto", "digitando" e partes em ordem; classificação de erros do WAHA.
+- Envio com "visto" e partes em ordem, sem "digitando" nem espera; classificação de erros do WAHA.
 - Alerta de sessão caída e de restrição do número.
 
 **Fora:** seção 5.
@@ -55,9 +55,9 @@ de decisão citam a decisão (D1–D6, seção 6).
 
 ### Seleção de canal
 
-- **WA-1 Canal por configuração.** GIVEN `CHANNEL_PROVIDER=waha`, WHEN o app sobe, THEN exige só a configuração do WAHA (URL, chave, sessão do Jarvis, segredo HMAC) e **não** exige os campos `WHATSAPP_*` da Meta; com `CHANNEL_PROVIDER=meta`, exige os da Meta como hoje. Valor ausente ou inválido impede a subida com mensagem clara.
-- **WA-2 Só uma porta aberta.** GIVEN um canal escolhido, WHEN chega requisição no webhook do outro canal, THEN responde 404 sem efeito.
-- **WA-3 Meta preservada.** GIVEN `CHANNEL_PROVIDER=meta`, WHEN a suíte atual roda, THEN todos os testes de porta-fechada.1, painel.1 e cerebro.1 passam sem alteração de comportamento.
+- **WA-1 Só WAHA** *(revisto com o Caio em 2026-11-16)*. GIVEN o Jarvis em qualquer ambiente, WHEN o app sobe, THEN opera **só pelo WAHA** e exige a configuração dele (URL, chave, sessão do Jarvis, segredo HMAC, número); **não há opção de canal** no `.env`, e uma variável `CHANNEL_PROVIDER` antiga é ignorada. Os campos `WHATSAPP_*` não são exigidos. Configuração ausente ou inválida impede a subida com mensagem clara.
+- **WA-2 Só a porta do WAHA** *(revisto com o Caio em 2026-11-16)*. GIVEN o Jarvis no ar, WHEN chega requisição em `/webhook/whatsapp` (Meta), THEN responde 404 sem efeito: só `/webhook/waha` é montado.
+- **WA-3 Meta guardada, desligada** *(revisto com o Caio em 2026-11-16)*. GIVEN o código da Meta mantido no projeto para uma história futura, WHEN a suíte roda, THEN os testes desse código continuam passando sem alteração de comportamento; só a suíte liga a Meta, por `JARVIS_TEST_CHANNEL_PROVIDER=meta` (variável de uso exclusivo dos testes, fora do `.env` e da documentação de operação).
 
 ### Entrada (webhook do WAHA)
 
@@ -71,13 +71,13 @@ de decisão citam a decisão (D1–D6, seção 6).
 
 ### Opt-in sem botões
 
-- **WA-11 Cadastro não dispara mensagem** *(D1)*. GIVEN `CHANNEL_PROVIDER=waha`, WHEN uma pessoa é cadastrada (painel, importação ou CLI), THEN o Jarvis **não envia nada** a ela; a ficha mostra um link `wa.me` do número do Jarvis com texto pronto, para o gestor repassar. A ação "Reenviar boas-vindas" vira "Copiar link".
+- **WA-11 Cadastro não dispara mensagem** *(D1)*. GIVEN o Jarvis no WAHA, WHEN uma pessoa é cadastrada (painel, importação ou CLI), THEN o Jarvis **não envia nada** a ela; a ficha mostra um link `wa.me` do número do Jarvis com texto pronto, para o gestor repassar. A ação "Reenviar boas-vindas" vira "Copiar link".
 - **WA-12 Aviso na primeira mensagem.** GIVEN pessoa em `pending_optin`, WHEN ela manda a primeira mensagem, THEN recebe o aviso de privacidade (versão `NOTICE_VERSION`) terminado em "Responda **ACEITO** para continuar ou **NÃO** para recusar."
 - **WA-13 Aceite e recusa por texto.** GIVEN pessoa em `pending_optin` que já recebeu o aviso, WHEN responde com uma forma de aceite (`aceito`, `aceitar`, `sim`, `1`, sem diferenciar maiúsculas e acentos), THEN o aceite é gravado com data, hora e versão do aviso, como no botão de hoje; WHEN responde com uma forma de recusa (`não`, `nao`, `recuso`, `2`), THEN a recusa é gravada como hoje; qualquer outra coisa recebe o lembrete, no máximo 1 a cada `OPTIN_REMINDER_INTERVAL_HOURS`.
 
 ### Avaliação e "qual marca?" sem botões
 
-- **WA-14 Sem avaliação no WAHA** *(D2)*. GIVEN `CHANNEL_PROVIDER=waha`, WHEN uma resposta do cérebro é enviada, THEN sai **sem** pedido de avaliação e sem botões (as partes saem como `brain_answer`, nunca `brain_answer_rate`); reações do vendedor não gravam avaliação nem abrem ticket (só rastro, sem contar no limite de 60/h, como hoje). No painel, o indicador "Avaliados como úteis" mostra "sem dados" em vez de 0%. Com `CHANNEL_PROVIDER=meta`, a avaliação por botões continua como hoje.
+- **WA-14 Sem avaliação no WAHA** *(D2)*. GIVEN o Jarvis no WAHA, WHEN uma resposta do cérebro é enviada, THEN sai **sem** pedido de avaliação e sem botões (as partes saem como `brain_answer`, nunca `brain_answer_rate`); reações do vendedor não gravam avaliação nem abrem ticket (só rastro, sem contar no limite de 60/h, como hoje). No painel, o indicador "Avaliados como úteis" mostra "sem dados" em vez de 0%. No código da Meta (guardado, ligado só na suíte de testes), a avaliação por botões continua como hoje.
 ### Marca da conversa (revisto com o Caio em 2026-11-13, opção A; substitui o WA-15 original)
 
 - **WA-15 Enquete de marca depois do aceite.** GIVEN um vendedor que acabou de aceitar o aviso, WHEN o aceite é gravado, THEN recebe a confirmação e, se tiver **2 ou mais marcas** no cadastro, uma **enquete de escolha única** "Sobre qual marca você quer falar?" com as marcas do cadastro dele (e só elas). Com **1 marca**, essa marca vira a marca da conversa automaticamente e não há enquete.
@@ -85,12 +85,12 @@ de decisão citam a decisão (D1–D6, seção 6).
 - **WA-22 Pergunta com marca da conversa.** GIVEN marca da conversa válida, WHEN chega uma pergunta que não cita marca, THEN o cérebro busca **só nessa marca** (mais os itens de "todas"), sem perguntar a marca de novo. WHEN a pergunta cita outra marca **do cadastro**, THEN responde sobre a marca citada e ela passa a ser a marca da conversa. WHEN cita marca **fora do cadastro**, THEN segue como hoje (pedido de acesso).
 - **WA-23 Marca vencida ou ausente.** GIVEN vendedor com 2 ou mais marcas e sem marca da conversa válida, WHEN chega uma pergunta sem marca citada, THEN o Jarvis **guarda a pergunta** e manda a enquete "Sobre qual marca é a sua pergunta?"; o voto (WA-21) responde à pergunta guardada. O texto **"trocar marca"** (normalizado) a qualquer momento manda a enquete de novo.
 - **WA-24 Qualidade preservada.** GIVEN as mudanças de WA-15 e WA-21 a WA-23, WHEN rodam os gates de avaliação, THEN `eval --mode palavras` continua APROVADO (com casos novos de marca da conversa) e `eval --mode ia` continua ≥ 98% factual e 100% preço.
-- **WA-25 Enquete na Meta.** GIVEN `CHANNEL_PROVIDER=meta`, WHEN o Jarvis manda a escolha de marca, THEN usa botões de resposta (até 3 marcas) ou a mesma pergunta em texto com as marcas listadas (4 ou mais); o resto de WA-15 e WA-21 a WA-23 vale igual.
+- **WA-25 Enquete na Meta.** GIVEN o código da Meta ligado (só na suíte de testes), WHEN o Jarvis manda a escolha de marca, THEN usa botões de resposta (até 3 marcas) ou a mesma pergunta em texto com as marcas listadas (4 ou mais); o resto de WA-15 e WA-21 a WA-23 vale igual.
 
 ### Saída
 
-- **WA-16 Só responde, nunca inicia** *(D1)*. GIVEN `CHANNEL_PROVIDER=waha`, WHEN o outbox vai enviar a um vendedor, THEN só envia se houver mensagem recebida desse vendedor nas últimas 24 h; caso contrário, não envia e registra `no_inbound_window`. (Alertas e avisos internos não passam por aqui.)
-- **WA-17 Envio humano e em ordem.** GIVEN uma resposta, WHEN é despachada, THEN o Jarvis marca a mensagem recebida como vista, mostra "digitando" por um tempo proporcional ao texto (limites na Fase 2) e envia; respostas em várias partes saem **na ordem**, cada parte só depois de a anterior ter sido aceita pelo WAHA. O p95 do webhook ao envio continua ≤ 8 s (PRD §6).
+- **WA-16 Só responde, nunca inicia** *(D1)*. GIVEN o Jarvis no WAHA, WHEN o outbox vai enviar a um vendedor, THEN só envia se houver mensagem recebida desse vendedor nas últimas 24 h; caso contrário, não envia e registra `no_inbound_window`. (Alertas e avisos internos não passam por aqui.)
+- **WA-17 Envio rápido e em ordem** *(revisto: decisão do Caio em 2026-11-16)*. GIVEN uma resposta, WHEN é despachada, THEN o Jarvis marca a mensagem recebida como vista e envia **na hora**, sem "digitando" nem espera; respostas em várias partes saem **na ordem**, cada parte só depois de a anterior ter sido aceita pelo WAHA. O p95 do webhook ao envio continua ≤ 8 s (PRD §6).
 - **WA-18 Erros e status.** GIVEN um envio ao WAHA, WHEN falha antes de o pedido sair (conexão recusada, 429, 503), THEN é transitório e pode ser retentado; WHEN o tempo esgota depois do envio, THEN é ambíguo e **não** é retentado (no máximo uma vez, como hoje); WHEN o WAHA devolve erro 463 ou 475 (restrição do número), THEN é falha definitiva e gera alerta. Eventos `message.ack` atualizam o status da saída (`-1` = falha, com o mesmo fluxo de falha de envio de hoje; `2`/`3` = entregue/lida).
 
 ### Operação
@@ -102,7 +102,7 @@ de decisão citam a decisão (D1–D6, seção 6).
 
 | Tema | Requisito |
 |---|---|
-| Latência | p95 ≤ 8 s do webhook ao envio, já com "digitando" (WA-17) |
+| Latência | p95 ≤ 8 s do webhook ao envio, sem "digitando" nem espera (WA-17) |
 | Confiabilidade | Sem envio duplicado ao vendedor (no máximo uma vez); reentrega do WAHA absorvida pela idempotência |
 | Segurança | HMAC SHA-512 obrigatório; sem chamada ao banco antes da assinatura; WAHA só em localhost |
 | Anti-banimento | Jarvis nunca inicia conversa no WAHA (WA-16); sem rajadas (partes em sequência) |
@@ -127,9 +127,9 @@ de decisão citam a decisão (D1–D6, seção 6).
 |---|---|---|
 | **D1** | **Decidido pelo Caio em 2026-11-13.** No WAHA, o opt-in começa pelo vendedor (link `wa.me`), e o Jarvis só responde. Iniciar conversa (por exemplo, com comerciantes) fica para uma **história futura pela Meta**, num número próprio no portfólio da Positive; a Meta só é configurada quando essa história for construída. Nesta história, "só responde" é configuração (`OUTBOUND_REPLY_ONLY`), e a camada de canal admite mais de um canal ligado, com cada conversa presa ao canal por onde chegou. | — |
 | **D2** | **Decidido pelo Caio em 2026-11-13:** sem avaliação no canal WAHA (WA-14). O KPI "Avaliados como úteis" fica sem dados enquanto o canal for o WAHA. | — |
-| **D3** | Número do Jarvis no WAHA: **+55 85 99410-2873** (informado pelo Caio em 2026-11-13), chip **exclusivo** do Jarvis (confirmado pelo Caio em 2026-11-13), em sessão própria, separada da do grupo da equipe e da do AUTO-1. **Decidido.** | — |
+| **D3** | Número do Jarvis no WAHA: **+55 85 98208-0355** (informado pelo Caio em 2026-11-13; corrigido pelo Caio em 2026-11-16, o anterior +55 85 99410-2873 não é o do Jarvis), chip **exclusivo** do Jarvis (confirmado pelo Caio em 2026-11-13), em sessão própria, separada da do grupo da equipe e da do AUTO-1. **Decidido.** | — |
 | **D4** | **Decidido pelo Caio em 2026-11-13:** WAHA **próprio do Jarvis** (instalação separada da do AUTO-1, versão Core gratuita, outra porta em `127.0.0.1`), para que um problema em um não derrube o outro. Engine a fechar na Fase 2, depois de medir a memória livre no droplet. | Engine leve (**GOWS** ou **NOWEB**, sem navegador) num servidor compartilhado; WEBJS se a memória sobrar. |
-| **D5** | **Decidido pelo Caio em 2026-11-13:** canal padrão `CHANNEL_PROVIDER=waha`; todo o Jarvis opera pelo WAHA. A Meta fica só como opção no código até a história futura de envio ativo. | — |
+| **D5** | **Decidido pelo Caio em 2026-11-13; revisto com o Caio em 2026-11-16:** o Jarvis opera **só pelo WAHA**, sem escolha de canal na subida. O código da Meta fica guardado, desligado, com seus testes, para a história futura de envio ativo pela Meta. | — |
 | **D6** | **Decidido pelo Caio em 2026-11-13 (opção A):** construir com o rascunho do aviso (texto em configuração, terminando em "Responda ACEITO para continuar ou NÃO para recusar."); o jurídico revisa em paralelo, e a **aprovação jurídica é condição de go-live** com vendedores. Mudança posterior do texto troca só a configuração e a `NOTICE_VERSION`. | — |
 
 ## 7. Premissas a verificar na Fase 2
@@ -163,17 +163,17 @@ Pipeline.handle_message / handle_status        ← SEM MUDANÇA de contrato
    ▼
 outbox (fila transacional, como hoje) ── regra "só responde" (WA-16) ── partes em ordem
    ▼
-WahaChannel (implementa Channel) ── sendSeen → startTyping → espera → stopTyping → sendText
+WahaChannel (implementa Channel) ── sendSeen → sendText (sem "digitando" nem espera)
    ▲
 SessionMonitor (laço de fundo, 60 s) + evento session.status → alerta "canal fora" (WA-19)
 ```
 
 | Módulo | Ação | Responsabilidade |
 |---|---|---|
-| `app/config.py` | Alterar | `CHANNEL_PROVIDER` (`waha` padrão); campos `JARVIS_WAHA_*`; `WHATSAPP_*` passam a ser exigidos **só** com `meta` (WA-1) |
+| `app/config.py` | Alterar | `channel_provider` interno (sempre `waha`; `meta` só pela suíte de testes, via `JARVIS_TEST_CHANNEL_PROVIDER`); campos `JARVIS_WAHA_*`; `WHATSAPP_*` passam a ser exigidos **só** com `meta` (WA-1) |
 | `app/services/channel.py` | Alterar | `Channel` ganha `capabilities` (`buttons`, `templates`); `SendResult` sem mudança |
 | `app/services/channel_factory.py` | Criar | Escolhe `WahaChannel` ou `WhatsAppCloudChannel` pela configuração |
-| `app/services/waha_channel.py` | Criar | Cliente do WAHA do Jarvis: envio, "visto", "digitando", classificação de erros (WA-17, WA-18) |
+| `app/services/waha_channel.py` | Criar | Cliente do WAHA do Jarvis: envio, "visto", classificação de erros (WA-17, WA-18) |
 | `app/services/waha_inbound.py` | Criar | Parser puro dos eventos `message`, `message.reaction`, `message.ack`, `session.status` (WA-6, WA-7) |
 | `app/services/waha_lid.py` | Criar | Resolução de `@lid` para número pela API do WAHA, com cache em memória (WA-8) |
 | `app/api/webhook_waha.py` | Criar | Rota `POST /webhook/waha` na mesma ordem do webhook da Meta (WA-4, WA-5) |
@@ -186,7 +186,7 @@ SessionMonitor (laço de fundo, 60 s) + evento session.status → alerta "canal 
 | `app/services/workers.py` | Alterar | Varredura não pega a parte N enquanto a anterior está pendente (WA-17); laço do `SessionMonitor` |
 | `app/services/session_monitor.py` | Criar | Estado da sessão; alertas `channel_down` e `channel_restricted` com dedup (WA-19) |
 | `app/panel/...` (ficha, métricas, faixa) | Alterar | Link `wa.me` e "Copiar link" (WA-11); KPI de avaliação "sem dados" (WA-14); faixa "canal fora" (WA-19) |
-| `tests/conftest.py` | Alterar | Testes não leem o `.env` do desenvolvedor; suítes antigas fixam `CHANNEL_PROVIDER=meta` (WA-3) |
+| `tests/conftest.py` | Alterar | Testes não leem o `.env` do desenvolvedor; suítes antigas ligam a Meta por `JARVIS_TEST_CHANNEL_PROVIDER=meta` (WA-3) |
 | `migrations/301_brand_session.sql` | Criar | Marca da conversa e o kind `brand_poll` (9.2) |
 | `app/services/brand_session.py` | Criar | Ler, gravar, renovar e vencer a marca da conversa; decidir se manda enquete (WA-15, WA-21, WA-23) |
 | `app/services/brain/provider.py` | Alterar | Busca restrita à marca da conversa; troca de marca citada; enquete no lugar de "qual marca?" (WA-22, WA-23) |
@@ -251,14 +251,14 @@ Classificação de erros do WAHA (WA-18):
 
 **Opt-in (WA-11 a WA-13).**
 1. Cadastro (painel, importação ou CLI): o aviso é aberto (`optin_requests` `open`), como hoje, mas **nada é enfileirado** quando o canal não tem modelos.
-2. O gestor copia na ficha o link `https://wa.me/5585994102873?text=Oi%20Jarvis` e repassa ao vendedor.
+2. O gestor copia na ficha o link `https://wa.me/5585982080355?text=Oi%20Jarvis` e repassa ao vendedor.
 3. A primeira mensagem do vendedor cai em `pending_optin`, e `maybe_remind` envia o **aviso completo** (`TEXT_OPTIN_NOTICE`) e grava `optin_reminder_at`.
 4. Em `access.decide`, com o canal sem botões, um **texto** normalizado em `{aceito, aceitar, sim, 1}` ou `{nao, recuso, 2}` vale como resposta ao aviso aberto, **desde que o aviso já tenha sido mostrado** (`optin_reminder_at` preenchido). Isso evita que um "sim" solto na primeira mensagem aceite um aviso que a pessoa nem viu.
 5. Daí em diante, o fluxo é o atual (`optin.accept` / `optin.decline`, com a mesma gravação de data, hora e versão).
 
 **Resposta (WA-17).** O cérebro enfileira N partes, como hoje. O despacho:
 1. pega a parte (claim condicional, como hoje) e **devolve a conexão ao pool**;
-2. no WAHA, chama `sendSeen` → `startTyping` → espera `clamp(len(texto) / 60, 1 s, 2,5 s)` → `stopTyping` → `sendText`. Falha em "visto" ou "digitando" só vira log, sem impedir o envio;
+2. no WAHA, chama `sendSeen` → `sendText`, sem "digitando" nem espera (decisão do Caio em 2026-11-16: responder o mais rápido possível). Falha no "visto" só vira log, sem impedir o envio;
 3. pega outra conexão e grava o resultado.
 
 A varredura ignora uma parte se existir parte anterior da mesma resposta (mesmo `inbound_trace_id`, `id` menor) em `pending` ou `sending`. Assim as partes saem sempre em ordem.
@@ -271,15 +271,14 @@ A varredura ignora uma parte se existir parte anterior da mesma resposta (mesmo 
 
 | Variável | Padrão | Observação |
 |---|---|---|
-| `CHANNEL_PROVIDER` | `waha` | `waha` ou `meta` (D5) |
+| ~~`CHANNEL_PROVIDER`~~ | — | Removida (D5 revisto): o Jarvis é sempre WAHA. Só a suíte de testes liga a Meta, por `JARVIS_TEST_CHANNEL_PROVIDER` |
 | `JARVIS_WAHA_BASE_URL` | `http://127.0.0.1:3001` | WAHA **do Jarvis**, separado do `WAHA_BASE_URL` do grupo (D4); só `127.0.0.1`/`localhost` |
 | `JARVIS_WAHA_API_KEY` | — | Obrigatória com `waha` |
 | `JARVIS_WAHA_SESSION` | `jarvis` | Nome da sessão no WAHA do Jarvis |
 | `JARVIS_WAHA_HMAC_KEY` | — | Obrigatória com `waha`; a mesma configurada no webhook da sessão |
-| `JARVIS_WHATSAPP_NUMBER` | — | `+5585994102873` (D3); usado no link `wa.me` e na checagem de `me.id` |
+| `JARVIS_WHATSAPP_NUMBER` | — | `+5585982080355` (D3); usado no link `wa.me` e na checagem de `me.id` |
 | `OUTBOUND_REPLY_ONLY` | `true` | WA-16 |
 | `TEXT_OPTIN_NOTICE` | rascunho (D6) | Aviso completo enviado na 1ª mensagem |
-| `WAHA_TYPING_MAX_SECONDS` | `2.5` | Teto da espera de "digitando" |
 | `BRAND_SESSION_MINUTES` | `30` | Validade da marca da conversa desde a última mensagem (WA-21) |
 | `TEXT_BRAND_POLL_START` | "Sobre qual marca você quer falar?" | Enquete depois do aceite (WA-15) |
 | `TEXT_BRAND_POLL_QUESTION` | "Sobre qual marca é a sua pergunta?" | Enquete com pergunta guardada (WA-23) |
@@ -296,15 +295,15 @@ Novos eventos: `waha_webhook_received` (contagens), `waha_event_ignored` (`reaso
 - **Fixtures:** payloads de exemplo da documentação do WAHA (texto, mídia, grupo, `fromMe`, `@lid`, reação, ack, `session.status`) em `tests/fixtures/waha/`.
 - **Unitários:** `waha_inbound` (cada filtro e tradução), `verify_waha_hmac`, classificação de erros, opt-in por texto em `access.decide`, regra de 24 h e ordem das partes.
 - **Integração:** webhook ponta a ponta com `FakeChannel` sem botões; o pipeline de porta-fechada roda também com mensagens de origem WAHA (WA-10); nenhuma consulta ao banco antes da assinatura (espião no pool, WA-4).
-- **Regressão da Meta (WA-3):** suítes atuais com `CHANNEL_PROVIDER=meta` fixado no `conftest`, sem mudar nenhuma asserção.
+- **Regressão da Meta (WA-3):** suítes atuais com `JARVIS_TEST_CHANNEL_PROVIDER=meta` fixado no `conftest`, sem mudar nenhuma asserção.
 - **Higiene:** `Settings` dos testes sem ler o `.env` do desenvolvedor. Isso corrige as 72 falhas de ambiente vistas em 2026-11-13 e a falha garantida no CI. Junto: `tzdata` entra em `requirements-dev.txt` (**única dependência nova**, só de desenvolvimento: no Windows o Python não traz a base de fusos e `ZoneInfo("America/Sao_Paulo")` falha; no droplet Linux ela vem do sistema), e o teste `test_resposta_registrada_com_ferramentas` deixa de depender da data de hoje (a consulta usa `now()` do banco e o teste semeia em data fixa).
 - **Manual (go-live):** opt-in, pergunta, mídia e "sair" com um celular real contra o WAHA do Jarvis.
 
 ### 9.8 Trade-offs
 
 - **Um canal ativo por vez, não vários.** D1 pedia a camada pronta para vários canais. O design deixa a interface e a fábrica prontas, mas **não** grava o canal por conversa: com tudo no WAHA (D5), essa coluna não teria uso. A história futura da Meta acrescenta a coluna `channel` e o roteamento, numa migration aditiva.
-- **"Digitando" aumenta a latência** em até 2,5 s por parte. Para respostas de 1 parte ainda cabe no p95 de 8 s; respostas longas (3 partes ou mais) podem passar. Aceito: as partes seguintes saem em ordem, e o PRD mede a primeira entrega.
-- **Soltar a conexão durante o envio** muda o despacho, que é núcleo, mas corrige o achado da análise (pool preso durante o HTTP), que pioraria com "digitando". É coberto pelas suítes de outbox.
+- **Sem "digitando"** (decisão do Caio em 2026-11-16): o Jarvis responde assim que a resposta fica pronta. Ganha até 2,5 s por parte; perde um sinal de "comportamento humano" que o WAHA sugere contra bloqueio. O "visto" (uma chamada rápida) continua.
+- **Soltar a conexão durante o envio** muda o despacho, que é núcleo, mas corrige o achado da análise (pool preso durante o HTTP). É coberto pelas suítes de outbox.
 - **`@lid` no lugar do BSUID.** A coluna se chama `bsuid`, mas passa a guardar o identificador alternativo do canal ativo (BSUID na Meta, LID no WAHA). Evita migration; o nome fica documentado aqui e no `identity.py` (seção 10, item 1).
 
 ### 9.9 Marca da conversa (WA-15, WA-21 a WA-25)
@@ -329,7 +328,7 @@ Novos eventos: `waha_webhook_received` (contagens), `waha_event_ignored` (`reaso
 
 1. Conferir no farol a memória livre (`free -h`), uma porta livre (`ss -ltnp`) e como o WAHA do AUTO-1 está instalado (`docker ps`, `pm2 ls`). Decidir a engine (D4): GOWS se sobrar menos de ~1 GB; com mais, GOWS ou WEBJS.
 2. Subir o WAHA do Jarvis (Core) no mesmo modelo do AUTO-1, em `127.0.0.1:<porta>`, com chave de API própria e sem expor a porta para fora do servidor.
-3. Criar a sessão `jarvis`, parear o chip (85) 99410-2873 pelo QR code e configurar o webhook `https://<subdomínio do Jarvis>/webhook/waha` com HMAC e só os eventos `message`, `message.reaction`, `message.ack`, `poll.vote` e `session.status`. Configurar o perfil do número: foto, nome "Jarvis" e recado (recomendação do WAHA contra bloqueio).
+3. Criar a sessão `jarvis`, parear o chip (85) 98208-0355 pelo QR code e configurar o webhook `https://<subdomínio do Jarvis>/webhook/waha` com HMAC e só os eventos `message`, `message.reaction`, `message.ack`, `poll.vote` e `session.status`. Configurar o perfil do número: foto, nome "Jarvis" e recado (recomendação do WAHA contra bloqueio).
 4. Capturar um payload real de cada evento e comparar com as fixtures (premissas R1–R3 de `research.json`).
 5. Preencher o `.env` do Jarvis (9.5), subir e testar com um celular.
 6. Obter a aprovação jurídica do aviso (D6) antes de mandar o link aos vendedores.
@@ -342,7 +341,7 @@ Novos eventos: `waha_webhook_received` (contagens), `waha_event_ignored` (`reaso
 
 ## 11. Plano de reversão
 
-- **Voltar para a Meta:** `CHANNEL_PROVIDER=meta` e os `WHATSAPP_*` no `.env`, e reiniciar. A migration 301 é aditiva e pode ficar; a marca da conversa funciona também na Meta (WA-25).
+- **Voltar para a Meta:** deixou de ser troca de configuração (D5 revisto em 2026-11-16): exige a história futura que religa o canal da Meta. O código e os testes dela ficam no projeto para isso. A migration 301 é aditiva e pode ficar.
 - **Desligar a marca da conversa:** `BRAND_SESSION_MINUTES=0` faz o Jarvis voltar ao comportamento atual ("qual marca?" só na ambiguidade).
 - **Desligar o canal sem derrubar o painel:** pausa global do Jarvis (já existe) ou parar o WAHA do Jarvis. O painel e o AUTO-1 seguem funcionando.
 - **Código:** as mudanças em `access`, `optin`, `answering` e `outbox` dependem das capacidades do canal; com a Meta, o caminho é o de hoje (WA-3). Reverter é um `git revert` dos commits desta história.

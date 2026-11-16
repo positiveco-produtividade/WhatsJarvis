@@ -8,10 +8,17 @@ from typing import Literal
 from pydantic import SecretStr
 
 from app.core.security import verify_hub_signature
-from app.services.channel import ReplyButton, SendResult, TemplateMessage
+from app.services.channel import (
+    META_CAPABILITIES,
+    ChannelCapabilities,
+    PollOption,
+    ReplyButton,
+    SendResult,
+    TemplateMessage,
+)
 
 FailureKind = Literal["transient", "ambiguous", "definitive"]
-Method = Literal["send_text", "send_template", "send_reply_buttons"]
+Method = Literal["send_text", "send_template", "send_reply_buttons", "send_poll"]
 
 
 @dataclass(frozen=True)
@@ -23,6 +30,7 @@ class SentCall:
     body: str | None = None
     template: TemplateMessage | None = None
     buttons: tuple[ReplyButton, ...] = ()
+    options: tuple[PollOption, ...] = ()
 
 
 def failure_result(kind: FailureKind, code: str = "fake_error") -> SendResult:
@@ -40,7 +48,15 @@ class FakeChannel:
     qualquer metodo de envio. `fail_always(kind)` falha ate `clear_failures()`.
     """
 
-    def __init__(self, app_secret: str | SecretStr = "fake-app-secret") -> None:
+    def __init__(
+        self,
+        app_secret: str | SecretStr = "fake-app-secret",
+        *,
+        capabilities: ChannelCapabilities = META_CAPABILITIES,
+    ) -> None:
+        """`capabilities`: padrao igual a Meta (suites existentes); `WAHA_CAPABILITIES` simula o
+        canal sem botoes nem modelos (canal-waha.1)."""
+        self.capabilities = capabilities
         self.calls: list[SentCall] = []
         self._app_secret = app_secret
         self._queued: list[tuple[Method | None, SendResult]] = []
@@ -92,6 +108,12 @@ class FakeChannel:
     ) -> SendResult:
         self.calls.append(SentCall("send_reply_buttons", to, body=body, buttons=tuple(buttons)))
         return self._result_for("send_reply_buttons")
+
+    async def send_poll(
+        self, to: str, question: str, options: Sequence[PollOption]
+    ) -> SendResult:
+        self.calls.append(SentCall("send_poll", to, body=question, options=tuple(options)))
+        return self._result_for("send_poll")
 
     def verify_signature(self, raw_body: bytes, header: str) -> bool:
         return verify_hub_signature(raw_body, header, self._app_secret)

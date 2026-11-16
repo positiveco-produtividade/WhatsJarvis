@@ -76,7 +76,7 @@
       <tbody>
         {% for r in (pending or []) %}
         <tr class="border-t border-ink-100 hover:bg-ink-50">
-          <td class="px-3 py-1.5">{{ phone_cell(r.phone_masked) }}</td>
+          <td class="px-3 py-1.5">{% if r.hidden_number %}<span class="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-900" title="O WhatsApp escondeu o telefone desta pessoa">Número oculto</span>{% else %}{{ phone_cell(r.phone_masked) }}{% endif %}</td>
           <td class="px-3 py-1.5 text-ink-700 max-w-xs">
             {% if text_display and r.first_text %}“{{ r.first_text }}”
             {% elif r.first_msg_type == 'text' %}<span class="text-ink-400">Texto{% if r.first_msg_chars %} · {{ r.first_msg_chars }} caracteres{% endif %}</span>

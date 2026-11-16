@@ -373,10 +373,10 @@ def _settings_words() -> Settings:
     return Settings(  # type: ignore[call-arg]
         _env_file=None,
         database_url=SecretStr("postgresql://eval"),
-        whatsapp_app_secret=SecretStr("eval"),
-        whatsapp_verify_token=SecretStr("eval"),
-        whatsapp_access_token=SecretStr("eval"),
-        whatsapp_phone_number_id="0",
+        # O Jarvis opera so pelo WAHA (canal-waha.1, D5): valores ficticios, nunca usados aqui.
+        jarvis_waha_api_key=SecretStr("eval"),
+        jarvis_waha_hmac_key=SecretStr("eval"),
+        jarvis_whatsapp_number="+5500000000001",
     )
 
 

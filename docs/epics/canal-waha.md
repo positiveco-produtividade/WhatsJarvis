@@ -26,7 +26,7 @@ aprovação do modelo de boas-vindas. O WAHA já roda no servidor e não exige n
 
 | ID | História |
 |---|---|
-| canal-waha.1 | Receber e responder vendedores pelo WAHA, com a Meta como segunda opção por configuração |
+| canal-waha.1 | Receber e responder vendedores pelo WAHA, com a código da Meta guardado, desligado |
 
 ## Fora deste épico
 
@@ -34,6 +34,6 @@ Remover o código da Meta; envio em massa ou campanhas; grupos; baixar mídia; �
 
 ## Critério de pronto do épico
 
-Com `CHANNEL_PROVIDER=waha`, um vendedor cadastrado completa o opt-in, pergunta,
-e recebe a resposta, tudo pelo WAHA; com `CHANNEL_PROVIDER=meta`, a suíte
+Um vendedor cadastrado completa o opt-in, pergunta e recebe a resposta, tudo pelo
+WAHA (o Jarvis opera só por ele); o código da Meta fica guardado, desligado, e a suíte
 atual passa sem alteração.

@@ -21,9 +21,12 @@ META = {
 
 @pytest.fixture(autouse=True)
 def _isolated_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Sem nada do ambiente: o conftest fixa CHANNEL_PROVIDER=meta e chaves ficticias."""
+    """Sem nada do ambiente: o conftest liga a Meta (JARVIS_TEST_CHANNEL_PROVIDER) e poe
+    chaves ficticias; aqui vale o padrao de producao."""
     for name in Settings.model_fields:
         monkeypatch.delenv(name.upper(), raising=False)
+    monkeypatch.delenv("JARVIS_TEST_CHANNEL_PROVIDER", raising=False)
+    monkeypatch.delenv("CHANNEL_PROVIDER", raising=False)
 
 
 def waha(**overrides: object) -> Settings:
@@ -42,7 +45,6 @@ def test_padroes_do_waha_seguem_a_spec() -> None:
     assert s.jarvis_waha_base_url == "http://127.0.0.1:3001"
     assert s.jarvis_waha_session == "jarvis"
     assert s.outbound_reply_only is True
-    assert s.waha_typing_max_seconds == 2.5
     assert s.brand_session_minutes == 30
     assert "ACEITO" in s.text_optin_notice and "NÃO" in s.text_optin_notice
     assert s.text_brand_poll_start == "Sobre qual marca você quer falar?"
@@ -106,12 +108,6 @@ def test_numero_do_jarvis_em_e164(number: str) -> None:
         waha(jarvis_whatsapp_number=number)
 
 
-@pytest.mark.parametrize("value", [-1, 11])
-def test_digitando_fora_da_faixa(value: float) -> None:
-    with pytest.raises(ValidationError):
-        waha(waha_typing_max_seconds=value)
-
-
 def test_marca_da_conversa_zero_desliga_e_negativo_recusa() -> None:
     assert waha(brand_session_minutes=0).brand_session_minutes == 0
     with pytest.raises(ValidationError):
@@ -130,10 +126,38 @@ def test_segredos_do_waha_mascarados() -> None:
 
 def test_variaveis_em_maiusculas(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("DATABASE_URL", DB["database_url"])
-    monkeypatch.setenv("CHANNEL_PROVIDER", "waha")
     monkeypatch.setenv("JARVIS_WAHA_API_KEY", "k")
     monkeypatch.setenv("JARVIS_WAHA_HMAC_KEY", "h")
     monkeypatch.setenv("JARVIS_WHATSAPP_NUMBER", "+5500000000001")
     monkeypatch.setenv("BRAND_SESSION_MINUTES", "45")
     s = Settings(_env_file=None)  # type: ignore[call-arg]
     assert s.channel_provider == "waha" and s.brand_session_minutes == 45
+
+
+def test_env_nao_escolhe_canal_jarvis_e_sempre_waha(monkeypatch: pytest.MonkeyPatch) -> None:
+    """D5 revisto (2026-11-16): CHANNEL_PROVIDER no .env/ambiente nao existe mais e e ignorado."""
+    monkeypatch.setenv("CHANNEL_PROVIDER", "meta")
+    monkeypatch.setenv("CHANNEL_PROVIDER".lower(), "meta")
+    assert waha().channel_provider == "waha"
+
+
+def test_meta_so_pela_variavel_de_teste(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("JARVIS_TEST_CHANNEL_PROVIDER", "meta")
+    s = Settings(_env_file=None, **DB, **META)  # type: ignore[arg-type]
+    assert s.channel_provider == "meta"
+
+
+def test_arquivo_env_com_channel_provider_e_ignorado(
+    tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regressao (2026-11-16): o arquivo .env tem outro caminho de leitura que o ambiente; um
+    CHANNEL_PROVIDER=meta esquecido nele subia o Jarvis como Meta."""
+    env_file = tmp_path / "jarvis.env"  # type: ignore[operator]
+    env_file.write_text(
+        "CHANNEL_PROVIDER=meta\nchannel_provider=meta\n"
+        f"DATABASE_URL={DB['database_url']}\n"
+        "JARVIS_WAHA_API_KEY=k\nJARVIS_WAHA_HMAC_KEY=h\nJARVIS_WHATSAPP_NUMBER=+5500000000001\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("CHANNEL_PROVIDER", "meta")
+    assert Settings(_env_file=env_file).channel_provider == "waha"  # type: ignore[call-arg]

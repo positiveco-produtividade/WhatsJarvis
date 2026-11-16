@@ -26,7 +26,6 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api.webhook import PayloadProcessor
-from app.api.webhook import router as webhook_router
 from app.config import Settings, get_settings
 from app.core.clock import SystemClock
 from app.core.errors import InvalidValue
@@ -41,13 +40,20 @@ from app.services.brain.llm import LlmClient
 from app.services.brain.meter import BrainMeter
 from app.services.brain.provider import BrainProvider
 from app.services.channel import Channel
+from app.services.channel_factory import (
+    OwnedChannel,
+    build_channel,
+    build_lid_resolver,
+    webhook_router,
+)
 from app.services.counters import SecurityCounters
 from app.services.faq_reader import FaqReader
 from app.services.flags import Flags
 from app.services.inbound import InboundMessage, InboundStatus
 from app.services.pipeline import Pipeline
 from app.services.reply_policy import AllowAllPolicy, FlagsReplyPolicy
-from app.services.whatsapp import WhatsAppCloudChannel
+from app.services.session_monitor import SessionMonitor
+from app.services.waha_channel import WahaChannel
 from app.services.workers import Workers, from_app
 
 logger = logging.getLogger(__name__)
@@ -120,11 +126,23 @@ async def _check_database(pool: asyncpg.Pool | None) -> bool:
         return False
 
 
+def _channel_state(request: Request) -> str | None:
+    """Estado da sessao do WhatsApp (canal-waha.1, WA-19): `working`, `down` ou None."""
+    monitor: SessionMonitor | None = getattr(request.app.state, "session_monitor", None)
+    if monitor is None:
+        return None
+    return "working" if monitor.is_working() else "down"
+
+
 async def health(request: Request) -> Response:
     pool: asyncpg.Pool | None = getattr(request.app.state, "pool", None)
+    body: dict[str, Any] = {}
+    channel = _channel_state(request)
+    if channel is not None:
+        body["channel"] = channel  # informativo: o 503 continua so para banco fora
     if await _check_database(pool):
-        return JSONResponse({"status": "ok"})
-    return JSONResponse({"status": "degraded"}, status_code=503)
+        return JSONResponse({"status": "ok", **body})
+    return JSONResponse({"status": "degraded", **body}, status_code=503)
 
 
 class OutboundDispatcher:
@@ -155,7 +173,12 @@ class OutboundDispatcher:
 
     async def _dispatch_outbound(self, outbound_id: int) -> None:
         try:
-            status = await outbox.dispatch(self._pool, outbound_id, channel=self._channel)
+            status = await outbox.dispatch(
+                self._pool,
+                outbound_id,
+                channel=self._channel,
+                reply_only=outbox.reply_only_for(self._settings, self._channel),
+            )
             failed = status is OutboundStatus.FAILED
         except InvalidValue:
             failed = True
@@ -196,11 +219,14 @@ class AppProcessor:
         pool: asyncpg.Pool,
         provider: answering.AnswerProvider,
         dispatcher: OutboundDispatcher,
+        *,
+        rating: bool = True,
     ) -> None:
         self._pipeline = pipeline
         self._pool = pool
         self._provider = provider
         self._dispatcher = dispatcher
+        self._rating = rating  # sem botoes no canal (WAHA): resposta sem avaliacao (WA-14)
         self._tasks: set[asyncio.Task[None]] = set()
 
     async def handle_message(self, msg: InboundMessage) -> MessageOutcome:
@@ -218,7 +244,9 @@ class AppProcessor:
 
     async def _answer(self, request: answering.AnswerRequest) -> None:
         try:
-            outbound_ids = await answering.answer_and_enqueue(self._pool, request, self._provider)
+            outbound_ids = await answering.answer_and_enqueue(
+                self._pool, request, self._provider, rating=self._rating
+            )
             if outbound_ids:
                 await self._dispatcher(outbound_ids, ())
         except Exception as exc:  # noqa: BLE001 - o rastro fica `pending`
@@ -267,6 +295,7 @@ def _install_services(
         pool,
         _build_provider(pool, settings, flags),
         dispatcher,
+        rating=channel.capabilities.buttons,
     )
     app.state.pool = pool
     app.state.flags = flags
@@ -303,6 +332,23 @@ def _mount_panel(app: FastAPI, settings: Settings, *, from_env: bool) -> None:
     mount_panel(app)
 
 
+def _start_session_monitor(
+    app: FastAPI,
+    pool: asyncpg.Pool,
+    settings: Settings,
+    channel: Channel,
+    http_client: httpx.AsyncClient,
+) -> SessionMonitor | None:
+    """Monitor da sessao do WAHA (canal-waha.1, WA-19); so com o canal do WAHA."""
+    if settings.channel_provider != "waha":
+        return None
+    monitor = SessionMonitor(pool, settings, http_client, flags=app.state.flags)
+    app.state.session_monitor = monitor
+    if isinstance(channel, WahaChannel):
+        channel.attach_monitor(monitor.is_working, monitor.on_restriction)
+    return monitor
+
+
 def _lifespan(
     settings: Settings,
     channel: Channel | None,
@@ -312,16 +358,21 @@ def _lifespan(
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         setup_logging(logging.getLevelNamesMapping().get(settings.log_level.upper(), logging.INFO))
         pool = await create_pool(settings.database_url.get_secret_value())
-        owned_channel: WhatsAppCloudChannel | None = None
+        owned_channel: OwnedChannel | None = None
         owned_http: httpx.AsyncClient | None = None
         if channel is None:
-            owned_channel = WhatsAppCloudChannel(settings)
+            owned_channel = build_channel(settings)
         if http_client is None:
             owned_http = httpx.AsyncClient(timeout=HTTP_CLIENT_TIMEOUT_SECONDS)
         active_channel: Channel = owned_channel or channel  # type: ignore[assignment]
         active_http = owned_http or http_client
         assert active_http is not None
         processor = _install_services(app, pool, settings, active_channel, active_http)
+        # Numero oculto (@lid) do WAHA; com a Meta e None (canal-waha.1, WA-8).
+        app.state.lid_resolver = build_lid_resolver(settings, active_http)
+        monitor = _start_session_monitor(app, pool, settings, active_channel, active_http)
+        if monitor is not None:
+            await monitor.start()
         workers: Workers = from_app(app)
         await workers.start(app)
         panel_workers = await _start_panel_workers(app, pool, settings)
@@ -332,6 +383,8 @@ def _lifespan(
             if panel_workers is not None:
                 await panel_workers.stop()
             await workers.stop()
+            if monitor is not None:
+                await monitor.stop()
             await processor.drain()
             outbox.set_reply_policy(AllowAllPolicy())
             if owned_channel is not None:
@@ -352,8 +405,9 @@ def create_app(
 ) -> FastAPI:
     """Monta a aplicacao. Os argumentos explicitos servem aos testes; senao vem do ambiente.
 
-    Sem `channel` o lifespan cria o `WhatsAppCloudChannel`; sem `http_client`, o cliente
-    httpx de e-mail/WAHA. O que for injetado pertence ao chamador (nao e fechado aqui).
+    Sem `channel` o lifespan cria o canal do WAHA (a Meta so liga nos testes); sem
+    `http_client`, o cliente httpx de e-mail/WAHA. O que for injetado pertence ao chamador
+    (nao e fechado aqui).
     """
     cfg = settings if settings is not None else get_settings()
     register_model_secrets(cfg)
@@ -376,6 +430,7 @@ def create_app(
     app.add_exception_handler(StarletteHTTPException, _http_error_handler)
     app.add_exception_handler(RequestValidationError, _validation_error_handler)
     app.add_api_route("/health", health, methods=["GET"], include_in_schema=False)
-    app.include_router(webhook_router)
+    # So o webhook do canal escolhido e montado; o do outro responde 404 (canal-waha.1, WA-2).
+    app.include_router(webhook_router(cfg))
     _mount_panel(app, cfg, from_env=settings is None)
     return app

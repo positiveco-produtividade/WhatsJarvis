@@ -21,6 +21,7 @@ from app.config import Settings
 from app.core.clock import Clock
 from app.core.errors import InvalidValue
 from app.core.values import OutboundKind, ReplyKind, rate_down_payload, rate_up_payload
+from app.services import brand_session
 from app.services.outbox import enqueue, parse_kind
 from app.services.replies import text_for
 
@@ -49,6 +50,8 @@ class AnswerContext:
     inbound_wa_message_id: str
     received_at: datetime
     trace_id: int | None = None
+    # Voto em enquete de marca (canal-waha.1, WA-21): id da enquete votada; None se nao e voto.
+    poll_vote_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -78,6 +81,8 @@ class Answer:
     text: str
     parts: tuple[str, ...] = ()
     effects: AnswerEffects | None = None
+    # Enquete de marca (kind `brand_poll`, canal-waha.1 WA-15/WA-23): marcas das opcoes.
+    poll_brands: tuple[str, ...] = ()
 
 
 class AnswerProvider(Protocol):
@@ -134,11 +139,14 @@ async def _enqueue_parts(
     applied: AppliedEffects,
     trace_id: int,
     clock: Clock | None,
+    poll_brands: tuple[str, ...] = (),
 ) -> tuple[int, ...]:
     ids: list[int] = []
     last = len(parts) - 1
     for index, body in enumerate(parts):
         buttons = _rate_buttons(applied.ticket_id) if applied.rate and index == last else None
+        if kind is OutboundKind.BRAND_POLL:
+            buttons = brand_session.poll_options(poll_brands)
         # Partes sem botao saem como texto: o kind com botoes exige reply_buttons no outbox.
         part_kind = (
             OutboundKind.BRAIN_ANSWER
@@ -165,8 +173,12 @@ async def answer_and_enqueue(
     provider: AnswerProvider,
     *,
     clock: Clock | None = None,
+    rating: bool = True,
 ) -> tuple[int, ...]:
     """Chama o provedor (sem transacao) e grava as saidas; devolve os ids em ordem.
+
+    `rating=False` (canal sem botoes, WAHA; canal-waha.1 WA-14): nenhuma parte leva os botoes
+    de avaliacao, todas saem como `brain_answer` e o rastro registra `brain_answer`.
 
     Devolve `()` se o provedor falhar (rastro segue `pending`, sem saida). Um `kind`
     invalido levanta `InvalidValue` antes de gravar qualquer coisa; rastro que nao esta mais
@@ -181,13 +193,19 @@ async def answer_and_enqueue(
     kind = parse_kind(answer.kind)
     if kind.value not in {k.value for k in ReplyKind}:
         raise InvalidValue("kind", "tipo de resposta sem reply_kind correspondente")
+    if not rating and kind is OutboundKind.BRAIN_ANSWER_RATE:
+        kind = OutboundKind.BRAIN_ANSWER
     parts = answer.parts or (answer.text,)
     recipient = _Recipient(id=ctx.user_id, phone_e164=request.phone_e164)
     async with pool.acquire() as conn, conn.transaction():
         applied = AppliedEffects()
         if answer.effects is not None:
             applied = await answer.effects.apply(conn, request.trace_id, ctx.user_id)
-        ids = await _enqueue_parts(conn, recipient, kind, parts, applied, request.trace_id, clock)
+        if not rating:
+            applied = dataclasses.replace(applied, rate=False)
+        ids = await _enqueue_parts(
+            conn, recipient, kind, parts, applied, request.trace_id, clock, answer.poll_brands
+        )
         updated = await conn.fetchval(
             _SET_REPLY_KIND,
             request.trace_id,

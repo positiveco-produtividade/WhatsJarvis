@@ -23,6 +23,7 @@ from typing import Annotated, Any
 import asyncpg
 from fastapi import APIRouter, Depends, Form, Request, Response
 
+from app.config import Settings
 from app.core.errors import InvalidValue
 from app.core.values import RevokeReason
 from app.panel.api.pessoas import REVOKE_REASON_LABELS
@@ -38,6 +39,7 @@ from app.panel.deps import (
 )
 from app.panel.values import brand_label, profile_label
 from app.services import users
+from app.services.waha_channel import wa_me_link
 
 __all__ = ["OFFERED_REASONS", "router"]
 
@@ -181,8 +183,20 @@ async def ficha(
     record = await _load(request, user_id)
     if record is None:
         return _refused(404, GONE_TEXT, reload=True)
-    context = {"csrf_token": csrf_token_for(request, admin), "person": _person(record)}
+    context = {
+        "csrf_token": csrf_token_for(request, admin),
+        "person": _person(record),
+        "wa_link": _wa_link(get_settings(request)),
+    }
     return templates_for(request).TemplateResponse(request, FICHA_TEMPLATE, context)
+
+
+def _wa_link(settings: Settings) -> str | None:
+    """Link do Jarvis para o gestor repassar (canal-waha.1, WA-11). No WAHA o cadastro nao
+    envia nada: quem esta aguardando o aceite comeca a conversa por este link."""
+    if settings.channel_provider != "waha" or not settings.jarvis_whatsapp_number:
+        return None
+    return wa_me_link(settings.jarvis_whatsapp_number)
 
 
 @router.get(ITEM_PATH + "/revogar", include_in_schema=False)
@@ -265,11 +279,16 @@ async def _resend(request: Request, user_id: int, admin: PanelSession, *, ok_tex
 async def reativar(
     request: Request, user_id: int, admin: Annotated[PanelSession, Depends(current_admin)]
 ) -> Response:
+    waha = get_settings(request).channel_provider == "waha"
     return await _resend(
         request,
         user_id,
         admin,
-        ok_text="Pessoa reativada. Recebe de novo o aviso de privacidade para aceitar.",
+        ok_text=(
+            "Pessoa reativada. Envie a ela o link do Jarvis (na ficha) para aceitar o aviso."
+            if waha
+            else "Pessoa reativada. Recebe de novo o aviso de privacidade para aceitar."
+        ),
     )
 
 

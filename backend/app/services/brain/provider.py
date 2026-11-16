@@ -9,6 +9,7 @@ Nao importa `app.panel` nem `httpx`.
 """
 from __future__ import annotations
 
+import dataclasses
 import logging
 import time
 from dataclasses import dataclass, field
@@ -19,7 +20,8 @@ from typing import Any, Protocol
 from app.config import Settings
 from app.core.clock import Clock, SystemClock
 from app.core.errors import InvalidValue
-from app.core.values import BrainOutcome, ReplyKind
+from app.core.values import BRAND_NAMES, BrainOutcome, ReplyKind
+from app.services import brand_session
 from app.services.alerts import raise_alert
 from app.services.answering import Answer, AnswerContext, AppliedEffects
 from app.services.brain import assembly, fidelity, intents, matching, memory, prompt
@@ -102,6 +104,7 @@ class _Run:
     fidelity: str | None = None
     ai_verdict: str | None = None  # intent do modelo que encerra sem resposta
     api_failure: str | None = None  # tipo da falha da IA (vira alerta nos efeitos)
+    session_brand: str | None = None  # marca da conversa que filtra a busca (canal-waha.1)
 
     def mark(self, stage: str, since: float) -> None:
         self.timings[stage] = int((time.monotonic() - since) * 1000)
@@ -153,7 +156,11 @@ class BrainProvider:
         guard = intents.check_guards(ctx.text)
         if guard is not None:
             return self._from_guard(run, guard)
-        cited = matching.detect_brand(ctx.text)
+        session = await self._brand_session_stage(run)
+        if session is not None:
+            return session
+        # O estagio acima pode trocar o texto pela pergunta guardada antes da enquete.
+        cited = matching.detect_brand(run.ctx.text)
         early = await self._brand_stage(run, cited)
         if early is not None:
             return early
@@ -201,7 +208,8 @@ class BrainProvider:
         t0 = time.monotonic()
         found = await self._source.search(
             query,
-            brands=list(run.ctx.brands),
+            # Marca da conversa (canal-waha.1, WA-22): busca so nela (os itens "todas" seguem).
+            brands=[run.session_brand] if run.session_brand else list(run.ctx.brands),
             limit=cfg.brain_candidates_k,
             floor=cfg.brain_candidate_floor,
         )
@@ -213,10 +221,10 @@ class BrainProvider:
         if not best.item.answerable:
             return self._no_answer(run, REASON_NOT_ANSWERABLE, best_score, pick=best)
         if cited is None and (self._is_tie(found) or self._is_generic_tie(run, found)):
-            return self._notice(
+            return self._ask_brand(self._notice(
                 run, cfg.text_brain_ask_brand, BrainOutcome.ASK_BRAND, best_score=best_score,
                 item_refs=[_ref(best.item)], path=PATH_WORDS,
-            )  # fmt: skip
+            ), run)  # fmt: skip
         if intents.check_calc(text) is not None and best.score < cfg.brain_direct_threshold:
             return self._no_answer(run, intents.REASON_CALC, best_score, pick=best)
         pick = await self._decide(run, found)
@@ -227,10 +235,10 @@ class BrainProvider:
     def _declined(self, run: _Run, best: Scored, cited: str | None) -> Answer:
         """Sem item escolhido: o veredito da IA (ask_brand/refusal) ou `no_answer`."""
         if run.ai_verdict == prompt.INTENT_ASK_BRAND:
-            return self._notice(
+            return self._ask_brand(self._notice(
                 run, self._settings.text_brain_ask_brand, BrainOutcome.ASK_BRAND,
                 best_score=best.score, item_refs=[_ref(best.item)], path=run.path,
-            )  # fmt: skip
+            ), run)  # fmt: skip
         if run.ai_verdict == prompt.INTENT_OUT_OF_SCOPE:
             return self._notice(
                 run, self._settings.text_brain_refusal, BrainOutcome.REFUSAL,
@@ -429,6 +437,116 @@ class BrainProvider:
             item_refs=[_ref(pick.item)] if pick else [], path=run.path,
             brand=_brand_of(pick.item) if pick else None,
         )  # fmt: skip
+
+    # ------------------------------------------------------------------ marca da conversa
+
+    def _brand_polls(self) -> bool:
+        """Marca da conversa ligada: canal do WAHA, BRAND_SESSION_MINUTES > 0 e banco."""
+        cfg = self._settings
+        return (
+            cfg.channel_provider == "waha"
+            and brand_session.enabled(cfg.brand_session_minutes)
+            and self._db is not None
+        )
+
+    async def _brand_session_stage(self, run: _Run) -> Answer | None:
+        """Marca da conversa (canal-waha.1, 9.9). Devolve a resposta quando encerra aqui
+        (enquete ou confirmacao da escolha); senao fixa `run.session_brand` e segue."""
+        if not self._brand_polls():
+            return None
+        cfg = self._settings
+        ctx = run.ctx
+        db = self._db
+        allowed = brand_session.ordered(ctx.brands)
+        if not allowed:
+            return None
+        now = ctx.received_at
+        if brand_session.is_switch_command(ctx.text):  # "trocar marca" (WA-23)
+            await brand_session.clear(db, ctx.user_id)
+            if len(allowed) == 1:
+                await brand_session.set_brand(db, ctx.user_id, allowed[0], now)
+                return self._brand_selected(run, allowed[0])
+            return self._poll(run, cfg.text_brand_poll_start, allowed)
+        chosen = brand_session.brand_from_text(ctx.text, allowed)
+        if ctx.poll_vote_id is not None and (
+            chosen is None
+            or not await brand_session.is_latest_poll(db, ctx.user_id, ctx.poll_vote_id)
+        ):
+            # Voto em enquete antiga ou opcao fora do cadastro: manda a enquete atual (WA-21).
+            return self._poll(run, cfg.text_brand_poll_start, allowed)
+        if chosen is not None:  # escolha por voto ou pelo nome escrito (WA-21)
+            await brand_session.set_brand(db, ctx.user_id, chosen, now)
+            pending = await self._pending_question(run)
+            if pending is None:
+                return self._brand_selected(run, chosen)
+            # Responde a pergunta guardada antes da enquete, ja com a marca escolhida (WA-23).
+            run.session_brand = chosen
+            run.ctx = dataclasses.replace(ctx, text=pending)
+            return None
+        cited = matching.detect_brand(ctx.text)
+        if cited is not None:
+            if cited in allowed:  # outra marca do cadastro citada: troca a marca (WA-22)
+                await brand_session.set_brand(db, ctx.user_id, cited, now)
+                run.session_brand = cited
+            return None  # fora do cadastro: o estagio de marca trata (pedido de acesso)
+        state = await brand_session.load(db, ctx.user_id)
+        active = brand_session.valid_brand(state, now, cfg.brand_session_minutes)
+        if active is not None and active in allowed:
+            await brand_session.touch(db, ctx.user_id, now)
+            run.session_brand = active
+            return None
+        if len(allowed) == 1:
+            await brand_session.set_brand(db, ctx.user_id, allowed[0], now)
+            run.session_brand = allowed[0]
+            return None
+        # Sem marca valida e 2+ marcas: guarda a pergunta (memoria) e manda a enquete (WA-23).
+        return self._poll(run, cfg.text_brand_poll_question, allowed)
+
+    async def _pending_question(self, run: _Run) -> str | None:
+        """Pergunta que ficou esperando a escolha de marca (ultima troca foi a enquete)."""
+        ctx = run.ctx
+        if ctx.trace_id is None:
+            return None
+        cfg = self._settings
+        last = await memory.recent_exchanges(
+            self._db, user_id=ctx.user_id, trace_id=ctx.trace_id, now=ctx.received_at,
+            exchanges=1, minutes=cfg.brand_session_minutes,
+        )  # fmt: skip
+        if not last:
+            return None
+        asked = {cfg.text_brand_poll_question.strip(), cfg.text_brain_ask_brand.strip()}
+        return last[-1].question if last[-1].answer.strip() in asked else None
+
+    def _poll(self, run: _Run, question: str, brands: list[str]) -> Answer:
+        """Enquete de marca (kind `brand_poll`); desfecho `ask_brand`, sem ticket."""
+        notice = self._notice(run, question, BrainOutcome.ASK_BRAND)
+        return Answer(
+            kind=ReplyKind.BRAND_POLL.value,
+            text=question,
+            parts=(question,),
+            effects=notice.effects,
+            poll_brands=tuple(brands),
+        )
+
+    def _ask_brand(self, notice: Answer, run: _Run) -> Answer:
+        """Com a marca da conversa ligada, o "qual marca?" da busca vira enquete (WA-23)."""
+        if not self._brand_polls():
+            return notice
+        allowed = brand_session.ordered(run.ctx.brands)
+        if len(allowed) < 2:
+            return notice
+        question = self._settings.text_brand_poll_question
+        return Answer(
+            kind=ReplyKind.BRAND_POLL.value,
+            text=question,
+            parts=(question,),
+            effects=notice.effects,
+            poll_brands=tuple(allowed),
+        )
+
+    def _brand_selected(self, run: _Run, brand: str) -> Answer:
+        text = self._settings.text_brand_selected.format(marca=BRAND_NAMES[brand])
+        return self._notice(run, text, BrainOutcome.GREETING)
 
     def _notice(
         self,

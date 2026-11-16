@@ -78,6 +78,7 @@ class OutboundKind(StrEnum):
     BRAIN_ANSWER = "brain_answer"
     BRAIN_ANSWER_RATE = "brain_answer_rate"
     BRAIN_NOTICE = "brain_notice"
+    BRAND_POLL = "brand_poll"  # enquete da marca da conversa (canal-waha.1, WA-15)
 
 
 class OutboundStatus(StrEnum):
@@ -105,6 +106,7 @@ class ReplyKind(StrEnum):
     BRAIN_ANSWER = "brain_answer"
     BRAIN_ANSWER_RATE = "brain_answer_rate"
     BRAIN_NOTICE = "brain_notice"
+    BRAND_POLL = "brand_poll"
 
 
 class BrainOutcome(StrEnum):
@@ -136,6 +138,7 @@ class DiscardReason(StrEnum):
     STATUS_CHANGED = "status_changed"
     PAUSED = "paused"
     BRAND_DISABLED = "brand_disabled"
+    NO_INBOUND_WINDOW = "no_inbound_window"  # WAHA: so responde a quem escreveu (WA-16)
 
 
 class RevokeReason(StrEnum):
@@ -158,6 +161,14 @@ PROFILES: tuple[str, ...] = (
 )
 
 BRANDS: tuple[str, ...] = ("jungle", "plant_power", "possible", "a_tal_da_castanha", "zaya")
+# Nome de exibicao de cada marca (enquete e confirmacao da marca da conversa, canal-waha.1).
+BRAND_NAMES: dict[str, str] = {
+    "jungle": "Jungle",
+    "plant_power": "Plant Power",
+    "possible": "Possible",
+    "a_tal_da_castanha": "A Tal da Castanha",
+    "zaya": "Zaya",
+}
 
 UFS: tuple[str, ...] = (
     "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA",

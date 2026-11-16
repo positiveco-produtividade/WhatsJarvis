@@ -32,9 +32,16 @@ FLUSH_INTERVAL_SECONDS = 30.0
 DELIVERY_SENDING_TIMEOUT = timedelta(minutes=5)
 BATCH_LIMIT = 50
 
+# Partes da mesma resposta saem em ordem (canal-waha.1, WA-17): uma parte so e pega quando
+# nenhuma parte anterior da mesma mensagem recebida (mesmo inbound_trace_id, id menor) esta
+# `pending` ou `sending`. Antes, a varredura podia mandar a parte 2 com a 1 ainda em voo.
 _DUE_OUTBOUND = (
-    "SELECT id FROM chat.outbound_messages WHERE status = 'pending' AND next_attempt_at <= $1 "
-    "ORDER BY next_attempt_at, id LIMIT $2"
+    "SELECT o.id FROM chat.outbound_messages o "
+    "WHERE o.status = 'pending' AND o.next_attempt_at <= $1 "
+    "AND NOT EXISTS (SELECT 1 FROM chat.outbound_messages p "
+    "WHERE o.inbound_trace_id IS NOT NULL AND p.inbound_trace_id = o.inbound_trace_id "
+    "AND p.id < o.id AND p.status IN ('pending', 'sending')) "
+    "ORDER BY o.next_attempt_at, o.id LIMIT $2"
 )
 _DUE_DELIVERIES = (
     "SELECT id FROM ops.deliveries WHERE status = 'pending' AND next_attempt_at <= $1 "
@@ -109,7 +116,11 @@ class Workers:
             return
         try:
             status = await outbox.dispatch(
-                self._pool, outbound_id, channel=self._channel, clock=self._clock
+                self._pool,
+                outbound_id,
+                channel=self._channel,
+                clock=self._clock,
+                reply_only=outbox.reply_only_for(self._settings, self._channel),
             )
             failed = status is OutboundStatus.FAILED
         except InvalidValue:

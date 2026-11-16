@@ -77,7 +77,19 @@ _FIELD_LABELS: dict[str, str] = {
     users.KEY_BRANDS: "Marcas",
     users.KEY_MANAGER: "Gestor responsável",
 }
-_ATTEMPT_PREFILL = "SELECT phone_key, attempt_count FROM access.access_attempts WHERE id = $1"
+_ATTEMPT_PREFILL = (
+    "SELECT phone_key, attempt_count, bsuid FROM access.access_attempts WHERE id = $1"
+)
+# Numero oculto (canal-waha.1, WA-8): ao autorizar, o identificador da tentativa (o `@lid` do
+# WAHA, no lugar do BSUID) passa para o cadastro, e as proximas mensagens com ele sao
+# reconhecidas. Nao sobrescreve identificador ja gravado nem o que ja e de outro cadastro.
+_LINK_HIDDEN_ID = (
+    "UPDATE access.users u SET bsuid = a.bsuid, updated_at = now() "
+    "FROM access.access_attempts a "
+    "WHERE a.id = $1 AND u.id = $2 AND a.bsuid IS NOT NULL AND u.bsuid IS NULL "
+    "AND NOT EXISTS (SELECT 1 FROM access.users x WHERE x.bsuid = a.bsuid) "
+    "RETURNING u.id"
+)
 _RESOLVE_ATTEMPT = (
     "UPDATE access.access_attempts SET user_id = $2 "
     "WHERE id = $1 AND user_id IS NULL RETURNING id"
@@ -116,6 +128,7 @@ class Pedido:
 
     id: int
     attempts: int
+    hidden_number: bool = False  # so o identificador oculto, sem telefone (WA-8)
 
 
 def _trigger(*events: tuple[str, Any]) -> str:
@@ -148,7 +161,8 @@ async def _load_pedido(
     row = await conn.fetchrow(_ATTEMPT_PREFILL, attempt_id)
     if row is None:
         return None
-    return Pedido(attempt_id, int(row["attempt_count"])), row["phone_key"]
+    hidden = row["phone_key"] is None and row["bsuid"] is not None
+    return Pedido(attempt_id, int(row["attempt_count"]), hidden_number=hidden), row["phone_key"]
 
 
 def _render_form(
@@ -200,9 +214,11 @@ async def _save(
             return
         resolved = await conn.fetchval(_RESOLVE_ATTEMPT, attempt_id, user.id)
         if resolved is not None:
+            linked = await conn.fetchval(_LINK_HIDDEN_ID, attempt_id, user.id) is not None
             await audit.write(
                 conn, "panel", admin.email, ACTION_AUTHORIZED, "access_attempt",
-                str(attempt_id), new={"user_id": user.id}, clock=clock,
+                str(attempt_id), new={"user_id": user.id, "hidden_number_linked": linked},
+                clock=clock,
             )  # fmt: skip
 
 

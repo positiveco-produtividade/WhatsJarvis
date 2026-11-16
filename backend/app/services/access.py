@@ -15,6 +15,9 @@ from app.core.values import AccessDecision, UserStatus, parse_optin_payload
 from app.services.inbound import ContentKind, InboundMessage
 
 OPT_OUT_KEYWORD = "sair"
+# Opt-in por texto no canal sem botoes (canal-waha.1, WA-13); comparados ja normalizados.
+OPTIN_ACCEPT_WORDS: frozenset[str] = frozenset({"aceito", "aceitar", "sim", "1"})
+OPTIN_DECLINE_WORDS: frozenset[str] = frozenset({"nao", "recuso", "2"})
 _NON_WORD_EDGES = re.compile(r"^[\W_]+|[\W_]+$")
 
 
@@ -64,8 +67,31 @@ def _accepted_open_notice(user: AccessUser, content: InboundMessage) -> bool | N
     return accepted if notice_id == user.open_notice_id else None
 
 
-def _decide_pending(user: AccessUser, content: InboundMessage) -> AccessDecision:
+def text_optin_answer(content: InboundMessage) -> bool | None:
+    """True/False se o texto e uma forma de aceite/recusa do aviso; None se nao e (WA-13)."""
+    if content.kind is not ContentKind.TEXT or content.text is None:
+        return None
+    word = normalize_keyword(content.text)
+    if word in OPTIN_ACCEPT_WORDS:
+        return True
+    if word in OPTIN_DECLINE_WORDS:
+        return False
+    return None
+
+
+def _decide_pending(
+    user: AccessUser, content: InboundMessage, *, text_optin: bool = False
+) -> AccessDecision:
     answer = _accepted_open_notice(user, content)
+    # Canal sem botoes: o texto vale como resposta so ao aviso aberto que JA foi mostrado
+    # (`optin_reminder_at`), para um "sim" solto na 1a mensagem nao aceitar um aviso nao lido.
+    if (
+        answer is None
+        and text_optin
+        and user.open_notice_id is not None
+        and user.optin_reminder_at is not None
+    ):
+        answer = text_optin_answer(content)
     if answer is None:
         return AccessDecision.PENDING_OPTIN
     return AccessDecision.OPTIN_ACCEPTED if answer else AccessDecision.OPTIN_DECLINED
@@ -79,8 +105,12 @@ def _decide_active(content: InboundMessage) -> AccessDecision:
     return AccessDecision.IGNORED_TYPE
 
 
-def decide(sender: SenderState, content: InboundMessage, now: datetime) -> AccessDecision:
-    """Tabela 4.4.2. `now` fica na assinatura por contrato (o lembrete usa should_send_reminder)."""
+def decide(
+    sender: SenderState, content: InboundMessage, now: datetime, *, text_optin: bool = False
+) -> AccessDecision:
+    """Tabela 4.4.2. `now` fica na assinatura por contrato (o lembrete usa should_send_reminder).
+
+    `text_optin`: canal sem botoes (WAHA, canal-waha.1 WA-13) aceita o opt-in por texto."""
     if sender.conflict:
         return AccessDecision.IDENTITY_CONFLICT
     user = sender.user
@@ -91,7 +121,7 @@ def decide(sender: SenderState, content: InboundMessage, now: datetime) -> Acces
     if user.status is UserStatus.REVOKED:
         return AccessDecision.REVOKED
     if user.status is UserStatus.PENDING_OPTIN:
-        return _decide_pending(user, content)
+        return _decide_pending(user, content, text_optin=text_optin)
     return _decide_active(content)
 
 

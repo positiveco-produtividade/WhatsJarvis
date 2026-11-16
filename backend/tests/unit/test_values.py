@@ -50,6 +50,7 @@ def test_outbound_kinds_match_spec_check() -> None:
         "welcome_template", "optin_reminder", "optin_confirmation", "optin_declined",
         "under_construction", "rate_limit_notice", "media_ack", "opt_out_confirmation",
         "brain_answer", "brain_answer_rate", "brain_notice",
+        "brand_poll",  # canal-waha.1 (migration 301)
     }  # fmt: skip
 
 
