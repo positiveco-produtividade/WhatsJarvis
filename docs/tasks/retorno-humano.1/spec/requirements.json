@@ -1,0 +1,259 @@
+{
+  "task_id": "RETORNO-HUMANO-1",
+  "title": "A equipe responde os escalados pelo Inbox e alimenta a FAQ",
+  "story": "docs/stories/retorno-humano.1.md",
+  "epic": "docs/epics/retorno-humano.md",
+  "phase": "3-tasks",
+  "status": "draft",
+  "revision": "2026-11-17 - A + C + D do Caio, revisto no mesmo dia: grupo so aviso, resposta so pelo Inbox (link do aviso); D1-D4 decididas, D5-D8 em aberto",
+  "user_story": {
+    "as_a": "pessoa da equipe comercial que acompanha os escalados",
+    "i_want": "ser avisada no grupo de WhatsApp da equipe e responder o vendedor pelo Inbox, aberto direto na pergunta, e ver as respostas como sugestoes de FAQ",
+    "so_that": "nenhuma pergunta escalada fique sem retorno e o Jarvis aprenda com elas"
+  },
+  "conventions": {
+    "ears": "Cada AC e GIVEN/WHEN/THEN. 'Sem efeito' = sem envio e sem mudanca de ticket.",
+    "terms": {
+      "escalado": "ticket criado com status awaiting (sem resposta, pausa, rating_down, brand_access_request, midia)",
+      "grupo da equipe": "chat configurado em TEAM_GROUP_CHAT_ID",
+      "resposta humana": "texto escrito por um admin no painel para o vendedor de um ticket"
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "id": "RH-1",
+      "title": "Aviso na hora",
+      "given": "grupo da equipe ligado",
+      "when": "um escalado e criado",
+      "then": "entrega group gravada na transacao do ticket e enviada pelo laco de fundo; com o grupo desligado continua panel_only",
+      "testable": "integration",
+      "decision": "D8"
+    },
+    {
+      "id": "RH-2",
+      "title": "Conteudo do aviso",
+      "given": "um aviso de escalado",
+      "when": "e montado",
+      "then": "ticket J-nnnn, marca, motivo, primeiro nome e UF do vendedor (nunca telefone), pergunta entre aspas cortada em 1000 caracteres, midia como [audio]/[foto]/[video]/[arquivo], link para o Inbox so com o numero do ticket e a frase 'Mensagens escritas aqui no grupo nao chegam ao vendedor.'; texto fixo em configuracao",
+      "testable": "unit",
+      "decision": "D4"
+    },
+    {
+      "id": "RH-3",
+      "title": "Uma mensagem por aviso, sem rajada",
+      "given": "varios escalados no mesmo minuto",
+      "when": "sao enviados ao grupo",
+      "then": "saem em sequencia com intervalo minimo configuravel (padrao 3 s); falha segue o backoff das entregas e nunca perde o ticket",
+      "testable": "integration"
+    },
+    {
+      "id": "RH-4",
+      "title": "O grupo nao e lido",
+      "given": "qualquer mensagem escrita no grupo da equipe",
+      "when": "chega ao Jarvis",
+      "then": "descartada sem efeito, como toda mensagem de grupo (WA-6)",
+      "testable": "integration"
+    },
+    {
+      "id": "RH-5",
+      "title": "Link abre o Inbox na pergunta",
+      "given": "link de um aviso (/dashboard/inbox/ticket/J-nnnn)",
+      "when": "alguem o abre",
+      "then": "exige login de admin e volta ao mesmo endereco; abre o Inbox na conversa do vendedor, rolada ate a pergunta destacada, com a caixa de resposta ligada ao ticket e com foco; ticket inexistente 404; ticket ja respondido abre mostrando a resposta anterior; funciona no navegador do celular",
+      "testable": "integration"
+    },
+    {
+      "id": "RH-6",
+      "title": "Caixa de resposta",
+      "given": "admin no Inbox ou no drawer de um ticket escalado",
+      "when": "abre a tela",
+      "then": "caixa 'Responder ao vendedor' (ate 4000 caracteres) e botao 'Enviar e concluir'; exige sessao de admin e CSRF",
+      "testable": "integration",
+      "decision": "D1"
+    },
+    {
+      "id": "RH-7",
+      "title": "Enviar e concluir",
+      "given": "texto valido",
+      "when": "o admin envia",
+      "then": "em uma transacao: resposta na fila de saida, ticket answered_human com autor e data, auditoria; falha desfaz tudo",
+      "testable": "integration"
+    },
+    {
+      "id": "RH-8",
+      "title": "Concluir sem responder",
+      "given": "ticket escalado",
+      "when": "admin usa Concluir sem texto",
+      "then": "comportamento atual: so muda o status, sem envio e sem sugestao",
+      "testable": "integration"
+    },
+    {
+      "id": "RH-9",
+      "title": "Formato ao vendedor",
+      "given": "resposta humana",
+      "when": "e enviada",
+      "then": "pelo numero do Jarvis, na conversa do vendedor, com cabecalho 'Retorno da equipe (<primeiro nome do admin>) sobre sua pergunta:' (configuracao; sem nome na sessao, sem os parenteses), partes de ate 700 caracteres por frase, sem botoes de avaliacao",
+      "testable": "unit",
+      "decision": "D7"
+    },
+    {
+      "id": "RH-10",
+      "title": "Sem prazo",
+      "given": "ticket escalado ha qualquer tempo",
+      "when": "o admin envia uma resposta",
+      "then": "e enviada; a caixa mostra ha quanto tempo o vendedor escreveu",
+      "testable": "integration",
+      "decision": "D2"
+    },
+    {
+      "id": "RH-11",
+      "title": "Mais de uma resposta",
+      "given": "ticket ja answered_human",
+      "when": "um admin envia outra resposta",
+      "then": "enviada como complemento sem mudar autor e data da primeira; clique duplo ou reenvio do formulario nunca envia a mesma mensagem duas vezes",
+      "testable": "integration",
+      "decision": "D6"
+    },
+    {
+      "id": "RH-12",
+      "title": "Bloqueios",
+      "given": "vendedor do ticket",
+      "when": "nao esta active (revogado, recusou, conflito, excluido LGPD)",
+      "then": "caixa desabilitada com o motivo; envio forcado recusado sem efeito; opt-out de avisos nao bloqueia",
+      "testable": "integration"
+    },
+    {
+      "id": "RH-13",
+      "title": "Pausa nao bloqueia",
+      "given": "Jarvis pausado ou marca desligada",
+      "when": "o admin envia uma resposta",
+      "then": "e enviada",
+      "testable": "integration"
+    },
+    {
+      "id": "RH-14",
+      "title": "Historico e limites",
+      "given": "resposta humana enviada",
+      "when": "alguem abre a conversa no Inbox",
+      "then": "aparece como 'Equipe - <autor>'; nao conta nas 60/h; nao abre sessao de marca",
+      "testable": "integration"
+    },
+    {
+      "id": "RH-15",
+      "title": "Situacao do envio",
+      "given": "resposta humana",
+      "when": "o canal informa o andamento",
+      "then": "o painel mostra na mensagem: na fila, enviada, entregue, lida ou falhou (com motivo curto)",
+      "testable": "integration"
+    },
+    {
+      "id": "RH-16",
+      "title": "Gerar sugestao",
+      "given": "resposta humana enviada a ticket de pergunta com texto",
+      "when": "o envio e enfileirado",
+      "then": "sugestao pendente com pergunta, resposta, marca, ticket, autor e data; midia e Concluir sem responder nao geram; complementos se juntam a sugestao do ticket",
+      "testable": "integration",
+      "decision": "D3"
+    },
+    {
+      "id": "RH-17",
+      "title": "Tela em Relatorios",
+      "given": "admin em Relatorios",
+      "when": "abre 'Sugestoes para a FAQ'",
+      "then": "pendentes mais recentes primeiro, filtro por marca, total de pendentes; linha com pergunta, resposta, marca, link do ticket e autor",
+      "testable": "integration"
+    },
+    {
+      "id": "RH-18",
+      "title": "Aprovar",
+      "given": "sugestao pendente",
+      "when": "admin clica 'Criar item' e salva o formulario",
+      "then": "formulario da FAQ pre-preenchido com a validacao de sempre; item ativo com origem sugestao e referencia ao ticket; sugestao aprovada com autor e data; mesma transacao com auditoria; cancelar nao muda a sugestao",
+      "testable": "integration"
+    },
+    {
+      "id": "RH-19",
+      "title": "Descartar",
+      "given": "sugestao pendente",
+      "when": "admin descarta",
+      "then": "descartada com autor e data, auditoria; sai das pendentes, consultavel em 'Todas'",
+      "testable": "integration"
+    },
+    {
+      "id": "RH-21",
+      "title": "Avisos pelo WAHA do Jarvis, sem tocar no AUTO-1",
+      "given": "grupo da equipe ligado",
+      "when": "o Jarvis envia um aviso",
+      "then": "usa a instancia e a sessao do WAHA do Jarvis (as do canal dos vendedores) e envia so ao TEAM_GROUP_CHAT_ID; com o grupo ligado, a configuracao recusa subir se o envio ao grupo apontar para outra instancia ou sessao; nada do AUTO-1 e usado ou alterado",
+      "testable": "unit",
+      "decision": "D5"
+    },
+    {
+      "id": "RH-20",
+      "title": "Logs, retencao e LGPD",
+      "given": "qualquer passo da historia",
+      "when": "gera log / chega a retencao / ha exclusao LGPD",
+      "then": "log so com ids, numero do ticket e codigos; 12 meses de retencao; exclusao LGPD apaga respostas e sugestoes pendentes ou descartadas do vendedor (itens aprovados ficam)",
+      "testable": "security"
+    }
+  ],
+  "open_questions": [],
+  "out_of_scope": [
+    "responder pelo grupo (reply ou prefixo J-nnnn:) - retirado pelo Caio em 2026-11-17",
+    "resposta com midia ao vendedor",
+    "rascunho de resposta por IA",
+    "papel novo de respondente",
+    "mensagem ativa a vendedor que nao escreveu",
+    "liberar acesso a marca pela resposta"
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "decided_by": "Caio",
+      "decided_at": "2026-11-17",
+      "choice": "qualquer admin do painel responde"
+    },
+    {
+      "id": "D2",
+      "decided_by": "Caio",
+      "decided_at": "2026-11-17",
+      "choice": "sem prazo; risco de restricao no WAHA aceito; na Fase 2 (2026-11-17) o Caio decidiu que human_reply fura a janela de 24 h da WA-16 (reversivel por HUMAN_REPLY_IGNORE_WINDOW)"
+    },
+    {
+      "id": "D3",
+      "decided_by": "Caio",
+      "decided_at": "2026-11-17",
+      "choice": "respostas viram sugestoes em Relatorios; admin aprova ou descarta"
+    },
+    {
+      "id": "D4",
+      "decided_by": "Caio",
+      "decided_at": "2026-11-17",
+      "choice": "aviso no grupo no estilo AUTO-1 com o texto da pergunta e link para o Inbox; grupo so aviso, sem reply nem prefixo (revisto no mesmo dia)"
+    },
+    {
+      "id": "D5",
+      "decided_by": "Caio",
+      "decided_at": "2026-11-17",
+      "choice": "avisos pelo WAHA do proprio Jarvis (sessao jarvis) num grupo da equipe do Jarvis; nada do AUTO-1 usado ou alterado (RH-21); revisto no mesmo dia, antes era o WAHA do AUTO-1"
+    },
+    {
+      "id": "D6",
+      "decided_by": "Caio",
+      "decided_at": "2026-11-17",
+      "choice": "segunda resposta enviada como complemento"
+    },
+    {
+      "id": "D7",
+      "decided_by": "Caio",
+      "decided_at": "2026-11-17",
+      "choice": "mensagem ao vendedor leva o primeiro nome do admin (nome da sessao); sem nome, sai sem"
+    },
+    {
+      "id": "D8",
+      "decided_by": "Caio",
+      "decided_at": "2026-11-17",
+      "choice": "todos os escalados vao ao grupo, com o motivo"
+    }
+  ]
+}

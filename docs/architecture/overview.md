@@ -76,6 +76,12 @@ contracts (API schemas, message envelopes), never via shared mutable state.
 
 Architectural Decision Records. New entries at the top.
 
+### 2026-11-17 — Resposta humana fora da janela de 24 h no WAHA (exceção à WA-16) (aceito pelo Caio em 2026-11-17, Fase 2 de retorno-humano.1)
+- **Context:** A equipe passa a responder os escalados pelo painel (retorno-humano.1), e a resposta sai pelo número do Jarvis. O Caio decidiu "sem prazo" para essa resposta (D2). Hoje o outbox descarta, no WAHA, qualquer saída a quem não escreveu nas últimas 24 h (WA-16, "só responde").
+- **Decision:** O kind `human_reply` é o **único** que o outbox envia sem mensagem do vendedor nas últimas 24 h. Todas as outras saídas continuam "só responde". A exceção pode ser desligada por configuração (`HUMAN_REPLY_IGNORE_WINDOW=false`). No mesmo design, os avisos ao grupo da equipe passam a sair pelo WAHA do próprio Jarvis, e não mais pelo do AUTO-1 (D5).
+- **Alternatives:** Manter 24 h e responder por fora depois disso; pedir confirmação de risco depois de 24 h.
+- **Consequences:** O número do Jarvis pode iniciar conversa nesses casos, o que aumenta o risco de restrição no WAHA (aceito). Mitigação: só admin envia, e sempre a quem já falou com o Jarvis. Substitui em parte a WA-16 de canal-waha.1.
+
 ### 2026-11-13 — WAHA como canal dos vendedores; Meta como segunda opção (aceito pelo Caio em 2026-11-13, Fase 2 de canal-waha.1)
 - **Context:** O go-live pela WhatsApp Cloud API está parado em pendências da Meta (número próprio, verificação, pagamento, token permanente, modelo aprovado; B-001). O ADR de 2026-10-20 rejeitou o WAHA para vendedores por ser não oficial, ter risco de banimento e não ter listas interativas. A Positive já opera WAHA no droplet para o AUTO-1.
 - **Decision:** Os vendedores falam com o Jarvis por um **WAHA próprio do Jarvis** (instalação separada da do AUTO-1, em `127.0.0.1`), no número +55 85 98208-0355 (decisões D1–D6 de `docs/tasks/canal-waha.1/spec/spec.md`). A Meta continua no código atrás da mesma interface `Channel`, **guardada e desligada**: não há escolha de canal na subida (revisto com o Caio em 2026-11-16), e só a suíte de testes a liga. No WAHA, o Jarvis **só responde** (o vendedor inicia pelo link `wa.me`); opt-in por texto ("ACEITO"/"NÃO"); sem avaliação 👍/👎. Iniciar conversa (comerciantes) fica para uma história futura pela Meta.

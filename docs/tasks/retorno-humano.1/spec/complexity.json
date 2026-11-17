@@ -1,0 +1,22 @@
+{
+  "task_id": "RETORNO-HUMANO-1",
+  "size": "L",
+  "points": 13,
+  "estimate_hours": 52,
+  "breakdown": [
+    {"area": "migration 401 + values + outbox/policy/workers (kind, janela, ordem)", "hours": 8},
+    {"area": "human_reply.send_reply + sugestao + auditoria", "hours": 7},
+    {"area": "acks delivered/read", "hours": 3},
+    {"area": "aviso no grupo (texto, link, intervalo, WAHA do Jarvis)", "hours": 5},
+    {"area": "Inbox: deep link, caixa, linha do tempo, JS, celular", "hours": 9},
+    {"area": "drawer: caixa de resposta", "hours": 3},
+    {"area": "Relatorios: sugestoes + FAQ pre-preenchida com origem sugestao", "hours": 8},
+    {"area": "LGPD, retencao, seguranca, logs", "hours": 5},
+    {"area": "ADR, docs, checklist, verificacao final", "hours": 4}
+  ],
+  "risks": [
+    "excecao a WA-16 aumenta o risco de restricao do numero do Jarvis (aceito pelo Caio)",
+    "link so funciona com o painel publicado e IAM configurado",
+    "mudanca na ordem do _DUE_OUTBOUND afeta todas as saidas: cobrir com teste de regressao"
+  ]
+}

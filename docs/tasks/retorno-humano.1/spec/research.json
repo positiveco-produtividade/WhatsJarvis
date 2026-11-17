@@ -1,0 +1,19 @@
+{
+  "task_id": "RETORNO-HUMANO-1",
+  "date": "2026-11-17",
+  "findings": [
+    {"topic": "concluir hoje", "fact": "tickets_admin.conclude so grava answered_human; Inbox sem caixa de resposta", "source": "backend/app/panel/services/tickets_admin.py:1-10, backend/app/panel/api/inbox_chat.py:1-12"},
+    {"topic": "janela 24 h", "fact": "outbox.dispatch descarta (no_inbound_window) quando reply_only e o vendedor nao escreveu em 24 h", "source": "backend/app/services/outbox.py:64,280,440", "impact": "conflita com D2; resolvido com excecao para human_reply (decisao do Caio)"},
+    {"topic": "pausa", "fact": "reply_policy.PAUSE_EXEMPT_KINDS so isenta mensagens de consentimento", "source": "backend/app/services/reply_policy.py:18"},
+    {"topic": "ordem das partes", "fact": "_DUE_OUTBOUND so ordena partes com o mesmo inbound_trace_id", "source": "backend/app/services/workers.py:36-44"},
+    {"topic": "envio ao grupo", "fact": "send_group_text usa WAHA_BASE_URL/WAHA_API_KEY/WAHA_SESSION (hoje AUTO-1) e devolve message_id, nao guardado", "source": "backend/app/services/waha.py:31-65, backend/app/services/deliveries.py:34"},
+    {"topic": "texto do aviso", "fact": "build_ticket_group_text: 'Midia de usuario #id (...) aguardando a equipe - ticket J-n', sem link", "source": "backend/app/services/deliveries.py:91"},
+    {"topic": "acks", "fact": "delivered/read ignorados (_IGNORED_STATUSES); so failed grava", "source": "backend/app/services/pipeline.py:64,604"},
+    {"topic": "login next", "fact": "_login_abort preserva caminho+query como next ao IAM; em HTMX o next e a URL do fragmento", "source": "backend/app/panel/deps.py:131, backend/app/panel/auth/iam.py:194-217"},
+    {"topic": "FAQ create", "fact": "create_item aceita origin/origin_ref; _ORIGINS e CHECK sem 'sugestao'; form pre-preenche so pergunta via ?ticket=", "source": "backend/app/panel/services/faq_admin.py:47,211; backend/app/panel/api/faq_form.py:180-212; backend/migrations/101_content_faq.sql"},
+    {"topic": "Relatorios", "fact": "pagina sem abas; card 'Perguntas sem resposta' ja tem 'Criar na FAQ' via ?ticket=", "source": "frontend/templates/relatorios.html; backend/app/panel/services/reports.py:146"},
+    {"topic": "LGPD/retencao", "fact": "delete_person limpa corpos de trace/outbound/tickets; retention.TARGETS em ordem de FK (tickets antes de outbound)", "source": "backend/app/panel/services/lgpd.py:218,277; backend/app/panel/services/retention.py:88-105", "impact": "FKs novas para chat.tickets com ON DELETE SET NULL"},
+    {"topic": "AUTO-1", "fact": "AUTO-1 descarta grupos fora de WAHA_ALLOWED_NUMBERS; formato do aviso 'Como responder este ticket'", "source": "agente-instagram-direct-n8n/backend/app/api/waha_webhook.py:115-135; app/services/human_handoff.py:92-140"}
+  ],
+  "dependencies_new": []
+}
