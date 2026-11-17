@@ -23,6 +23,10 @@ from pydantic_settings import (
 _GRAPH_ALLOWED_HOSTS: frozenset[str] = frozenset({"graph.facebook.com"})
 _WAHA_ALLOWED_HOSTS: frozenset[str] = frozenset({"127.0.0.1", "localhost"})
 _IAM_ALLOWED_HOSTS: frozenset[str] = frozenset({"accounts.positiveco.com.br"})
+# Campos obrigatorios do modelo do aviso no grupo (retorno-humano.1, RH-2).
+_GROUP_TICKET_FIELDS: tuple[str, ...] = (
+    "ticket", "marca", "motivo", "vendedor", "mensagem", "link",
+)  # fmt: skip
 _E164 = re.compile(r"\+[1-9]\d{7,14}")
 # Variavel so da suite de testes: liga o codigo da Meta, guardado desligado (D5 revisto).
 _TEST_CHANNEL_ENV = "JARVIS_TEST_CHANNEL_PROVIDER"
@@ -120,7 +124,8 @@ class Settings(BaseSettings):
     media_ack_enabled: bool = True
 
     # WAHA do Jarvis (canal dos vendedores; spec canal-waha.1 9.5, D3, D4). Instalação
-    # separada da do grupo da equipe/AUTO-1 (WAHA_* abaixo). Obrigatórios com `waha`.
+    # separada da do AUTO-1. Obrigatórios com `waha`. O grupo da equipe também sai por ela
+    # (retorno-humano.1, D5/RH-21); WAHA_BASE_URL/WAHA_API_KEY/WAHA_SESSION não são mais lidos.
     jarvis_waha_base_url: str = "http://127.0.0.1:3001"
     jarvis_waha_api_key: SecretStr = SecretStr("")
     jarvis_waha_session: str = "jarvis"
@@ -129,12 +134,27 @@ class Settings(BaseSettings):
     outbound_reply_only: bool = True
     brand_session_minutes: int = 30
 
-    # Grupo da equipe (WAHA)
+    # Grupo da equipe: só aviso, pelo WAHA do Jarvis (retorno-humano.1, RH-1 a RH-4, RH-21)
     team_group_enabled: bool = False
-    waha_base_url: str = "http://127.0.0.1:3000"
-    waha_api_key: SecretStr = SecretStr("")
-    waha_session: str = "default"
     team_group_chat_id: str = ""
+    team_group_min_interval_seconds: float = 3.0
+    text_team_group_ticket: str = (
+        "🔔 Vendedor enviou nova pergunta (ticket {ticket})\n"
+        "Marca: {marca} · Motivo: {motivo}\n"
+        "Vendedor: {vendedor}\n"
+        "\n"
+        "Mensagem:\n"
+        "{mensagem}\n"
+        "\n"
+        "Responda pelo Inbox: {link}\n"
+        "(Mensagens escritas aqui no grupo não chegam ao vendedor.)"
+    )
+
+    # Resposta humana pelo painel (retorno-humano.1, RH-6 a RH-13)
+    human_reply_max_chars: int = 4000
+    human_reply_ignore_window: bool = True  # exceção à WA-16 (ADR 2026-11-17)
+    text_human_reply_header: str = "Retorno da equipe ({nome}) sobre sua pergunta:"
+    text_human_reply_header_no_name: str = "Retorno da equipe sobre sua pergunta:"
 
     # E-mail (Resend); vazio = entrega `skipped`, nunca derruba
     resend_api_key: SecretStr = SecretStr("")
@@ -345,11 +365,6 @@ class Settings(BaseSettings):
     def _graph_host(cls, v: str) -> str:
         return _check_host("WHATSAPP_API_BASE", v, _GRAPH_ALLOWED_HOSTS)
 
-    @field_validator("waha_base_url")
-    @classmethod
-    def _waha_host(cls, v: str) -> str:
-        return _check_host("WAHA_BASE_URL", v, _WAHA_ALLOWED_HOSTS)
-
     @field_validator("email_backoff_seconds")
     @classmethod
     def _backoff_format(cls, v: str) -> str:
@@ -376,11 +391,55 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _team_group_requirements(self) -> Self:
-        if self.team_group_enabled and not (
-            self.waha_api_key.get_secret_value().strip() and self.team_group_chat_id.strip()
+        if not self.team_group_enabled:
+            return self
+        if not (
+            self.jarvis_waha_api_key.get_secret_value().strip()
+            and self.team_group_chat_id.strip()
         ):
-            raise ValueError("TEAM_GROUP_ENABLED=true exige WAHA_API_KEY e TEAM_GROUP_CHAT_ID")
+            raise ValueError(
+                "TEAM_GROUP_ENABLED=true exige JARVIS_WAHA_API_KEY e TEAM_GROUP_CHAT_ID"
+            )
+        if not self.team_group_chat_id.strip().endswith("@g.us"):
+            raise ValueError("TEAM_GROUP_CHAT_ID precisa ser um grupo (terminar em @g.us)")
         return self
+
+    @field_validator("team_group_min_interval_seconds")
+    @classmethod
+    def _group_interval_not_negative(cls, v: float) -> float:
+        if v < 0:
+            raise ValueError("TEAM_GROUP_MIN_INTERVAL_SECONDS não pode ser negativo")
+        return v
+
+    @field_validator("text_team_group_ticket")
+    @classmethod
+    def _group_ticket_placeholders(cls, v: str) -> str:
+        missing = [p for p in _GROUP_TICKET_FIELDS if "{" + p + "}" not in v]
+        if missing:
+            raise ValueError("TEXT_TEAM_GROUP_TICKET precisa conter " + ", ".join(
+                "{" + p + "}" for p in missing
+            ))
+        return v
+
+    @field_validator("human_reply_max_chars")
+    @classmethod
+    def _human_reply_max(cls, v: int) -> int:
+        if not 1 <= v <= 10000:
+            raise ValueError("HUMAN_REPLY_MAX_CHARS: use um valor entre 1 e 10000")
+        return v
+
+    @field_validator("text_human_reply_header")
+    @classmethod
+    def _human_reply_header_placeholder(cls, v: str) -> str:
+        if "{nome}" not in v:
+            raise ValueError("TEXT_HUMAN_REPLY_HEADER precisa conter {nome}")
+        return v
+
+    @property
+    def panel_link_base(self) -> str:
+        """Base dos links do painel (aviso no grupo): PANEL_BASE_URL ou https://PANEL_PUBLIC_HOST."""
+        base = self.panel_base_url.strip() or f"https://{self.panel_public_host}"
+        return base.rstrip("/")
 
     @field_validator(
         "brain_monthly_budget_usd",

@@ -284,7 +284,7 @@ async def test_pausa_ligada_interrompe_a_resposta(env: Env, db_pool: asyncpg.Poo
 
 GROUP_ON = {
     "team_group_enabled": True,
-    "waha_api_key": "waha-key-e2e",
+    "jarvis_waha_api_key": "waha-key-e2e",
     "team_group_chat_id": "120363000000000000@g.us",
 }
 

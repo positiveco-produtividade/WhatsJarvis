@@ -1,5 +1,8 @@
 """Cliente WAHA para o grupo da equipe (spec porta-fechada.1, AC-13).
 
+Envia pelo WAHA do proprio Jarvis (`JARVIS_WAHA_*`, retorno-humano.1 D5/RH-21): nada do
+AUTO-1 e usado.
+
 So camada de rede: quem decide se o grupo esta ligado e a camada de entrega
 (`Flags.team_group_enabled`); este modulo apenas envia quando chamado. Nunca
 levanta excecao; logs nao carregam o chatId nem o texto.
@@ -29,9 +32,9 @@ def _message_id(resp: httpx.Response) -> str | None:
 
 
 async def _post(client: httpx.AsyncClient, cfg: Settings, text: str) -> DeliveryResult:
-    url = f"{cfg.waha_base_url}/api/sendText"
-    payload = {"session": cfg.waha_session, "chatId": cfg.team_group_chat_id, "text": text}
-    headers = {"X-Api-Key": cfg.waha_api_key.get_secret_value()}
+    url = f"{cfg.jarvis_waha_base_url}/api/sendText"
+    payload = {"session": cfg.jarvis_waha_session, "chatId": cfg.team_group_chat_id, "text": text}
+    headers = {"X-Api-Key": cfg.jarvis_waha_api_key.get_secret_value()}
     try:
         resp = await client.post(url, json=payload, headers=headers)
     except httpx.TimeoutException:
@@ -56,7 +59,7 @@ async def send_group_text(
     """Envia texto ao grupo da equipe. Chamar so se a chave do grupo estiver ligada."""
     try:
         cfg = settings or get_settings()
-        if not (cfg.waha_api_key.get_secret_value() and cfg.team_group_chat_id.strip()):
+        if not (cfg.jarvis_waha_api_key.get_secret_value() and cfg.team_group_chat_id.strip()):
             logger.info("waha send skipped: not configured")
             return DeliveryResult(DeliveryStatus.SKIPPED, "not_configured")
         if client is not None:

@@ -79,6 +79,7 @@ class OutboundKind(StrEnum):
     BRAIN_ANSWER_RATE = "brain_answer_rate"
     BRAIN_NOTICE = "brain_notice"
     BRAND_POLL = "brand_poll"  # enquete da marca da conversa (canal-waha.1, WA-15)
+    HUMAN_REPLY = "human_reply"  # resposta da equipe pelo painel (retorno-humano.1, RH-7)
 
 
 class OutboundStatus(StrEnum):
@@ -107,6 +108,7 @@ class ReplyKind(StrEnum):
     BRAIN_ANSWER_RATE = "brain_answer_rate"
     BRAIN_NOTICE = "brain_notice"
     BRAND_POLL = "brand_poll"
+    HUMAN_REPLY = "human_reply"
 
 
 class BrainOutcome(StrEnum):

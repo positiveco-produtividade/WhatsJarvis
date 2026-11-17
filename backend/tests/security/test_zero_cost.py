@@ -26,7 +26,7 @@ pytestmark = [pytest.mark.security, pytest.mark.db]
 
 GROUP_ON = {
     "team_group_enabled": True,
-    "waha_api_key": "waha-key-sec",
+    "jarvis_waha_api_key": "waha-key-sec",
     "team_group_chat_id": "120363000000000000@g.us",
 }
 APP_DIR = Path(__file__).resolve().parents[2] / "app"

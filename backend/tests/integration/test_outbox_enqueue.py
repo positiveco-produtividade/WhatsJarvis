@@ -26,6 +26,7 @@ EXPECTED = {
     "brain_answer_rate": "active",
     "brain_notice": "active",
     "brand_poll": "active",  # enquete da marca da conversa (canal-waha.1)
+    "human_reply": "active",  # resposta da equipe pelo painel (retorno-humano.1)
 }
 
 

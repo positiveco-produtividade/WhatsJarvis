@@ -51,8 +51,9 @@ def test_defaults() -> None:
     assert s.production is True
     assert s.log_level == "INFO"
     assert s.notice_version == "rascunho-2026-10-19"
-    assert s.waha_base_url == "http://127.0.0.1:3000"
-    assert s.waha_session == "default"
+    assert s.team_group_min_interval_seconds == 3.0
+    assert s.human_reply_max_chars == 4000
+    assert s.human_reply_ignore_window is True
 
 
 def test_text_defaults_follow_spec() -> None:
@@ -87,7 +88,7 @@ def test_empty_required_fails(empty: str) -> None:
 
 def test_repr_masks_secrets() -> None:
     s = make(
-        waha_api_key="waha-key-xyz",
+        jarvis_waha_api_key="waha-key-xyz",
         resend_api_key="resend-key-xyz",
         alert_recipient_email="alvo@example.com",
     )
@@ -141,20 +142,74 @@ def test_graph_base_trailing_slash_trimmed() -> None:
     )
 
 
-def test_waha_host_outside_allowlist_fails() -> None:
-    with pytest.raises(ValidationError):
-        make(waha_base_url="http://10.0.0.5:3000")
+def test_waha_antigo_do_grupo_nao_e_mais_lido(monkeypatch: pytest.MonkeyPatch) -> None:
+    """RH-21: WAHA_BASE_URL/WAHA_API_KEY/WAHA_SESSION (AUTO-1) sao ignorados, mesmo invalidos."""
+    monkeypatch.setenv("WAHA_BASE_URL", "http://10.0.0.5:3000")
+    monkeypatch.setenv("WAHA_API_KEY", "chave-do-auto1")
+    monkeypatch.setenv("WAHA_SESSION", "default")
+    s = make()
+    assert not hasattr(s, "waha_base_url")
+    assert not hasattr(s, "waha_api_key")
+    assert not hasattr(s, "waha_session")
 
 
 def test_team_group_enabled_requires_key_and_chat() -> None:
+    """RH-21: o grupo sai pelo WAHA do Jarvis; a chave exigida e a JARVIS_WAHA_API_KEY."""
     with pytest.raises(ValidationError):
         make(team_group_enabled=True)
     with pytest.raises(ValidationError):
-        make(team_group_enabled=True, waha_api_key="k")
+        make(team_group_enabled=True, jarvis_waha_api_key="k")
     with pytest.raises(ValidationError):
         make(team_group_enabled=True, team_group_chat_id="123@g.us")
-    s = make(team_group_enabled=True, waha_api_key="k", team_group_chat_id="123@g.us")
+    s = make(team_group_enabled=True, jarvis_waha_api_key="k", team_group_chat_id="123@g.us")
     assert s.team_group_enabled is True
+
+
+@pytest.mark.parametrize("chat", ["5585999999999@c.us", "123@lid", "123"])
+def test_team_group_exige_id_de_grupo(chat: str) -> None:
+    with pytest.raises(ValidationError, match="@g.us"):
+        make(team_group_enabled=True, jarvis_waha_api_key="k", team_group_chat_id=chat)
+
+
+def test_intervalo_do_grupo_nao_negativo() -> None:
+    assert make(team_group_min_interval_seconds=0).team_group_min_interval_seconds == 0
+    with pytest.raises(ValidationError):
+        make(team_group_min_interval_seconds=-1)
+
+
+@pytest.mark.parametrize("field", ["ticket", "marca", "motivo", "vendedor", "mensagem", "link"])
+def test_modelo_do_aviso_exige_campos(field: str) -> None:
+    texto = make().text_team_group_ticket.replace("{" + field + "}", "")
+    with pytest.raises(ValidationError, match="TEXT_TEAM_GROUP_TICKET"):
+        make(text_team_group_ticket=texto)
+
+
+def test_modelo_do_aviso_padrao_segue_a_spec() -> None:
+    texto = make().text_team_group_ticket
+    assert texto.startswith("🔔 Vendedor enviou nova pergunta (ticket {ticket})")
+    assert "Responda pelo Inbox: {link}" in texto
+    assert "não chegam ao vendedor" in texto
+
+
+@pytest.mark.parametrize("bad", [0, 10001])
+def test_tamanho_da_resposta_humana(bad: int) -> None:
+    with pytest.raises(ValidationError):
+        make(human_reply_max_chars=bad)
+
+
+def test_cabecalho_da_resposta_humana() -> None:
+    s = make()
+    assert s.text_human_reply_header == "Retorno da equipe ({nome}) sobre sua pergunta:"
+    assert s.text_human_reply_header_no_name == "Retorno da equipe sobre sua pergunta:"
+    with pytest.raises(ValidationError, match="TEXT_HUMAN_REPLY_HEADER"):
+        make(text_human_reply_header="Retorno da equipe:")
+
+
+def test_base_dos_links_do_painel() -> None:
+    assert make().panel_link_base == "https://jarvis.positiveco.com.br"
+    assert make(panel_base_url="https://painel.example.test/").panel_link_base == (
+        "https://painel.example.test"
+    )
 
 
 def test_backoff_list_parsed() -> None:

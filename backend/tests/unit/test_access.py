@@ -49,6 +49,8 @@ NO_TEXT_KINDS = (
     ReplyKind.BRAIN_NOTICE,
     # enquete de marca: pergunta e opcoes montadas na hora (canal-waha.1, WA-15)
     ReplyKind.BRAND_POLL,
+    # resposta da equipe: texto escrito no painel (retorno-humano.1, RH-7)
+    ReplyKind.HUMAN_REPLY,
 )
 
 

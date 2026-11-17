@@ -223,7 +223,7 @@ async def test_midia_com_grupo_ligado_avisa_o_grupo_mas_nunca_por_email(
         db_pool,
         clock,
         team_group_enabled=True,
-        waha_api_key=SecretStr("fake-waha"),
+        jarvis_waha_api_key=SecretStr("fake-waha"),
         team_group_chat_id="120363000000000000@g.us",
     )
     out = await env.pipe.handle_message(msg("wamid.media", ContentKind.AUDIO))

@@ -51,6 +51,7 @@ REQUIRED_STATUS: Mapping[OutboundKind, UserStatus] = {
     OutboundKind.BRAIN_ANSWER_RATE: UserStatus.ACTIVE,
     OutboundKind.BRAIN_NOTICE: UserStatus.ACTIVE,
     OutboundKind.BRAND_POLL: UserStatus.ACTIVE,
+    OutboundKind.HUMAN_REPLY: UserStatus.ACTIVE,
 }
 
 # Limites da Meta para mensagem interativa de botoes (verificacao-externa.md).

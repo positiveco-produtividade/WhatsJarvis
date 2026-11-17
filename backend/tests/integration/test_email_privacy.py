@@ -54,7 +54,7 @@ pytestmark = pytest.mark.db
 RESEND_HOST = "api.resend.com"
 GROUP_ON = {
     "team_group_enabled": True,
-    "waha_api_key": WAHA_KEY,
+    "jarvis_waha_api_key": WAHA_KEY,
     "team_group_chat_id": "120363000000000000@g.us",
 }
 

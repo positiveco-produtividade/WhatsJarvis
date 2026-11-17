@@ -52,17 +52,32 @@ MEDIA_ACK_ENABLED=
 RL_WEBHOOK_MAX=
 RL_WEBHOOK_WINDOW=
 
-# --- Grupo da equipe (WAHA) ---
+# --- Grupo da equipe (so aviso; retorno-humano.1) ---
+# Sai pelo WAHA do proprio Jarvis (JARVIS_WAHA_* acima); o numero do Jarvis precisa estar
+# no grupo. WAHA_BASE_URL, WAHA_API_KEY e WAHA_SESSION (AUTO-1) nao sao mais lidos.
 TEAM_GROUP_ENABLED=
-WAHA_BASE_URL=
-WAHA_API_KEY=
-WAHA_SESSION=
+# Id do grupo, terminando em @g.us.
 TEAM_GROUP_CHAT_ID=
+# Intervalo minimo entre dois avisos no grupo, em segundos (padrao 3).
+TEAM_GROUP_MIN_INTERVAL_SECONDS=
+# Modelo do aviso; precisa de {ticket} {marca} {motivo} {vendedor} {mensagem} {link}.
+TEXT_TEAM_GROUP_TICKET=
+
+# --- Resposta da equipe pelo painel (retorno-humano.1) ---
+# true (padrao): a resposta da equipe sai mesmo se o vendedor nao escreveu nas ultimas 24 h
+# (excecao a regra "so responde"; ADR de 2026-11-17). false volta a respeitar as 24 h.
+HUMAN_REPLY_IGNORE_WINDOW=
+HUMAN_REPLY_MAX_CHARS=
+# Cabecalho da resposta; precisa de {nome} (primeiro nome de quem respondeu).
+TEXT_HUMAN_REPLY_HEADER=
+TEXT_HUMAN_REPLY_HEADER_NO_NAME=
 
 # --- E-mail (Resend) ---
 RESEND_API_KEY=
 RESEND_FROM_EMAIL=
 ALERT_RECIPIENT_EMAIL=
+# Base dos links do painel (e-mail e aviso no grupo). No aviso do grupo, vazio usa
+# https://PANEL_PUBLIC_HOST.
 PANEL_BASE_URL=
 EMAIL_MAX_ATTEMPTS=
 EMAIL_BACKOFF_SECONDS=

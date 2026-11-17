@@ -29,7 +29,7 @@ def make_settings(**over: object) -> Settings:
         "resend_api_key": SecretStr("re_key"),
         "resend_from_email": "jarvis@example.com",
         "alert_recipient_email": SecretStr(RECIPIENT),
-        "waha_api_key": SecretStr("waha_key"),
+        "jarvis_waha_api_key": SecretStr("waha_key"),
         "team_group_chat_id": CHAT_ID,
     }
     base.update(over)
@@ -142,7 +142,8 @@ async def test_waha_success_payload_headers_and_id() -> None:
     assert res.ok and res.message_id == "true_x_abc"
     assert seen[0].url.path == "/api/sendText"
     assert seen[0].headers["x-api-key"] == "waha_key"
-    assert json.loads(seen[0].content) == {"session": "default", "chatId": CHAT_ID, "text": "ola"}
+    assert json.loads(seen[0].content) == {"session": "jarvis", "chatId": CHAT_ID, "text": "ola"}
+    assert (seen[0].url.host, seen[0].url.port) == ("127.0.0.1", 3001)  # WAHA do Jarvis (RH-21)
 
 
 async def test_waha_201_empty_body_is_ok() -> None:
@@ -171,7 +172,7 @@ async def test_waha_failures_typed_and_logs_have_no_chat_id(
 
 
 async def test_waha_skipped_when_not_configured() -> None:
-    res = await waha.send_group_text("x", settings=make_settings(waha_api_key=SecretStr("")))
+    res = await waha.send_group_text("x", settings=make_settings(jarvis_waha_api_key=SecretStr("")))
     assert res.status is DeliveryStatus.SKIPPED
     res = await waha.send_group_text("x", settings=make_settings(team_group_chat_id=""))
     assert res.status is DeliveryStatus.SKIPPED

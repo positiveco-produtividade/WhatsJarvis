@@ -40,7 +40,7 @@ def make_settings(**over: Any) -> Settings:
         "resend_api_key": SecretStr("re_key"),
         "resend_from_email": "jarvis@example.com",
         "alert_recipient_email": SecretStr("destino@example.com"),
-        "waha_api_key": SecretStr("waha_key"),
+        "jarvis_waha_api_key": SecretStr("waha_key"),
         "team_group_chat_id": "120363000000@g.us",
         "panel_base_url": BASE_URL,
     }
