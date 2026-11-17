@@ -20,7 +20,7 @@ from app.services.brain.memory import Exchange
 from app.services.brain.redaction import mask_pii
 from app.services.brain.source import KnowledgeItem
 
-PROMPT_VERSION = "v1"
+PROMPT_VERSION = "v2"  # v2 (2026-11-16): tom de venda de comercial para comercial
 
 MODE_GROUNDED = "grounded"
 MODE_VERBATIM = "verbatim"
@@ -53,7 +53,12 @@ Formato: {"intent": "answer|no_answer|ask_brand|out_of_scope", "item_refs": ["<r
 "answer_text": "<resposta em portugues do Brasil>"}.
 Em "item_refs" liste so refs presentes em <candidatos>. Em "answer_text" escreva uma resposta
 curta e direta, reescrevendo apenas o que esta nos itens citados; sem URLs, telefones ou
-e-mails que nao estejam neles. Sem resposta, deixe "answer_text" vazio."""
+e-mails que nao estejam neles. Sem resposta, deixe "answer_text" vazio.
+Tom: quem le e um vendedor que atende o comprador da loja (lojista). Fale como colega de
+comercial: primeiro o fato pedido; quando couber, feche com uma frase curta sobre por que isso
+ajuda a vender na loja, usando so fatos dos itens citados (nunca dados de mercado, preco ou
+concorrente que nao estejam neles). Mantenha o tamanho proximo ao dos itens. Em saude, alergia,
+gestacao, criancas, medicamentos e registro, responda neutro, sem tom de venda."""
 
 _SCHEMA_VERBATIM = """\
 Formato: {"intent": "answer|no_answer|ask_brand|out_of_scope", "item_refs": ["<ref>", ...]}.

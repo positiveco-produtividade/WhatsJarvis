@@ -1,0 +1,992 @@
+{
+ "fonte": "Guia de produtos para vendedores (FAQ do atendimento), 15/10/2026 — reescrito em tom de venda comercial (17/11/2026, aprovado pelo Caio, dono do projeto); itens 113 em diante acrescentados em 17/11/2026 a partir das FAQs de atendimento das marcas, aprovados pelo Caio em 17/11/2026",
+ "itens": [
+  {
+   "marca": "Jungle",
+   "q": "Jungle é um isotônico?",
+   "a": "Jungle é uma bebida funcional para hidratação e reposição de eletrólitos, como sódio e magnésio, nas versões Low Carb, Endurance, Electrolytes em pó e o Carbo. Uma marca, várias versões: garante opção para cada momento do cliente e amplia o público da gôndola."
+  },
+  {
+   "marca": "Jungle",
+   "q": "Quais são os sabores de Jungle?",
+   "a": "Low Carb: Maracujá, Uva, Morango e Limão, Melancia e Limão, Abacaxi e Hortelã. Endurance: Limonada, Tangerina. Electrolytes: limão, morango e limão, tropical, abacaxi e hortelã, Tangerina e Limão, melancia e limão. Carbo: Limão, Tangerina, Neutro. Com tanta variedade de sabor, a gôndola atende todos os gostos e o cliente sempre encontra o seu."
+  },
+  {
+   "marca": "Jungle",
+   "q": "Qual a diferença entre Low Carb, Endurance e Carbo?",
+   "a": "Low Carb: baixo teor de carboidratos, para hidratação leve no dia a dia. Endurance: traz carboidratos, para treinos mais longos. Carbo: eletrólitos e carboidratos, para alta intensidade. Cada versão atende um perfil, do dia a dia ao treino intenso: a linha completa conversa com todo cliente ativo."
+  },
+  {
+   "marca": "Jungle",
+   "q": "Quais os ingredientes do Jungle?",
+   "a": "Carbo: água, maltodextrina de tapioca, suco de maçã, suco de limão, água de coco, cloreto de sódio (sal marinho), ácido ascórbico (vitamina C), carbonato de magnésio, edulcorante natural glicosídeos de esteviol (stévia) e aromas naturais.\nElectrolytes: água, suco de maçã, suco de limão, água de coco, cloreto de sódio (sal marinho), maracujá em pó, ácido ascórbico (vitamina C), carbonato de magnésio, aromas naturais e edulcorante natural glicosídeos de esteviol (stévia)."
+  },
+  {
+   "marca": "Jungle",
+   "q": "Jungle tem glúten?",
+   "a": "Todos os Jungles são sem glúten. É a escolha certa para quem tem restrição ao glúten, um público que procura e compra."
+  },
+  {
+   "marca": "Jungle",
+   "q": "Jungle tem açúcar?",
+   "a": "Low Carb e Electrolytes usam stevia. Carbo e Endurance levam maltodextrina de tapioca e frutose, pensadas para reposição de energia durante a atividade. Garante opção para quem quer adoçado com stevia e para quem precisa de energia na atividade."
+  },
+  {
+   "marca": "Jungle",
+   "q": "O isotônico de vocês tem proteína?",
+   "a": "Não. Jungle é focado em hidratação. Uma proposta clara e direta, fácil de entender na hora da compra."
+  },
+  {
+   "marca": "Jungle",
+   "q": "Quantas calorias tem o Jungle?",
+   "a": "Electrolytes: 10kcal por sachê de 5g. Carbo: entre 139 e 148kcal por sachê de 40g. Pouca caloria no Electrolytes, mais energia no Carbo: duas propostas que ampliam o público."
+  },
+  {
+   "marca": "Jungle",
+   "q": "Jungle é vegano?",
+   "a": "Os produtos Jungle não levam ingredientes de origem animal na composição. As certificações de cada linha estão no rótulo. Atende quem evita ingredientes de origem animal, um público cada vez mais atento ao rótulo."
+  },
+  {
+   "marca": "Jungle",
+   "q": "Jungle tem corante ou conservante?",
+   "a": "A Jungle não usa conservantes nas formulações. A segurança e a durabilidade dos produtos são garantidas pelo processo de produção e pelas embalagens. Sem conservantes é um atributo que o cliente que lê o rótulo procura."
+  },
+  {
+   "marca": "Jungle",
+   "q": "Pode tomar Jungle antes, durante ou depois do treino?",
+   "a": "Low Carb é ótimo antes e depois. Endurance e Carbo são ideais durante treinos longos e intensos. A linha cobre o treino inteiro, e quem treina tem motivo para levar mais de uma versão."
+  },
+  {
+   "marca": "Jungle",
+   "cat": "Argumento",
+   "q": "Por que o Jungle é tão caro?",
+   "a": "A marca procura ter o menor custo possível para que muitos possam ter acesso aos produtos. Investe em alta tecnologia e na qualidade da matéria prima, e o preço é definido de acordo com essas características. É um produto de valor: tecnologia e matéria-prima de qualidade que o cliente percebe e reconhece."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "O que é o Ultracoffee?",
+   "a": "O Ultracoffee é um suplemento alimentar funcional em pó, para foco, energia e suporte à imunidade. Combina TCM, colina, cafeína natural, taurina, zinco e vitaminas C, D e do complexo B (todos de origem vegetal). Lata de 220g e sticks de 10g, nos sabores Caramelo, Cappuccino, Chocolate, Vanilla Cream e Double Shot. Certificado vegano pela SVB, Kosher e Selo EuReciclo. Variedade de sabores e formatos, com certificações reconhecidas: um produto completo para a gôndola."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "O Ultracoffee é natural mesmo?",
+   "a": "Sim, esse é um dos propósitos da marca: garantir qualidade, segurança e sabor em um produto natural. É a escolha certa para o cliente que procura produto natural sem abrir mão do sabor."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "O Ultracoffee é só para imunidade ou também age na disposição?",
+   "a": "É multifuncional: suporte à imunidade (vitaminas C, D2 e zinco) e disposição e foco (cafeína natural, TCM, colina e taurina). A cafeína dá energia, o TCM é combustível de rápida absorção, a colina contribui para a função cognitiva e a taurina ajuda a equilibrar os efeitos da cafeína. Um produto só atende duas necessidades, imunidade e disposição."
+  },
+  {
+   "marca": "Plant Power",
+   "cat": "Argumento",
+   "q": "O Ultracoffee é igual ao Supercoffee ou Desincoffee?",
+   "a": "Não. O Ultracoffee tem um blend de ingredientes funcionais selecionados e certificação vegana pela SVB. Diferencia-se por incluir vitaminas C, D2 e zinco, que auxiliam o sistema imune, e é livre de glúten, leite e outros alérgenos. São diferenciais concretos, que dão ao cliente motivo para escolher o Ultracoffee."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Ultracoffee é indicado pra ganho de massa muscular?",
+   "a": "O objetivo principal é foco, energia e suporte à imunidade. A cafeína pode contribuir para o desempenho em treinos e a taurina tem sido associada em estudos à melhora do desempenho atlético e da recuperação."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Qual a diferença entre os sabores de Ultracoffee?",
+   "a": "São 5 sabores: Caramelo (doce e equilibrado), Cappuccino (cremoso com toque de cacau), Chocolate (mais intenso), Vanilla Cream (suave, com baunilha) e Double Shot (café expresso marcante, 1 porção por dia). Perfis de sabor bem diferentes garantem opção para todo tipo de paladar."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Quais são os ingredientes do Ultracoffee?",
+   "a": "A base é a mesma nos cinco sabores: TCM, café solúvel, taurina, colina, inulina, cafeína natural, extrato de chá verde, canela, gengibre, pimenta caiena, vitaminas C, D e do complexo B, zinco e adoçante de estévia. Muda o aroma e a proporção de cacau. A lista exata está no rótulo. Mesma fórmula funcional em todos os sabores: o cliente escolhe pelo gosto, sem abrir mão dos benefícios."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Pra que serve cada ingrediente do Ultracoffee?",
+   "a": "TCM (C8+C10): gordura de rápida absorção, fonte de energia. Cafeína, café e cacau: estímulo e concentração. Taurina: equilibra o efeito da cafeína. Inulina: fibra prebiótica. Chá verde, canela e vitamina C: antioxidantes. Vitaminas D e B e zinco completam a fórmula. Cada ingrediente tem função definida, o que torna o produto fácil de apresentar."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Qual a quantidade de cafeína em uma dose de Ultracoffee?",
+   "a": "Caramelo, Cappuccino, Chocolate e Vanilla Cream: 100mg por porção (10g). Double Shot: 150mg por porção (10g). A marca recomenda avaliar a tolerância à cafeína e, em caso de dúvida, consultar um médico ou nutricionista."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "O Ultracoffee tem glúten, lactose, açúcar ou taurina?",
+   "a": "Tem taurina (800mg por porção de 10g). Não tem glúten, derivado lácteo (é 100% vegetal, certificado pela SVB), açúcar adicionado (o adoçante é estévia) nem piperina. L-carnitina, glutamina, Coenzima Q10 e cafeína microencapsulada ficaram de fora por decisão de formulação. É a escolha certa para quem evita glúten, lácteos e açúcar adicionado."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Em quais ocasiões tomar o Ultracoffee?",
+   "a": "Em momentos que exigem foco e energia: início da manhã, antes de reuniões ou estudos, pré-treino, ou para substituir o café convencional por uma opção mais funcional. São várias ocasiões de consumo ao longo do dia, o que traz o cliente de volta para recomprar."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Quantas doses de Ultracoffee por dia?",
+   "a": "1 porção (10g) diluída em 100mL de água, quente ou fria. Para orientação personalizada, consulte um médico ou nutricionista."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Ultracoffee quebra o jejum?",
+   "a": "Depende do tipo de jejum. O Ultracoffee tem pouco carboidrato por porção e TCMs (C8 e C10), usados em jejum e dieta cetogênica. Como há diferentes protocolos, a marca recomenda conversar com um médico ou nutricionista."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Posso consumir Ultracoffee com ômega 3?",
+   "a": "Se o objetivo é manter o jejum metabólico, não é indicado consumir outra gordura, como o ômega 3, junto com o Ultracoffee."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Quem tem hipertensão, ansiedade, labirintite ou triglicérides altos pode consumir Ultracoffee?",
+   "a": "Nesses casos a orientação é conversar com o médico antes, porque depende de cada pessoa. O motivo é a cafeína, que pode elevar a pressão temporariamente e intensificar ansiedade ou vertigem."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Qual a diferença entre o stick e a lata de Ultracoffee?",
+   "a": "Só o formato: a lata é para uso contínuo, com várias porções; o stick é porcionado, prático para levar. A fórmula é a mesma. Ter os dois formatos atende quem usa todo dia e quem quer praticidade fora de casa."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Posso dividir o stick de Ultracoffee?",
+   "a": "A marca indica consumo imediato após abrir o stick, pois não se responsabiliza por alterações no produto após a abertura."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "O stick do Ultracoffee tem picote para abrir?",
+   "a": "Sim, o que facilita na correria do dia a dia. Praticidade que conquista o cliente com rotina corrida."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Vende o Ultracoffee por unidade ou só em display?",
+   "a": "No site, só por display com 14 unidades. Nos pontos de venda há display e sticks (unidades). O stick avulso deixa o cliente experimentar antes de levar o display."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Qual a validade do Ultracoffee?",
+   "a": "12 meses. Depois de aberto, consumir em até 30 dias. Os sticks devem ser consumidos imediatamente. Com 12 meses de validade, o estoque fica tranquilo de planejar."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Por que a lata de Ultracoffee vem pela metade?",
+   "a": "O envase é completo. No transporte o pó compacta e parece menos, mas o peso líquido de 220g é garantido: as 22 doses estão lá. Peso garantido: o cliente leva todas as doses da lata."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "A embalagem do Ultracoffee é reciclável?",
+   "a": "As embalagens fazem parte de um sistema de compensação ambiental com o selo eureciclo, que garante a compensação de 100% do material. Um atributo que pesa na escolha do cliente atento ao meio ambiente."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "O que é o Nitro 400?",
+   "a": "Suplemento alimentar que combina os nitratos naturais da beterraba com ferro: contribui para o fluxo sanguíneo e, junto com o ferro, otimiza o transporte de oxigênio no organismo. Base de beterraba, um ingrediente que o cliente conhece e entende."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Quais são os ingredientes do Nitro 400 e do Nitro Purple Berry?",
+   "a": "Base igual nos dois: beterraba em pó, bisglicinato ferroso, ácido cítrico, fosfato tricálcico, aroma natural e glicosídeos de esteviol. Muda a fruta: laranja no Nitro 400, açaí no Purple Berry. Dois sabores com a mesma base: variedade na gôndola sem mudar a proposta."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Quantas doses de Nitro 400 por dia?",
+   "a": "A indicação é de 1 dose diária. Uso simples, que entra fácil na rotina do cliente."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "O Nitro 400 tem mesmo 400mg de nitrato?",
+   "a": "Sim, 400mg de nitrato por dose, vindo da beterraba e confirmado por análises laboratoriais em todas as etapas de produção. A ANVISA não tem valor de referência oficial para nitrato, por isso não há % de Valor Diário na tabela. Dose confirmada em laboratório: segurança para quem compra e para quem vende."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Por que o nitrato não aparece na tabela nutricional do Nitro 400?",
+   "a": "Pelas regras regulatórias, nitrato de vegetais não faz parte dos componentes da Tabela Nutricional, então não pode ser declarado no rótulo. O Nitro400 é testado em laboratórios acreditados para garantir os 400mg por dose."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "O Nitro 400 quebra o jejum?",
+   "a": "Sim. Uma porção de 9g tem 35 kcal e 8,7g de carboidratos, o que estimula a liberação de insulina e encerra o estado de jejum."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Posso alternar entre os sabores de Nitro 400?",
+   "a": "Sim. Essa é uma das ideias do Purple Berry: trazer variedade e permitir alternar os sabores conforme a preferência. Ter os dois sabores na gôndola garante opção para quem já usa e quer variar."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "O Nitro 400 perdeu benefícios com a nova fórmula?",
+   "a": "Não. A atualização deixou a fórmula mais específica: segue com foco em performance, rotina ativa e suporte à oxigenação. O cliente que já conhece o produto segue com a mesma proposta, agora com fórmula mais específica."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "A nova fórmula do Nitro continua tendo beterraba?",
+   "a": "Sim. A beterraba continua sendo um dos ativos centrais do Nitro 400. Quem já usa encontra o mesmo ativo central que conhece."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Por que a Plant Power lançou um novo sabor de Nitro?",
+   "a": "Porque muitos consumidores usam o Nitro 400 com frequência, e ter mais de uma opção de sabor deixa a rotina menos repetitiva. O novo sabor é mais um motivo para quem usa com frequência continuar comprando."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "O que é o Fibergut?",
+   "a": "Suplemento alimentar em pó de fibras prebióticas, para auxiliar a saúde intestinal e o equilíbrio da microbiota. Atende quem procura cuidar da saúde intestinal."
+  },
+  {
+   "marca": "Plant Power",
+   "cat": "Argumento",
+   "q": "Qual o diferencial do Fibergut em relação a outras fibras?",
+   "a": "Combina fibras solúveis e insolúveis com ingredientes reconhecidos, como Fibregum (goma acácia) e Sunfiber (goma guar), ajudando no equilíbrio intestinal sem os desconfortos comuns de outras fibras. Ingredientes reconhecidos dão ao cliente confiança na escolha."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "O Fibergut ajuda na constipação?",
+   "a": "Sim. As fibras contribuem para o funcionamento do intestino e a regularidade do trânsito intestinal."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "O Fibergut ajuda na imunidade?",
+   "a": "O intestino tem relação importante com o sistema imune. O Fibergut contribui para o equilíbrio da microbiota, o que pode fazer parte de uma rotina de bem-estar."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "O Fibergut ajuda na absorção de nutrientes?",
+   "a": "Auxilia no funcionamento do intestino e no equilíbrio da microbiota, que está relacionado ao bom funcionamento do organismo."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Quem tem intestino sensível pode tomar Fibergut?",
+   "a": "Sim. O Fibergut tem certificado FODMAP Friendly, pensado para ser bem tolerado por pessoas com sensibilidade intestinal."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "O Fibergut tem açúcar ou glúten?",
+   "a": "Não. O Fibergut é zero açúcares, sem glúten e sem lácteos. É a escolha certa para quem tem restrição, um público que procura e compra."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Posso misturar o Fibergut com qualquer bebida ou alimento?",
+   "a": "Sim. É sem sabor e versátil: água, suco, café, iogurte, sopas e receitas, sem alterar o sabor. Essa versatilidade coloca o produto na rotina do cliente todos os dias."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "O Fibergut pode ser aquecido?",
+   "a": "Sim. É resistente ao calor e pode ir em preparações quentes. Entra também em receitas, não só em bebidas, o que amplia o uso."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Posso consumir o Fibergut todos os dias?",
+   "a": "Sim. O uso diário é o ideal para manter os benefícios e o equilíbrio intestinal. Um produto de uso contínuo, que faz parte da rotina do cliente."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Em quanto tempo o Fibergut faz efeito?",
+   "a": "Pode variar. Os benefícios costumam aparecer com o uso contínuo, conforme o organismo se adapta."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Que vitaminas e minerais tem o Defense?",
+   "a": "Vitaminas C, D2, E e ácido fólico (B9). Minerais: cobre, ferro, magnésio, selênio e zinco. Vários nutrientes em um produto só: praticidade que o cliente valoriza."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Quais são os ingredientes do Defense?",
+   "a": "Maçã, limão, L-glutamina, cúrcuma, acerola, camu camu, gengibre, amora, pimenta preta, vitamina C, glicina, N-acetil L-cisteína, magnésio, beta-glucana, curcumina, ferro, cogumelo com vitamina D2, zinco, vitamina E, selênio, ácido fólico, cobre, ácido cítrico, fosfato tricálcico, goma guar, aroma natural de limão e estévia. A lista exata está no rótulo. Frutas, cúrcuma e gengibre em uma fórmula só, adoçada com estévia."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "O que é o The One?",
+   "a": "Uma combinação de superfoods, vitaminas, minerais e ingredientes naturais para impulsionar saúde e bem-estar. Reúne muitos ingredientes em um produto só, prático para o cliente."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Quais os benefícios do The One?",
+   "a": "Aumenta a energia celular, melhora o metabolismo, aumenta a saciedade, auxilia na manutenção dos tecidos e dá suporte à imunidade."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Quais são os ingredientes do The One?",
+   "a": "Mais de 40 ingredientes: frutas e vegetais em pó, superfoods (espirulina, chlorella, cúrcuma, chá verde, cogumelo), água de coco, proteína de ervilha, L-glutamina, inulina, beta-glucana e coenzima Q10, além de vitaminas A, C, D2, E e do complexo B e minerais. A lista exata está no rótulo. Mais de 40 ingredientes em uma dose: um argumento forte de praticidade."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Quem tem diabetes pode consumir The One?",
+   "a": "A marca recomenda sempre consultar um médico ou nutricionista."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Como funciona o Protein?",
+   "a": "Proteína vegetal para quem busca alternativa à proteína animal: sabor, cremosidade e textura agradáveis, com perfil de aminoácidos que favorece o desenvolvimento muscular. Naturalmente sem glúten e lactose. É a escolha certa para quem evita proteína animal, glúten ou lactose."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Quantas doses tem um pote de Protein?",
+   "a": "Um pote de Protein tem 14 doses. Rendimento que atende quem consome com frequência."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Qual a diferença entre o sachê e o pote de Protein?",
+   "a": "Mesma qualidade e entrega; o sachê só é mais prático de levar. Os dois formatos atendem quem usa em casa e quem consome fora."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Quantos sachês de Protein vêm em um display?",
+   "a": "Cada display contém 10 sachês, com uma dose completa em cada. Dose pronta no sachê: praticidade para levar a qualquer lugar."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Quais são os ingredientes da Creatine e da Creapower?",
+   "a": "Creatina monohidratada. Um único ingrediente no rótulo: a transparência que quem treina procura."
+  },
+  {
+   "marca": "Plant Power",
+   "cat": "Argumento",
+   "q": "Qual a diferença entre a Creatine e a Creapower?",
+   "a": "As duas são creatina monohidratada, para desempenho e recuperação. A Creatine é a forma tradicional, pura e eficiente. A Creapower tem o selo Creapure, com controle rigoroso de qualidade e pureza: a opção premium. Ter as duas garante opção para o cliente tradicional e para o que busca o premium."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "A creatina tem registro na Anvisa?",
+   "a": "Sim. As creatinas da Plant Power estão regularizadas na Anvisa, conforme a RDC nº 843/2024, sob notificação nº 25351113431202542."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Qual a diferença entre o stick e a lata de creatina?",
+   "a": "Formato e quantidade: o stick tem uma dose de 3g, prática para levar. O display tem 30 doses e a lata de 300g rende 100 doses. Formatos diferentes atendem perfis de compra diferentes."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Quantos sticks vêm em um display de creatina?",
+   "a": "30 sticks de 3g, totalizando 30 doses. Dose pronta em cada stick, prática para levar."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Quantas doses e quantos gramas tem cada produto Plant Power?",
+   "a": "Ultracoffee: lata com 22 doses (220g), 10g por dose. Nitro 400: 30 doses de 9g. Defense: 30 doses de 9g. The One: 30 doses de 12g. Creatina: lata com 100 doses de 3g. Protein: pote com 14 doses de 35g. Fibergut: 10g por dia (2 medidores ou 2 sticks de 5g)."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Como usar cada produto Plant Power? Qual a dose?",
+   "a": "Ultracoffee: 10g em 100mL de água. Nitro 400: 1 dose em 100mL, cerca de 1 hora antes do treino. Defense: 1 dose em 100mL por dia. The One: 1 dose em 100mL por dia. Creatina: 1 dose em 200mL por dia. Protein: 35g em 200mL, 1 vez ao dia. Fibergut: 10g por dia diluído em água."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Posso tomar os produtos Plant Power todos os dias?",
+   "a": "Pode. Nitro 400, Defense, The One, Protein, Creatina e Fibergut podem ser consumidos diariamente, e o Ultracoffee também. Para orientação personalizada, vale consultar um médico ou nutricionista."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Onde guardar os produtos Plant Power?",
+   "a": "Em local seco, arejado e ao abrigo do sol. Depois de aberto, manter bem fechado. Nenhum produto precisa de geladeira. Sem geladeira, a exposição na loja fica simples."
+  },
+  {
+   "marca": "Plant Power",
+   "cat": "Argumento",
+   "q": "Por que a Plant Power é tão cara?",
+   "a": "A marca procura ter o menor custo possível para que muitos possam ter acesso aos produtos. Investe em alta tecnologia e na qualidade da matéria prima, e o preço é definido de acordo com essas características. É um produto de valor: tecnologia e matéria-prima de qualidade que o cliente percebe e reconhece."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Os produtos Plant Power têm corante ou conservante?",
+   "a": "A Plant Power não usa conservantes nas formulações. A segurança e a durabilidade são garantidas pelo processo de produção e pelas embalagens. Sem conservantes é um atributo que o cliente que lê o rótulo procura."
+  },
+  {
+   "marca": "Possible",
+   "q": "O que é Possible?",
+   "a": "Possible é uma linha de bebidas vegetais gostosas, equilibradas e fáceis de incluir na rotina. Dá para beber puro, usar no café, preparar receitas ou aproveitar de outro jeito. Tantos usos ampliam o público da gôndola."
+  },
+  {
+   "marca": "Possible",
+   "cat": "Argumento",
+   "q": "Qual o diferencial do Possible em relação às outras bebidas vegetais?",
+   "a": "Possible equilibra sabor, nutrição e praticidade, com diferentes bases vegetais, opções para vários momentos da rotina e benefícios como fibras, cálcio e vitaminas. Sabor, nutrição e praticidade juntos: motivos claros para o cliente escolher Possible."
+  },
+  {
+   "marca": "Possible",
+   "q": "Quais são os sabores do Possible?",
+   "a": "Hoje a linha tem Original, Chocolate, Aveia e Amêndoa. Novas possibilidades continuam sendo estudadas. Quatro opções que cobrem gostos e usos diferentes na gôndola."
+  },
+  {
+   "marca": "Possible",
+   "q": "Qual Possible escolher?",
+   "a": "Original: neutro e versátil para cafés, vitaminas e receitas. Chocolate: pronto para beber, com cacau. Aveia: suave, cremosa e naturalmente adocicada. Amêndoa: leve, delicada e fácil de combinar. Cada versão tem um uso claro, e o cliente encontra a sua com facilidade."
+  },
+  {
+   "marca": "Possible",
+   "q": "O que são as novas bases de Possible?",
+   "a": "Possible agora também tem as versões Aveia e Amêndoa: duas opções vegetais prontas para beber, para diferentes preferências e momentos do dia. As novas bases ampliam o público da linha na gôndola."
+  },
+  {
+   "marca": "Possible",
+   "q": "As novas bases mudam a proposta de Possible?",
+   "a": "Não. Aveia e Amêndoa ampliam as possibilidades, mantendo a proposta de bebidas vegetais gostosas, equilibradas e fáceis de incluir na rotina. A linha cresce sem perder a proposta que o cliente já conhece."
+  },
+  {
+   "marca": "Possible",
+   "q": "Qual a diferença entre Possible Aveia e Possible Amêndoa?",
+   "a": "A base e o sabor. O Aveia é mais cremoso, suave e naturalmente adocicado. O Amêndoa é mais leve, com o sabor delicado da amêndoa. Juntas, garantem opção para preferências diferentes."
+  },
+  {
+   "marca": "Possible",
+   "q": "Possible Chocolate é um achocolatado?",
+   "a": "É uma bebida vegetal sabor chocolate, pronta para beber, cremosa, com cacau e uma proposta nutricional mais equilibrada. É a escolha certa para quem quer chocolate com base vegetal, pronto para beber."
+  },
+  {
+   "marca": "Possible",
+   "cat": "Argumento",
+   "q": "Possible Chocolate é mais saudável que achocolatados tradicionais?",
+   "a": "Tem perfil nutricional diferente: é bebida vegetal, fonte de fibras, rica em cálcio e vitaminas D e B12, com até 70% menos açúcar que achocolatados tradicionais. Até 70% menos açúcar é um argumento direto para quem quer reduzir o açúcar."
+  },
+  {
+   "marca": "Possible",
+   "q": "Por que misturam castanha de caju e aveia no Possible?",
+   "a": "Para equilibrar sabor, textura e nutrição. Com Aveia e Amêndoa também dá para escolher a base preferida. Mais bases, mais preferências atendidas na mesma gôndola."
+  },
+  {
+   "marca": "Possible",
+   "q": "O Possible Aveia serve para latte art?",
+   "a": "Não foi desenvolvido especificamente para latte art; a espuma pode ser diferente das bebidas feitas para uso barista."
+  },
+  {
+   "marca": "Possible",
+   "q": "Por que não encontro mais o Possible Morango?",
+   "a": "O Possible Morango foi descontinuado na atualização do portfólio. Hoje a linha é Original, Chocolate, Aveia e Amêndoa: quatro opções para compor a gôndola."
+  },
+  {
+   "marca": "Possible",
+   "q": "Possible é vegano?",
+   "a": "Sim. Toda a linha Possible é vegana e certificada pela Sociedade Vegetariana Brasileira. É a escolha certa para o cliente vegano, com certificação que dá segurança na compra."
+  },
+  {
+   "marca": "Possible",
+   "q": "Possible tem glúten?",
+   "a": "Não. Toda a linha Possible é livre de glúten, com certificação que reforça os controles do ingrediente ao produto final. Atende quem tem restrição ao glúten, um público que procura e compra."
+  },
+  {
+   "marca": "Possible",
+   "q": "Possible tem conservantes?",
+   "a": "Não. A segurança e a durabilidade são garantidas pelo processo de produção e pela embalagem asséptica. Sem conservantes é um atributo que o cliente que lê o rótulo procura."
+  },
+  {
+   "marca": "Possible",
+   "q": "Possible Aveia e Amêndoa são saudáveis?",
+   "a": "Equilibram sabor e nutrição: fonte de fibras, ricas em cálcio e vitaminas D e B12, sem lactose e sem colesterol. Atendem também quem não consome lactose."
+  },
+  {
+   "marca": "Possible",
+   "q": "Possible Aveia e Amêndoa têm açúcar?",
+   "a": "O Amêndoa não tem açúcar adicionado como ingrediente. No Aveia, parte dos açúcares vem da hidrólise da própria aveia. Os valores exatos estão na tabela nutricional. O Amêndoa é a escolha para quem procura bebida vegetal sem açúcar adicionado como ingrediente."
+  },
+  {
+   "marca": "Possible",
+   "q": "Por que o Possible tem açúcar?",
+   "a": "No Chocolate há açúcar demerara para equilibrar o cacau, ainda com até 70% menos açúcar que achocolatados tradicionais. Nas versões com aveia, parte do amido vira açúcar no processamento, deixando a bebida naturalmente adocicada. Até 70% menos açúcar é um argumento forte para quem quer reduzir o açúcar."
+  },
+  {
+   "marca": "Possible",
+   "q": "Por que aparece açúcares adicionados no Possible se não há açúcar nos ingredientes?",
+   "a": "Nas versões com aveia, parte do amido vira açúcar na hidrólise da farinha, e pela regra de rotulagem isso pode ser contabilizado como adicionado. No Chocolate há açúcar demerara."
+  },
+  {
+   "marca": "Possible",
+   "q": "Por que o Possible tem espessante? Faz mal?",
+   "a": "Os espessantes mantêm a bebida uniforme, estável e com textura agradável. São autorizados para alimentos e usados dentro dos limites da legislação."
+  },
+  {
+   "marca": "Possible",
+   "q": "O que é goma gelana e goma guar no Possible?",
+   "a": "Dão estabilidade e textura. A goma gelana é produzida por fermentação e mantém os ingredientes distribuídos; a goma guar é de origem vegetal e deixa a textura uniforme. São ingredientes com função clara, que garantem a textura que o cliente espera."
+  },
+  {
+   "marca": "Possible",
+   "q": "Qual a função do aroma natural no Possible?",
+   "a": "Completa e equilibra o perfil de sabor da bebida, em quantidade adequada e dentro dos padrões de segurança para alimentos."
+  },
+  {
+   "marca": "Possible",
+   "q": "Possible é clean label?",
+   "a": "Clean label são fórmulas simples, com ingredientes fáceis de reconhecer. Possible trabalha com composições claras e equilibradas; vale consultar a lista de ingredientes de cada versão. Composições claras atendem quem lê o rótulo antes de comprar."
+  },
+  {
+   "marca": "Possible",
+   "q": "Por que o Possible perdeu o selo orgânico?",
+   "a": "Possible evoluiu em fórmula, textura, identidade visual e composição nutricional e deixou de atender integralmente aos critérios da certificação orgânica. A marca segue priorizando ingredientes de qualidade."
+  },
+  {
+   "marca": "Possible",
+   "q": "Como consumir o Possible?",
+   "a": "Já vem pronto para beber e fica ainda melhor gelado. Combina com café, frutas, vitaminas, bowls, sobremesas e receitas. São muitas ocasiões de consumo, o que traz o cliente de volta para recomprar."
+  },
+  {
+   "marca": "Possible",
+   "q": "Como conservar o Possible?",
+   "a": "Em local seco e arejado. Agite antes de beber. Depois de aberto, manter refrigerado entre 1 e 10 graus e consumir em até 7 dias. Fechado, basta local seco e arejado: armazenamento simples."
+  },
+  {
+   "marca": "Possible",
+   "q": "Qual a validade do Possible?",
+   "a": "12 meses, com o produto fechado e armazenado conforme a embalagem. Com 12 meses de validade, o estoque fica tranquilo de planejar."
+  },
+  {
+   "marca": "Possible",
+   "q": "Quem pode consumir Possible Aveia e Amêndoa?",
+   "a": "Adultos que buscam alternativas vegetais, inclusive quem não consome lactose, glúten ou ingredientes animais. Quem tem alergia a amêndoa ou aveia deve evitar a versão correspondente."
+  },
+  {
+   "marca": "Possible",
+   "q": "Quem tem diabetes pode tomar Possible?",
+   "a": "Essa orientação deve ser feita por um médico ou nutricionista; a tabela nutricional ajuda o profissional a avaliar."
+  },
+  {
+   "marca": "Possible",
+   "cat": "Argumento",
+   "q": "Por que o Possible é mais barato que outras bebidas vegetais?",
+   "a": "Tornar escolhas gostosas e equilibradas mais acessíveis faz parte da proposta da Possible: qualidade, sabor e um preço que faça sentido para mais pessoas. Qualidade acessível amplia o público da gôndola e facilita a decisão de compra."
+  },
+  {
+   "marca": "Possible",
+   "q": "Do que é feita a embalagem do Possible?",
+   "a": "Embalagem Tetra Pak, de papel-cartão, plástico e alumínio, que protege o produto. Tem compensação ambiental em parceria com a Pólen. Um atributo que pesa na escolha do cliente atento ao meio ambiente."
+  },
+  {
+   "marca": "Possible",
+   "cat": "Argumento",
+   "q": "Qual a diferença entre Possible e A Tal da Castanha?",
+   "a": "As duas são da Positive Company, com ingredientes de qualidade e base em plantas. A Tal da Castanha tem portfólio mais amplo de bebidas e culinários; Possible é focada em praticidade, com bebidas prontas para beber. As duas marcas se complementam e ampliam o público da gôndola."
+  },
+  {
+   "marca": "Todas",
+   "q": "A partir de que idade pode consumir os produtos?",
+   "a": "Os produtos são recomendados para adultos. Para crianças, adolescentes, gestantes e lactantes, o ideal é consultar um médico ou nutricionista."
+  },
+  {
+   "marca": "Todas",
+   "q": "Os produtos ajudam a emagrecer?",
+   "a": "A função dos produtos é nutrição, hidratação e energia. Qualquer uso com outro objetivo deve ser orientado por um profissional de saúde."
+  },
+  {
+   "marca": "Todas",
+   "q": "Posso consumir depois da validade?",
+   "a": "Não é recomendado. O ideal é sempre consumir dentro do prazo indicado na embalagem."
+  },
+  {
+   "marca": "Todas",
+   "q": "Como os produtos duram na prateleira sem conservantes?",
+   "a": "Com um processo de produção de alta tecnologia e o estudo cuidadoso da estabilidade dos ativos, que garantem o prazo de validade. Tecnologia que entrega validade sem conservantes, um atributo que o cliente procura."
+  },
+  {
+   "marca": "Jungle",
+   "q": "O que é o Jungle Carbo?",
+   "a": "Suplemento em pó que combina eletrólitos e carboidratos, para hidratação e reposição de energia em treinos mais intensos. Leva maltodextrina de tapioca e frutose, que fornecem energia ao longo do exercício. Vem em sachê de 40g ou pote de 880g, nos sabores Limão, Tangerina e Neutro. Sachê para experimentar e pote para quem treina sempre: dois formatos para perfis de compra diferentes."
+  },
+  {
+   "marca": "Jungle",
+   "q": "Quanto carboidrato tem cada Jungle?",
+   "a": "Endurance: até 37g de carboidratos por porção. Carbo: cerca de 34g por dose. Electrolytes: 2,5g por sachê de 5g. Do baixo carboidrato à energia para treino longo, a linha tem a versão certa para cada objetivo."
+  },
+  {
+   "marca": "Jungle",
+   "q": "Para quais atividades é indicado cada Jungle?",
+   "a": "Low Carb: hidratação no dia a dia, no estudo, no trabalho ou num passeio de bike. Endurance: exercícios de média e alta intensidade, como corrida, crossfit, ciclismo, duatlo, triatlo e maratona. Do escritório à maratona, a linha tem uma versão para cada rotina do cliente."
+  },
+  {
+   "marca": "Jungle",
+   "q": "O que é a entrega faseada de energia do Jungle Endurance?",
+   "a": "O organismo absorve primeiro a glicose e a frutose (carboidratos simples) e depois a maltodextrina (carboidrato complexo). Assim a energia chega ao longo de treinos mais longos ou intensos. É um diferencial técnico fácil de explicar para quem treina por muito tempo."
+  },
+  {
+   "marca": "Jungle",
+   "q": "De onde vêm os eletrólitos do Jungle?",
+   "a": "O sódio vem do sal marinho, o potássio da água de coco e o magnésio do carbonato de magnésio da fórmula. São fontes conhecidas, fáceis de explicar para quem lê o rótulo."
+  },
+  {
+   "marca": "Jungle",
+   "q": "Qual a composição de eletrólitos do Jungle Electrolytes?",
+   "a": "Por sachê de 5g, aproximadamente: 338mg de sódio, 80mg de potássio, 79mg de magnésio, 50mg de cálcio e 30mg de vitamina C. São números concretos de eletrólitos para mostrar ao cliente."
+  },
+  {
+   "marca": "Jungle",
+   "q": "Como preparar o Jungle Electrolytes e o Jungle Carbo?",
+   "a": "Electrolytes: 1 sachê de 5g em 300ml de água gelada. Carbo: 1 sachê de 40g em 350ml de água, ideal para treinos longos e de alta intensidade. Preparo simples, fácil de levar em viagem, no treino e no dia a dia."
+  },
+  {
+   "marca": "Jungle",
+   "q": "Quanto Jungle pode tomar por dia?",
+   "a": "Bebidas prontas: até 1 garrafa de 500ml por dia. Electrolytes em pó: 1 sachê por dia, diluído em água."
+  },
+  {
+   "marca": "Jungle",
+   "q": "Os sucos de fruta do Jungle são naturais?",
+   "a": "Sim. Os sucos de limão, maçã, tangerina e uva dão cor, sabor e vitaminas à bebida. Cor e sabor vindos da fruta são um argumento direto para o cliente que lê o rótulo."
+  },
+  {
+   "marca": "Jungle",
+   "q": "Jungle tem corante artificial?",
+   "a": "Não. A cor vem dos próprios ingredientes da fórmula, como os sucos de fruta e a água de coco. Sem corante artificial e com cor vinda da fruta: um atributo que o cliente que lê o rótulo procura."
+  },
+  {
+   "marca": "Jungle",
+   "q": "O Jungle Morango e Limão tem morango?",
+   "a": "Sim. Leva suco de limão, morango em pó e aromas naturais. A fruta do nome está na fórmula, o que dá segurança ao cliente."
+  },
+  {
+   "marca": "Jungle",
+   "q": "Qual a função do aroma natural no Jungle?",
+   "a": "Traz o sabor característico das frutas e complementa os ingredientes da fórmula."
+  },
+  {
+   "marca": "Jungle",
+   "q": "Como o Jungle é feito? De onde vêm os ingredientes?",
+   "a": "Com água de coco, sucos de frutas, aromas naturais, vitamina C, stevia, carbonato de magnésio e sal marinho; Carbo e Endurance levam também maltodextrina de tapioca. Os ingredientes são do Brasil, e o processo garante qualidade sem conservantes. Ingredientes brasileiros que o cliente reconhece no rótulo."
+  },
+  {
+   "marca": "Jungle",
+   "q": "Qual a validade do Jungle pronto pra beber?",
+   "a": "12 meses, sem conservantes: a validade é garantida pela tecnologia da embalagem e pelo tratamento térmico aplicado na fabricação. Com 12 meses de validade, o estoque fica tranquilo de planejar."
+  },
+  {
+   "marca": "Jungle",
+   "q": "Como guardar o Jungle? Precisa de geladeira?",
+   "a": "Fechado, guardar em local arejado, longe do sol e fora do congelador; pode ir à geladeira. Agitar a garrafa antes de beber. É feito para consumo imediato e gelado fica ainda melhor. Não exige geladeira no estoque, o que simplifica a exposição na loja."
+  },
+  {
+   "marca": "Jungle",
+   "q": "Por que o Jungle não é orgânico?",
+   "a": "Para ter o selo orgânico, um percentual mínimo dos ingredientes precisa ser certificado como orgânico. Hoje nem todos os ingredientes do Jungle têm essa certificação, por isso o produto não leva o selo."
+  },
+  {
+   "marca": "Jungle",
+   "q": "A embalagem do Jungle é reciclável?",
+   "a": "As embalagens fazem parte do sistema de compensação ambiental com o selo Eu Reciclo, que compensa 100% do material. Um atributo que pesa na escolha do cliente atento ao meio ambiente."
+  },
+  {
+   "marca": "Jungle",
+   "q": "Quem tem diabetes pode tomar Jungle?",
+   "a": "O ideal é conversar com o médico ou nutricionista para avaliar o consumo na rotina."
+  },
+  {
+   "marca": "Jungle",
+   "q": "Jungle quebra o jejum?",
+   "a": "Depende do jejum. Por ter poucas calorias, pode ser considerado quebra em protocolos mais restritos; em jejuns voltados a bem-estar, muita gente consome eletrólitos para se hidratar. O ideal é conversar com um médico ou nutricionista."
+  },
+  {
+   "marca": "Jungle",
+   "q": "Jungle ajuda na ressaca ou na tontura durante o treino?",
+   "a": "Jungle repõe eletrólitos, sais minerais que ajudam a levar água para dentro das células, contribuindo para hidratação e para o equilíbrio do corpo. Não é um tratamento: em caso de sintomas, procure um profissional de saúde."
+  },
+  {
+   "marca": "Jungle",
+   "q": "Quais são os sinais de desidratação?",
+   "a": "Sede intensa, cansaço, dor de cabeça, tontura e urina mais escura. Manter a hidratação ao longo do dia ajuda a evitar esses sintomas."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Onde os produtos Plant Power são produzidos?",
+   "a": "Na fábrica da 3 Corações, em Natal (RN)."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Os produtos Plant Power são veganos?",
+   "a": "Não levam ingredientes de origem animal na composição. O Ultracoffee é certificado vegano pela SVB. Atende quem evita ingredientes de origem animal, um público cada vez mais atento ao rótulo."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Qual a validade dos produtos Plant Power?",
+   "a": "Ultracoffee, Nitro 400, Defense, The One e Protein: 12 meses; depois de aberto, consumir em até 30 dias. Creatina: 24 meses; depois de aberta, em até 120 dias. Sticks e sachês: consumir logo após abrir. Validades longas deixam o estoque tranquilo de planejar."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Como funciona o blend de imunidade do Ultracoffee?",
+   "a": "Vitamina C, vitamina D2 e zinco. Por porção de 10g: 45mg de vitamina C (45% VD), 4,5µg de vitamina D (30% VD) e 3,3mg de zinco (30% VD). Percentuais de VD claros, que reforçam o benefício de imunidade na conversa com o cliente."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Não é perigosa a cafeína do Ultracoffee?",
+   "a": "Cada porção tem 100mg de cafeína (150mg no Double Shot), quantidade moderada. A EFSA, autoridade europeia de segurança dos alimentos, considera seguro até 400mg por dia para adultos saudáveis. A taurina da fórmula ajuda a equilibrar os efeitos da cafeína."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Quem tem diabetes pode tomar Ultracoffee?",
+   "a": "O Ultracoffee não tem açúcar adicionado e é adoçado com estévia, mas cada caso é individual: o ideal é consultar médico ou nutricionista."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Do que é feita a lata de Ultracoffee?",
+   "a": "Lata de aço, rótulo e medidor de polipropileno (PP) e tampa de polietileno de baixa densidade (PEBD). Desde 2021 as embalagens são compensadas pela logística reversa da eureciclo. Lata de aço com compensação ambiental: atributo para o cliente atento ao meio ambiente."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Como o Nitro 400 funciona? Por que suplementar nitrato?",
+   "a": "Os nitratos da beterraba viram óxido nítrico no corpo e aumentam o fluxo sanguíneo, o que melhora a entrega de oxigênio e nutrientes para o músculo. O nitrato tem se mostrado eficaz para o desempenho em exercícios de média e longa duração e também de alta intensidade. Um mecanismo simples de explicar para quem treina."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Por que o Nitro 400 tem ferro?",
+   "a": "O ferro participa da formação da hemoglobina e das células vermelhas do sangue, do transporte de oxigênio, do metabolismo energético e do sistema imune. Beterraba e ferro juntos: dois ativos que se complementam na oxigenação."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "O nitrato ou nitrito do Nitro 400 faz mal?",
+   "a": "O nitrato natural dos vegetais, usado no Nitro 400, vem acompanhado de antioxidantes e minerais que impedem a formação de nitrosaminas nocivas, por isso é seguro para o consumo diário."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Por que a fórmula do Nitro 400 mudou?",
+   "a": "Para focar no benefício central: performance cardiovascular e oxigenação, via beterraba e ferro. Micronutrientes periféricos saíram para deixar a entrega mais específica. Fórmula mais focada, com uma proposta clara para apresentar."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Qual a diferença entre o stick e a lata de Nitro 400?",
+   "a": "Só o formato: a lata é para uso contínuo, com 30 doses; o stick tem 1 dose de 9g, prática para levar. A fórmula é a mesma. O display tem 14 sticks. Os dois formatos atendem quem usa todo dia e quem quer praticidade fora de casa."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Quanta fibra tem uma dose de Fibergut?",
+   "a": "8g de fibras por porção de 10g, 32% do valor diário para adultos. 8g de fibra em uma dose é um número forte para mostrar ao cliente."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "O Fibergut causa gases ou inchaço?",
+   "a": "Não é o esperado. A fórmula usa fibras bem toleradas pelo organismo, que ajudam o intestino sem excesso de gases ou desconforto. Um argumento para o cliente que já desistiu de outras fibras por desconforto."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "O que são fibras prebióticas, solúveis e insolúveis?",
+   "a": "Prebióticas são fibras que alimentam as bactérias boas do intestino. As solúveis se dissolvem em água e alimentam a microbiota; as insolúveis dão volume e ajudam o trânsito intestinal. O Fibergut combina os dois tipos. Os dois tipos de fibra em um produto só."
+  },
+  {
+   "marca": "Plant Power",
+   "cat": "Argumento",
+   "q": "O Fibergut tem só 3 tipos de fibra?",
+   "a": "Sim, por escolha: a proposta não é reunir o maior número de fibras, e sim três tipos selecionados que atuam de forma complementar, numa quantidade adequada e prática para rotina. Fórmula enxuta, sem ingrediente só para aumentar a lista."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "O Fibergut ajuda a reduzir glicose ou colesterol?",
+   "a": "O Fibergut é fonte de fibras e auxilia o funcionamento do intestino. O consumo adequado de fibras faz parte de uma rotina equilibrada. A recomendação geral é cerca de 25g de fibras por dia para adultos; em casos específicos, consultar médico ou nutricionista."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "O que é o Defense?",
+   "a": "Suplemento alimentar feito com um mix de frutas, vegetais e ativos que fornecem nutrientes para fortalecer o sistema imunológico. Imunidade em um produto só, com frutas e vegetais na fórmula."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "O que são os superfoods do The One?",
+   "a": "Alimentos ricos em nutrientes e compostos bioativos. O The One tem espirulina, chá verde, chlorella e cúrcuma. Superfoods conhecidos do cliente reunidos em uma dose."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "O que é o Protein? Quanta proteína tem?",
+   "a": "Suplemento de proteína à base de proteína concentrada de ervilha, que tem todos os aminoácidos essenciais (em geral com menor quantidade apenas de metionina). Cada porção de 35g tem 21g de proteína (42% VD). 21g de proteína vegetal por dose: um número que quem treina compara."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Quais os sabores e ingredientes do Protein?",
+   "a": "Vanilla Cream, Strawberry Blast e Chocolate Dream. Base: proteína de ervilha, maçã em pó, sal marinho, aromatizantes, estévia e gomas xantana e guar. O Strawberry Blast leva também beterraba e morango em pó, e o Chocolate Dream, cacau em pó. Três sabores com a mesma base vegetal: opção para todo paladar."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "Posso dividir o sachê de Protein ou o stick de creatina?",
+   "a": "Não é o indicado: cada um é uma porção completa (35g de Protein, 3g de creatina). Para ajustar a dose, o ideal é o pote ou a lata."
+  },
+  {
+   "marca": "Plant Power",
+   "q": "O que é a creatina?",
+   "a": "Suplemento que proporciona ganho de força e massa muscular, aumentando a resistência e a recuperação. Em idosos ajuda a combater a perda de massa muscular e a manter a força, e também pode beneficiar a função cognitiva, como a memória de curto prazo e o raciocínio. Benefícios que vão além da academia e ampliam o público."
+  },
+  {
+   "marca": "Plant Power",
+   "cat": "Argumento",
+   "q": "Por que a creatina Plant Power não está na lista da ABENUTRI?",
+   "a": "A avaliação de 2022 e 2023 selecionou marcas pela popularidade de vendas online, e a creatina Plant Power foi lançada no fim de 2023. As duas têm alto grau de pureza: a Creapower com o selo Creapure e a Creatine com laudos de pureza de laboratórios externos. Pureza comprovada por selo e por laudo: segurança para quem compra e para quem vende."
+  },
+  {
+   "marca": "Possible",
+   "q": "Quais são os ingredientes do Possible?",
+   "a": "Original: água, castanha-de-caju, fibra de tapioca (IMO), farinha de aveia sem glúten, cálcio, sal marinho, vitaminas D2 e B12, goma gelana e aromas naturais. Chocolate: a mesma base, com açúcar demerara e cacau em pó. Aveia: água, farinha de aveia sem glúten, polidextrose, fosfato tricálcico, sal marinho, vitaminas D2 e B12, goma guar, goma gelana e aroma natural. Amêndoa: água, pasta de amêndoa, polidextrose, fosfato tricálcico, sal marinho, vitaminas D2 e B12, goma guar, goma gelana e aroma natural."
+  },
+  {
+   "marca": "Possible",
+   "q": "Quanto cálcio tem o Possible?",
+   "a": "Uma porção de 200ml fornece 300mg de cálcio, 30% do valor diário. Um copo com 30% do cálcio do dia é um argumento direto para quem troca o leite."
+  },
+  {
+   "marca": "Possible",
+   "q": "As vitaminas D e B12 do Possible são veganas?",
+   "a": "Sim. As vitaminas D2 e B12 vêm de rotas biotecnológicas, sem origem animal, o que a certificação da Sociedade Vegetariana Brasileira reforça. Nutrientes que o cliente vegano procura, com certificação que dá segurança na compra."
+  },
+  {
+   "marca": "Possible",
+   "q": "O que é o selo FODMAP do Possible?",
+   "a": "FODMAPs são carboidratos que podem causar desconforto digestivo em algumas pessoas. O selo indica que o produto foi testado e atende aos limites do programa. Para quem tem síndrome do intestino irritável ou segue dieta Low FODMAP, o consumo deve ser orientado por médico ou nutricionista."
+  },
+  {
+   "marca": "Possible",
+   "q": "Por que a Possible mudou a embalagem?",
+   "a": "O rebranding acompanha a evolução da marca: além das novas fórmulas e bases vegetais, a identidade ficou mais clara, moderna e fácil de reconhecer na prateleira. Embalagem mais fácil de achar na gôndola."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "Quais são os produtos d'A Tal da Castanha?",
+   "a": "Bebidas vegetais, linha Mini, linha funcional e linha culinária. Bebidas: Original, Caju + Coco, Barista, Amêndoa, Choconuts, Choconuts Zero, Mixed Nuts, Caju + Pará, Aveia, Aveia Barista e Completo. Tem também os Proteicos prontos para beber e, na linha culinária Cremeria, Creme de Amêndoas, Molho Alfredo e Condensado. Um portfólio amplo, que cobre bebida, café e cozinha na mesma marca."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "cat": "Argumento",
+   "q": "Por que A Tal da Castanha é cara?",
+   "a": "Os produtos são feitos com ingredientes selecionados e numa linha de produção dedicada, com estrutura específica para garantir o cuidado em cada etapa. É um produto de valor: qualidade que o cliente percebe e reconhece."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "A Tal da Castanha tem glúten, lactose ou ingrediente animal?",
+   "a": "Não. Toda a linha é sem glúten, sem lácteos e de origem vegetal. A Bebida de Aveia usa aveia sem glúten testada, com controle de contaminação cruzada. Atende quem tem restrição a glúten ou lactose, um público que procura e compra."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "A Tal da Castanha tem corante ou conservante?",
+   "a": "Não há corantes artificiais: a cor vem dos ingredientes. Também não há conservantes: as bebidas passam por tratamento UHT e envase asséptico na embalagem Tetra Pak, que não deixa entrar ar. Sem corante artificial e sem conservante: atributos que o cliente que lê o rótulo procura."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "O que é clean label n'A Tal da Castanha?",
+   "a": "Composição mais simples, com ingredientes que fazem sentido para receita, sem corantes, conservantes ou adoçantes artificiais. Composições claras atendem quem lê o rótulo antes de comprar."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "A Tal da Castanha tem açúcar adicionado?",
+   "a": "Depende do produto. O Choconuts tradicional e a pasta Choconuts têm açúcar demerara orgânico; Choconuts Zero e Proteico não têm adição de açúcares. A Bebida de Aveia não tem açúcar adicionado: os açúcares da tabela vêm da quebra do amido da própria aveia. Tem opção com e sem adição de açúcar para cada perfil de cliente."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "Qual a diferença entre o Choconuts e o Choconuts Zero?",
+   "a": "O Choconuts tradicional é adoçado com açúcar demerara orgânico (7g de açúcares em 100ml). O Zero não tem adição de açúcares e é adoçado com estévia (0,4g em 100ml, vindos dos próprios ingredientes). O Choconuts Zero fornece 40% do cálcio diário em 200ml. O clássico e o sem adição de açúcar: duas opções na mesma gôndola."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "Por que algumas bebidas d'A Tal da Castanha têm cálcio?",
+   "a": "Muita gente usa bebida vegetal no lugar do leite de vaca, e o cálcio é um nutriente importante. O cálcio usado é de origem mineral. O Original segue feito só com castanha de caju e água, sem cálcio adicionado. Com cálcio para quem substitui o leite e o Original puro para quem prefere: opção para os dois."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "Em quais ocasiões usar as bebidas d'A Tal da Castanha?",
+   "a": "No café, com cereais, em smoothies, em receitas doces e salgadas ou puras. São muitas ocasiões de consumo, o que traz o cliente de volta para recomprar."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "Pode aquecer ou congelar as bebidas d'A Tal da Castanha?",
+   "a": "Pode aquecer; depois de aquecida, a bebida deve ser consumida e não voltar à geladeira. Congelar não é recomendado: as bebidas não têm estabilizantes, e congelar altera textura e sabor."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "Qual a validade dos produtos d'A Tal da Castanha?",
+   "a": "Varia por produto. As bebidas em Tetra Pak têm 1 ano de validade fechadas; o Condensado, 6 meses. A data certa está na embalagem. Validade de 1 ano nas bebidas deixa o estoque tranquilo de planejar."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "A embalagem d'A Tal da Castanha é reciclável? Tem BPA?",
+   "a": "É feita de papel-cartão, polietileno e alumínio, que protegem nutrientes e sabor. A marca é parceira da EuReciclo e compensa 100% das embalagens. Não tem BPA: nenhuma embalagem em contato com alimento pode conter. Um atributo que pesa na escolha do cliente atento ao meio ambiente."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "Por que a bebida d'A Tal da Castanha tem pontinhos pretos ou cor diferente do branco?",
+   "a": "Os pontinhos podem ser da película natural da castanha de caju, permitida dentro dos parâmetros da matéria-prima. Variações de cor também são naturais em bebidas feitas de ingredientes vegetais."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "Por que a pasta d'A Tal da Castanha vem com óleo no topo ou parece pela metade?",
+   "a": "Por ser feita com ingredientes naturais, pode haver separação de fases: é só misturar antes de consumir. A pasta tem 120g, e o espaço na embalagem considera essa separação natural."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "As castanhas d'A Tal da Castanha passam por tratamento?",
+   "a": "Sim. O cozimento em água e o tratamento térmico UHT ajudam a reduzir compostos naturalmente presentes nas castanhas, como urushiol e fitatos. Não há etapa específica de demolho."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "Crianças e idosos podem consumir A Tal da Castanha?",
+   "a": "O consumo de crianças e idosos deve ser orientado por um profissional de saúde. O Completo não é indicado para menores de 1 ano, exceto com orientação de médico ou nutricionista."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "O que é o Completo d'A Tal da Castanha?",
+   "a": "Bebida pronta com proteína de arroz e de ervilha, castanha de caju e aveia, fortificada com vitaminas e minerais: 8g de proteína por porção e 400mg de cálcio em 200ml (40% VD). Sem açúcar na lista de ingredientes, sem glúten, soja, lactose e colesterol. É vegana e tem selo Kosher; não é orgânica. Proteína e cálcio em uma bebida vegetal pronta: argumento forte para quem quer nutrição prática."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "Quais são os ingredientes do Completo d'A Tal da Castanha?",
+   "a": "Água, proteína de arroz, castanha-de-caju, proteína de ervilha, farinha de aveia sem glúten, fosfato tricálcico (cálcio), magnésio, sal marinho, zinco, vitamina D2, vitamina B12, ácido fólico e aromas naturais."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "Como usar e conservar o Completo d'A Tal da Castanha?",
+   "a": "Já vem pronto para beber e também vai em receitas doces e salgadas, no lugar do leite de origem animal. Depois de aberto, guardar na geladeira e consumir em até 5 dias. Não congelar. Do café da manhã à receita do almoço: várias ocasiões de consumo."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "Qual a diferença entre Aveia, Aveia Barista e Barista d'A Tal da Castanha?",
+   "a": "Aveia: para o dia a dia, Low FODMAP. Aveia Barista: base de aveia, feita para preparos com café, com mais cremosidade e desempenho em latte, cappuccino e latte art. Barista (embalagem verde): castanha de caju e aveia, também para café. O Aveia Barista não leva castanha de caju. Três opções que atendem do consumo diário à cafeteria."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "Quais os ingredientes do Aveia e do Aveia Barista d'A Tal da Castanha?",
+   "a": "Aveia: água, farinha de aveia sem glúten, carbonato de cálcio e sal marinho. Aveia Barista: água, farinha de aveia sem glúten, óleo de girassol, sal marinho, reguladores de acidez e aroma natural. O óleo de girassol dá cremosidade e desempenho com café. A aveia é sem glúten, mas não é orgânica. Listas curtas, fáceis de ler no rótulo."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "Por que a embalagem da linha Aveia d'A Tal da Castanha é diferente?",
+   "a": "A maior parte das bebidas tem castanha de caju ou outras oleaginosas como base; o Aveia tem a aveia como ingrediente principal, por isso ganhou identidade própria. O Aveia de embalagem nova é a mesma bebida da embalagem antiga. O Aveia Barista tem validade de 12 meses fechado e selo EuReciclo. Identidade própria deixa a linha fácil de encontrar na gôndola."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "O que é o Molho Alfredo d'A Tal da Castanha?",
+   "a": "Molho 100% vegetal feito com amêndoa e aveia, inspirado no clássico. Cremoso, sem lácteos, glúten e colesterol, vegano certificado pela SVB, low FODMAP e clean label, com aromatizantes naturais. Não é certificado orgânico. É uma edição especial. Edição especial e 100% vegetal: novidade que chama atenção na gôndola."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "Quais os ingredientes e alergênicos do Molho Alfredo?",
+   "a": "Água, óleo de girassol, pasta de amêndoa, amido de tapioca, farinha de aveia sem glúten, sal marinho, cebola em pó, vinagre, alho em pó, pimenta-preta em pó (pouca, só para realçar o sabor), goma acácia, aromatizantes e fosfato tricálcico. Contém amêndoa e aveia e pode conter castanha de caju e castanha-do-pará. É feito em fábrica dedicada a produtos vegetais, com controle de alergênicos."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "Como usar e conservar o Molho Alfredo?",
+   "a": "É pronto: basta aquecer levemente. Combina com massas, legumes grelhados, lasanhas, risotos e panquecas. Depois de aberto, manter na geladeira (1 a 10 °C) e consumir em até 2 dias. Pronto para usar e versátil: entra em várias receitas da semana."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "O que é o Creme de Amêndoas d'A Tal da Castanha?",
+   "a": "Creme vegetal para substituir o creme de leite em receitas doces e salgadas, com sabor neutro. Ingredientes: água, óleo de girassol, pasta de amêndoa, amido de tapioca, sal marinho, goma acácia e fosfato tricálcico. Sem lácteos, glúten ou soja e clean label. Não é orgânico nem Kosher. Substitui o creme de leite sem sabor vegetal marcante: fácil de indicar para qualquer receita."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "Qual o perfil nutricional do Creme de Amêndoas?",
+   "a": "Baixo em sódio (24mg em 100g; 3,6mg na porção de 15g) e em gorduras saturadas, zero colesterol e zero gordura trans. O óleo de girassol dá cremosidade com menos gordura saturada. A porção de 15g tem 2,4mg de cálcio. Um perfil nutricional diferente do creme de leite, bom de mostrar para quem lê a tabela."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "Quem tem alergia pode usar o Creme de Amêndoas? Como conservar?",
+   "a": "Pode conter traços de castanha de caju e castanha-do-pará; quem tem alergia deve conferir a declaração de alergênicos da embalagem. Depois de aberto, manter na geladeira e consumir em até 2 dias."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "O que é o Condensado d'A Tal da Castanha?",
+   "a": "Condensado de castanha de caju que substitui o leite condensado tradicional na mesma proporção: brigadeiro, pudim, mousse, sorvete, recheio. Ingredientes: açúcar, água, óleo de coco, fibra de tapioca, castanha de caju, fécula de mandioca, carbonato de cálcio, farinha de aveia sem glúten, sal marinho, goma acácia, ácido cítrico e aroma natural. Vegano certificado pela SVB, Kosher e sem glúten; usa açúcar de cana orgânico, mas não tem certificação orgânica integral. Funciona nas receitas que o cliente já faz, com selos vegano e Kosher."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "Qual o perfil nutricional do Condensado d'A Tal da Castanha?",
+   "a": "Porção de 20g: 59 kcal, 11g de carboidratos, 1,5g de gordura total, 150mg de cálcio (15% VD) e 7,7mg de sódio (0% VD, por isso aparece como sem sódio). Sem lactose e colesterol, com menos gordura total que o leite condensado tradicional. Fonte de cálcio e sem lactose: diferenciais claros para quem compara com o tradicional."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "Como usar e conservar o Condensado?",
+   "a": "Misturar bem antes de usar, para textura ficar uniforme, e usar na mesma proporção do leite condensado tradicional. A lata tem 350g. Fechado, a validade é de 6 meses; depois de aberto, manter na geladeira e consumir em até 2 dias."
+  },
+  {
+   "marca": "A Tal da Castanha",
+   "q": "O que aconteceu com os Minis d'A Tal da Castanha?",
+   "a": "Os Minis estão temporariamente fora de produção, passando por melhorias, e voltam em 2027 com novidades. São orgânicos, por isso não levam vitamina B12, e usam açúcar demerara orgânico pensado para o paladar infantil, com 60% menos açúcares que os principais concorrentes de linhas semelhantes."
+  },
+  {
+   "marca": "Todas",
+   "q": "O que é a Positive Company?",
+   "a": "Uma plataforma de marcas com propósito, certificada B Corp. Fazem parte Jungle, A Tal da Castanha, Plant Power, Possible e Zaya. A certificação B Corp é um selo que o cliente atento à sustentabilidade reconhece."
+  }
+ ]
+}

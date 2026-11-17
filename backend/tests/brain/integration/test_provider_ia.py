@@ -17,6 +17,7 @@ from app.services.answering import Answer, AnswerContext
 from app.services.brain.effects import BrainEffects
 from app.services.brain.faq_source import FaqSource
 from app.services.brain.llm import LlmClient, LlmError, LlmRequest, LlmResult
+from app.services.brain.prompt import PROMPT_VERSION
 from app.services.brain.provider import BrainProvider
 from app.services.faq_reader import FaqReader
 from app.services.flags import Flags
@@ -138,7 +139,7 @@ async def test_ia_reescreve_texto_fundamentado_e_grava_custo(env: Env) -> None:
     assert "É tropical, 300 g." in ans.parts[-1] and ITEM not in ans.parts[-1]
     assert (fx.llm_calls, fx.tokens_in, fx.tokens_out) == (1, 1000, 500)
     assert fx.cost_usd == pytest.approx(0.002) and fx.model == "gemini-3.8-flash"
-    assert fx.prompt_version == "v1" and fx.item_refs == [f"{ref}@v1"]
+    assert fx.prompt_version == PROMPT_VERSION and fx.item_refs == [f"{ref}@v1"]
     assert 0.30 <= (fx.best_score or 0) < 0.85 and fx.timings_ms["ai"] >= 0
     assert len(env.gemini.requests) == 1
 

@@ -26,7 +26,7 @@ from app.core.clock import Clock, SystemClock
 from app.core.errors import DuplicatePhone, InvalidValue, JarvisError, ValidationFailure
 from app.core.values import BRANDS, REVOKE_REASONS
 from app.db.connection import create_pool, transaction
-from app.panel.services import faq_seed
+from app.panel.services import faq_dados, faq_seed
 from app.services import flags as flags_module
 from app.services import users
 from app.services.flags import Flags
@@ -42,7 +42,11 @@ _STATUSES = ("pending_optin", "active", "declined", "revoked")
 _FLAG_TARGETS = ("team-group", "paused", "brand")
 _ON_OFF = {"on": True, "off": False}
 _ERR_MSG_LIMIT = 200
-DEFAULT_SEED_FILE = Path(__file__).resolve().parents[2] / "piloto" / "guia.json"
+# Guia em tom de venda comercial, aprovado pelo Caio em 2026-11-17 (o original fica em guia.json,
+# base da avaliacao do cerebro).
+DEFAULT_SEED_FILE = Path(__file__).resolve().parents[2] / "piloto" / "guia_comercial.json"
+# Resumos Nielsen/GMR (fora do git: dado licenciado e interno).
+DEFAULT_DADOS_DIR = Path(__file__).resolve().parents[2] / "docs" / "designs" / "dados"
 
 
 class _Rollback(Exception):
@@ -120,6 +124,9 @@ def build_parser() -> argparse.ArgumentParser:
     seed = faq.add_parser("seed", help="carga inicial das perguntas (idempotente)")
     seed.add_argument("--file", default=str(DEFAULT_SEED_FILE))
     seed.add_argument("--by", default=None)
+    dados = faq.add_parser("dados", help="perguntas Nielsen e GMR dos resumos (idempotente)")
+    dados.add_argument("--dir", default=str(DEFAULT_DADOS_DIR))
+    dados.add_argument("--by", default=None)
     return parser
 
 
@@ -448,6 +455,38 @@ async def _cmd_faq_seed(ctx: Context, args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+async def _cmd_faq_dados(ctx: Context, args: argparse.Namespace) -> int:
+    folder = Path(args.dir)
+    try:
+        items = faq_dados.load_dir(folder)
+    except faq_dados.DadosFileError as exc:
+        _err(f"erro: {exc}")
+        return EXIT_INVALID
+    result = faq_dados.DadosResult()
+    try:
+        async with ctx.pool.acquire() as conn, transaction(conn):
+            result = await faq_dados.seed(
+                conn,
+                items,
+                actor=_actor(args.by),
+                origins=faq_dados.origins_in(folder),
+                clock=ctx.clock,
+            )
+            if not result.ok:
+                raise _Rollback
+    except _Rollback:
+        positions = ", ".join(str(n) for n in result.failed)
+        _err(f"erro: itens recusados na validacao (posicoes {positions}); nada foi gravado")
+        return EXIT_FAIL
+    _out(
+        f"faq dados: total={result.total} inseridas={result.inserted} "
+        f"ja existiam={result.skipped} atualizadas={result.updated} "
+        f"desativadas={result.deactivated} "
+        f"nielsen={result.by_origin.get('nielsen', 0)} gmr={result.by_origin.get('gmr', 0)}"
+    )
+    return EXIT_OK
+
+
 # ----------------------------------------------------------------------------- entrada
 
 _HANDLERS = {
@@ -460,6 +499,7 @@ _HANDLERS = {
     ("flag", "get"): _cmd_flag,
     ("flag", "set"): _cmd_flag,
     ("faq", "seed"): _cmd_faq_seed,
+    ("faq", "dados"): _cmd_faq_dados,
 }
 
 

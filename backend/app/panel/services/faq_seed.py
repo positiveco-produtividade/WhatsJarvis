@@ -5,7 +5,7 @@ Cada item entra por ``faq_admin.create_item`` (versao ``seed`` + auditoria do it
 (ativo ou nao) e pulado, entao rodar de novo insere 0. Nunca grava texto de pergunta ou
 resposta em log ou excecao: so contagens e posicoes.
 
-Mapeamento documentado (o guia nao traz categoria em 103 dos 112 itens):
+Mapeamento documentado (o guia nao traz categoria na maioria dos itens):
 - marca: Jungle -> jungle, Plant Power -> plant_power, Possible -> possible, Todas -> todas
   (as gerais);
 - categoria: ``cat`` do guia (hoje so ``Argumento``) -> ARGUMENTO; sem ``cat`` -> PRODUTO

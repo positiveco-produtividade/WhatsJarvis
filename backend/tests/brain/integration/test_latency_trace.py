@@ -22,6 +22,7 @@ from app.services.brain import provider as provider_module
 from app.services.brain.effects import BrainEffects
 from app.services.brain.faq_source import FaqSource
 from app.services.brain.llm import LlmClient, LlmError, LlmRequest, LlmResult
+from app.services.brain.prompt import PROMPT_VERSION
 from app.services.brain.provider import BrainProvider
 from app.services.faq_reader import FaqReader
 from app.services.flags import Flags
@@ -195,7 +196,7 @@ async def test_rastro_da_ia_preenche_todos_os_campos(env: Env, vtime: VirtualTim
     assert 0.30 <= float(row["best_score"]) < 0.85
     assert (row["llm_calls"], row["tokens_in"], row["tokens_out"]) == (1, 1000, 500)
     assert float(row["cost_usd"]) == pytest.approx(0.002)
-    assert row["fidelity"] == "ok" and row["prompt_version"] == "v1"
+    assert row["fidelity"] == "ok" and row["prompt_version"] == PROMPT_VERSION
     assert row["model"] == "gemini-3.8-flash" and row["ticket_id"] is not None
     timings = json.loads(row["timings_ms"])
     assert timings["ai"] >= GEMINI_DELAY_S * 1000 - 100 and timings["total"] >= timings["ai"]

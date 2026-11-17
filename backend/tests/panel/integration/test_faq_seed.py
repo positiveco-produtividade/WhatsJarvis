@@ -1,4 +1,4 @@
-"""Carga inicial das 112 perguntas: `faq seed` e `faq_seed` (PN-T31, PN-30)."""
+"""Carga inicial do guia inteiro (`piloto/guia.json`): `faq seed` e `faq_seed` (PN-T31, PN-30)."""
 
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ pytestmark = pytest.mark.db
 CLOCK = FakeClock(datetime(2026, 10, 26, 12, 0, tzinfo=UTC))
 GUIA = Path(__file__).resolve().parents[4] / "piloto" / "guia.json"
 ACTOR = "importacao-inicial"
+TOTAL = len(json.loads(GUIA.read_text(encoding="utf-8"))["itens"])
 
 
 async def _go(pool: asyncpg.Pool, argv: list[str]) -> int:
@@ -35,17 +36,17 @@ def _write_guia(tmp_path: Path, itens: list[dict[str, str]]) -> Path:
     return path
 
 
-async def test_carga_das_112_e_segunda_rodada_insere_zero(
+async def test_carga_do_guia_inteiro_e_segunda_rodada_insere_zero(
     db_pool: asyncpg.Pool, capsys: pytest.CaptureFixture[str]
 ) -> None:
     assert await _go(db_pool, ["faq", "seed", "--file", str(GUIA), "--by", ACTOR]) == 0
-    assert "total=112 inseridas=112" in capsys.readouterr().out
-    assert await _count(db_pool, "content.faq_items") == 112
-    assert await _count(db_pool, "content.faq_item_versions") == 112
+    assert f"total={TOTAL} inseridas={TOTAL}" in capsys.readouterr().out
+    assert await _count(db_pool, "content.faq_items") == TOTAL
+    assert await _count(db_pool, "content.faq_item_versions") == TOTAL
     assert await _go(db_pool, ["faq", "seed", "--file", str(GUIA), "--by", ACTOR]) == 0
-    assert "inseridas=0 ja existiam=112" in capsys.readouterr().out
-    assert await _count(db_pool, "content.faq_items") == 112
-    assert await _count(db_pool, "content.faq_item_versions") == 112
+    assert f"inseridas=0 ja existiam={TOTAL}" in capsys.readouterr().out
+    assert await _count(db_pool, "content.faq_items") == TOTAL
+    assert await _count(db_pool, "content.faq_item_versions") == TOTAL
 
 
 async def test_campos_da_carga(db_pool: asyncpg.Pool) -> None:
@@ -58,9 +59,9 @@ async def test_campos_da_carga(db_pool: asyncpg.Pool) -> None:
     assert all(r["active"] and r["created_by"] == ACTOR for r in rows)
     assert {r["category"] for r in rows} <= set(fv.FAQ_CATEGORIES)
     brands = {r["brand"] for r in rows}
-    assert brands == {"jungle", "plant_power", "possible", "todas"}
-    assert sum(1 for r in rows if r["brand"] == "todas") == 4
-    assert sum(1 for r in rows if r["category"] == "ARGUMENTO") == 9
+    assert brands == {"jungle", "plant_power", "possible", "a_tal_da_castanha", "todas"}
+    assert sum(1 for r in rows if r["brand"] == "todas") == 5
+    assert sum(1 for r in rows if r["category"] == "ARGUMENTO") == 12
     # a unica resposta com numero de notificacao entra sem resposta e sem bot
     sem_bot = [r for r in rows if not r["bot_responde"]]
     assert len(sem_bot) == 1 and sem_bot[0]["answer"] is None
@@ -74,10 +75,10 @@ async def test_auditoria_cli_da_carga(db_pool: asyncpg.Pool) -> None:
         "SELECT actor_type, actor, new_value FROM ops.audit_log WHERE action = 'faq.seed'"
     )
     assert row is not None and row["actor_type"] == "cli" and row["actor"] == ACTOR
-    assert json.loads(row["new_value"])["inserted"] == 112
-    assert await _count(db_pool, "ops.audit_log") == 113
+    assert json.loads(row["new_value"])["inserted"] == TOTAL
+    assert await _count(db_pool, "ops.audit_log") == TOTAL + 1
     await _go(db_pool, ["faq", "seed", "--file", str(GUIA), "--by", ACTOR])
-    assert await _count(db_pool, "ops.audit_log") == 113  # segunda rodada nao audita
+    assert await _count(db_pool, "ops.audit_log") == TOTAL + 1  # segunda rodada nao audita
 
 
 async def test_resposta_vazia_entra_sem_bot_e_desativado_nao_volta(

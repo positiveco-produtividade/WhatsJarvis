@@ -159,6 +159,20 @@ def test_ia_mode_without_key_exits_2(
     assert code == 2 and "GEMINI_API_KEY" in capsys.readouterr().err
 
 
+def test_ia_mode_on_waha_turns_brand_session_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Regressao 2026-11-16: no WAHA a enquete de marca gravava no banco falso e quebrava."""
+    monkeypatch.setenv("JARVIS_TEST_CHANNEL_PROVIDER", "waha")
+    monkeypatch.setenv("JARVIS_WAHA_API_KEY", "eval")
+    monkeypatch.setenv("JARVIS_WAHA_HMAC_KEY", "eval")
+    monkeypatch.setenv("JARVIS_WHATSAPP_NUMBER", "+5500000000001")
+    monkeypatch.setenv("GEMINI_API_KEY", "chave-ficticia")
+    monkeypatch.setenv("BRAIN_PRICE_IN_PER_MTOK_USD", "1.50")
+    monkeypatch.setenv("BRAIN_PRICE_OUT_PER_MTOK_USD", "7.50")
+    settings = ev._settings_ai()
+    assert settings.channel_provider == "waha"
+    assert settings.brand_session_minutes == 0
+
+
 def test_real_case_set_runs_in_words_mode_and_records_score(tmp_path: Path) -> None:
     summary = asyncio.run(
         ev.run_eval(

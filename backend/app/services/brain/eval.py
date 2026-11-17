@@ -391,7 +391,9 @@ def _settings_ai() -> Settings:
         missing.append("BRAIN_PRICE_OUT_PER_MTOK_USD")
     if missing:
         raise EvalConfigError("modo ia exige: " + ", ".join(missing))
-    return settings
+    # A avaliacao mede a resposta; a enquete de marca do WAHA (canal-waha.1, 9.9) e conversa
+    # do canal, coberta por test_provider_brand_session. Sem isto o banco falso nao basta.
+    return settings.model_copy(update={"brand_session_minutes": 0})
 
 
 async def _run_case(
