@@ -109,6 +109,12 @@ async def test_migration_idempotente(db_conn: asyncpg.Connection) -> None:
     user_id = await factories.create_active_user(db_conn, NOW)
     await _insert_outbound(db_conn, user_id, "brand_poll")
     await _set_brand(db_conn, user_id, "zaya", NOW)
+    # Reexecutar a 301 recria o CHECK de `kind` com a lista dela; as migrations posteriores
+    # que ampliam essa lista (ex.: 401, human_reply) sao reaplicadas para nao vazar o estado
+    # antigo para os testes seguintes da mesma sessao (retorno-humano.1, RH-T01).
+    for later in migrate.discover(MIGRATIONS_DIR):
+        if later.number > 301:
+            await db_conn.execute(later.sql)
 
 
 async def test_migrate_check_sem_pendentes(db_conn: asyncpg.Connection) -> None:
