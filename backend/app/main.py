@@ -32,7 +32,7 @@ from app.core.errors import InvalidValue
 from app.core.log_redaction import register_model_secrets
 from app.core.logging_json import reset_request_id, set_request_id, setup_logging
 from app.core.values import MessageOutcome, OutboundStatus
-from app.db import migrate
+from app.db import migrate, roles
 from app.db.connection import create_pool
 from app.services import answering, deliveries, outbox
 from app.services.brain.faq_source import FaqSource
@@ -358,6 +358,14 @@ def _lifespan(
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         setup_logging(logging.getLevelNamesMapping().get(settings.log_level.upper(), logging.INFO))
         pool = await create_pool(settings.database_url.get_secret_value())
+        if settings.production:
+            # PA-12 (D2): em producao o app nao sobe com o papel dono nem superusuario.
+            try:
+                async with pool.acquire() as conn:
+                    await roles.assert_app_role(conn)
+            except BaseException:
+                await pool.close()
+                raise
         owned_channel: OwnedChannel | None = None
         owned_http: httpx.AsyncClient | None = None
         if channel is None:

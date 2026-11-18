@@ -6,6 +6,7 @@ from typing import Any
 import asyncpg
 import pytest
 
+from tests.db_support import owner_execute
 from tests.integration.test_schema_access_chat import add_trace, add_user
 
 NOW = datetime(2026, 10, 23, 12, 0, tzinfo=UTC)
@@ -70,7 +71,7 @@ async def test_alerta_valido_e_severidade_invalida(db_conn: asyncpg.Connection) 
 
 
 async def test_sequencia_gera_j_0001(db_conn: asyncpg.Connection) -> None:
-    await db_conn.execute("SELECT setval('ops.ticket_seq', 1, false)")
+    await owner_execute("SELECT setval('ops.ticket_seq', 1, false)")
     n = await db_conn.fetchval("SELECT nextval('ops.ticket_seq')")
     assert f"J-{n:04d}" == "J-0001"
 

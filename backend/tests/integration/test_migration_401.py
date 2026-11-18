@@ -215,10 +215,12 @@ async def test_aprovada_exige_item_da_faq(db_conn: asyncpg.Connection) -> None:
     )
 
 
-async def test_migration_idempotente(db_conn: asyncpg.Connection) -> None:
+async def test_migration_idempotente(
+    db_conn: asyncpg.Connection, owner_conn: asyncpg.Connection
+) -> None:
     sql = (MIGRATIONS_DIR / "401_retorno_humano.sql").read_text(encoding="utf-8")
-    await db_conn.execute(sql)
-    await db_conn.execute(sql)
+    await owner_conn.execute(sql)
+    await owner_conn.execute(sql)
     user_id = await factories.create_active_user(db_conn, NOW)
     ticket_id = await _ticket(db_conn, user_id)
     await _outbound(db_conn, user_id, "human_reply", ticket_id=ticket_id, token=uuid.uuid4())

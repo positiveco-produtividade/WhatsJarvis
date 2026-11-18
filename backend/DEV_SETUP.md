@@ -27,11 +27,11 @@ Testes marcados `db` pulam sozinhos sem `TEST_DATABASE_URL`.
 ## Banco de desenvolvimento (passo unico, feito pelo Caio)
 1. Rode o script como superusuario `postgres` (usado so aqui, a aplicacao nunca o usa):
 
-       & "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -h localhost -d postgres -f backend\scripts\dev_db_setup.sql
+       & "C:\Users\caiofranco\pgsql\bin\psql.exe" -U postgres -h localhost -d postgres -f backend\scripts\dev_db_setup.sql
 
 2. Defina as senhas no psql, para nao ficarem em arquivo nem no historico do shell:
 
-       & "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -h localhost -d postgres
+       & "C:\Users\caiofranco\pgsql\bin\psql.exe" -U postgres -h localhost -d postgres
        \password jarvis
        \password jarvis_test
 

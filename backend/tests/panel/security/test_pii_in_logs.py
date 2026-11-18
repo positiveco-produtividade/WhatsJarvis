@@ -20,6 +20,7 @@ import asyncpg
 import pytest
 from fastapi.testclient import TestClient
 
+from app.db.connection import create_pool
 from app.panel.assistant.provider import (
     ChatTurn,
     ProviderError,
@@ -29,6 +30,7 @@ from app.panel.assistant.provider import (
 )
 from app.panel.assistant.service import AssistantService
 from app.panel.assistant.tools import AssistantTools
+from tests.db_support import assistant_dsn
 from tests.panel import factories
 from tests.panel.factories import BRAND_A, insert_user
 from tests.panel.integration.test_access import (  # noqa: F401
@@ -329,12 +331,12 @@ def _imports(c: TestClient) -> None:
     )
 
 
-def _assistant(c: TestClient) -> None:
+def _assistant(c: TestClient, tools_pool: asyncpg.Pool) -> None:
     pool = c.app.state.pool  # type: ignore[attr-defined]
     for fail in (False, True):
         c.app.state.assistant_service = AssistantService(  # type: ignore[attr-defined]
             provider=_Provider(fail),
-            tools=AssistantTools(pool),
+            tools=AssistantTools(tools_pool),
             panel_pool=pool,
             daily_limit=200,
         )
@@ -406,7 +408,12 @@ def test_nenhum_log_do_painel_tem_pii(env: Env, raw_logs: list[str]) -> None:
         cookie_values += [v for k, v in c.cookies.items() if k != "iam_session"]
         cookie_values.append(_token(c))
         _post_everything(c, env, ids)
-        _assistant(c)
+        # Ferramentas do assistente como jarvis_assistant (porta-fechada.2), no loop do app.
+        tools_pool = c.portal.call(create_pool, assistant_dsn(env.dsn), 1, 2)  # type: ignore[union-attr]
+        try:
+            _assistant(c, tools_pool)
+        finally:
+            c.portal.call(tools_pool.close)  # type: ignore[union-attr]
     _forbidden_and_iam_failures(env)
     assert raw_logs, "o teste nao capturou log algum (captura quebrada)"
     joined = "\n".join(raw_logs)

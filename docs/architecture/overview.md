@@ -76,7 +76,7 @@ contracts (API schemas, message envelopes), never via shared mutable state.
 
 Architectural Decision Records. New entries at the top.
 
-### 2026-11-18 — App sem DDL: papéis `jarvis_owner` e `jarvis_app`, permissões reaplicadas pelo runner (proposto, Fase 2 de porta-fechada.2)
+### 2026-11-18 — App sem DDL: papéis `jarvis_owner` e `jarvis_app`, permissões reaplicadas pelo runner (aceito pelo Caio em 2026-11-18, Fase 2 de porta-fechada.2)
 - **Context:** A spec de porta-fechada.1 previu dono e aplicação separados no banco, mas o app roda com o papel dono. As migrations do cérebro (202) e do retorno humano (401) deixaram GRANTs para fazer à mão no servidor.
 - **Decision:** Em produção, `jarvis_owner` é dono do banco e roda as migrations (`MIGRATION_DATABASE_URL`); o app usa `jarvis_app` (`DATABASE_URL`), só com DML, sem UPDATE/DELETE em `ops.audit_log`. A função `ops.apply_app_grants()` (migration 402) dá as permissões e o runner a reaplica ao fim de cada `migrate`. O app recusa subir em produção com papel dono ou superusuário. Os testes rodam o app como `jarvis_app`.
 - **Alternatives:** `ALTER DEFAULT PRIVILEGES` (invisível, depende de quem cria o objeto); GRANT manual a cada migration (esquecível); manter um papel só (o app poderia apagar tabelas e reescrever a auditoria).

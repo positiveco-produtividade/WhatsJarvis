@@ -114,15 +114,15 @@ async def test_dois_conclude_concorrentes_um_vence(
 
 
 async def test_falha_na_auditoria_desfaz_a_acao(
-    db_conn: asyncpg.Connection, clock: FakeClock
+    db_conn: asyncpg.Connection, owner_conn: asyncpg.Connection, clock: FakeClock
 ) -> None:
     tid = await _awaiting(db_conn, clock)
-    await db_conn.execute("ALTER TABLE ops.audit_log RENAME TO audit_log_off")
+    await owner_conn.execute("ALTER TABLE ops.audit_log RENAME TO audit_log_off")
     try:
         with pytest.raises(asyncpg.PostgresError):
             await ta.conclude(db_conn, tid, "Ana", actor="admin", clock=clock)
     finally:
-        await db_conn.execute("ALTER TABLE ops.audit_log_off RENAME TO audit_log")
+        await owner_conn.execute("ALTER TABLE ops.audit_log_off RENAME TO audit_log")
     status = await db_conn.fetchval("SELECT status FROM chat.tickets WHERE id = $1", tid)
     assert status == "awaiting"
 

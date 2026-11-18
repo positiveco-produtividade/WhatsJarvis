@@ -1,6 +1,6 @@
 ---
 task_id: PORTA-FECHADA-2
-status: draft
+status: implemented
 phase: 4-implementation
 requirements_approved_by: Caio
 requirements_approved_at: 2026-11-18
@@ -13,7 +13,7 @@ tasks_approved_at: 2026-11-18
 # Spec — Papel da aplicação sem DDL no banco (PORTA-FECHADA-2)
 
 > **Story:** [porta-fechada.2](../../../stories/porta-fechada.2.md) · **Epic:** [porta-fechada](../../../epics/porta-fechada.md)
-> **Status:** Fase 1 (Requisitos, PA-1 a PA-14; decisões D1–D4 tomadas pelo Caio em 2026-11-18) **aprovada por Caio em 2026-11-18**. Fase 2 (design: seções 7 a 9, `research.json`, `complexity.json`, ADR em `overview.md`) **aprovada por Caio em 2026-11-18**. Fase 3 (tarefas: [`../task.md`](../task.md)) **aprovada por Caio em 2026-11-18**; Fase 4 em andamento.
+> **Status:** Fase 1 (Requisitos, PA-1 a PA-14; decisões D1–D4 tomadas pelo Caio em 2026-11-18) **aprovada por Caio em 2026-11-18**. Fase 2 (design: seções 7 a 9, `research.json`, `complexity.json`, ADR em `overview.md`) **aprovada por Caio em 2026-11-18**. Fase 3 (tarefas: [`../task.md`](../task.md)) **aprovada por Caio em 2026-11-18**; Fase 4 concluída em 2026-11-18 (seção 10).
 > Critérios completos e testáveis: `requirements.json`.
 
 ## 1. Objetivo
@@ -157,4 +157,12 @@ Novo `app/db/roles.py` com `async def role_problems(conn) -> list[str]`, uma con
 - **Consulta do app que precisa de mais permissão** (`pg_advisory_*` é livre; `nextval` precisa de USAGE na sequência, já dado). Se aparecer, é exatamente o que a história quer descobrir antes do deploy.
 - **Parâmetro `role` na partida da conexão:** é um parâmetro de sessão comum do PostgreSQL, repassado pelo asyncpg; a primeira tarefa confirma no PG 18 local e o CI no PG 16. Plano B: `init` do pool com `SET ROLE` (cobre só o `db_pool`, não o `create_app`).
 - **Passo manual:** sem o `dev_db_setup.sql` atualizado, a suíte local falha com a instrução. É o combinado em D3.
+
+## 10. Divergências da Fase 4 (2026-11-18)
+
+Detalhes em `../task.md` ("Desvios do design"). Resumo:
+
+1. A troca de papel nos testes vale para a própria `TEST_DATABASE_URL` (conftest raiz), não só para o fixture: os testes ponta a ponta que leem a variável também sobem o app como `jarvis_app`. A suíte inteira (3771 testes) passa assim.
+2. Nenhuma permissão faltou ao app; a migration 402 ficou como no design. Os ajustes foram em testes que faziam o que só o dono faz (TRUNCATE, `setval`, reexecutar migration, mexer em gatilho, SET ROLE do assistente).
+3. Nos testes, as ferramentas do assistente passam a rodar como `jarvis_assistant` (antes usavam o pool do app).
 

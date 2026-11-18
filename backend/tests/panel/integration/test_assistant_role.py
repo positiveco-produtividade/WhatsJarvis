@@ -32,7 +32,8 @@ async def test_migration_registrada(db_conn: asyncpg.Connection) -> None:
     assert "105_roles_assistant" in {r["version"] for r in rows}
 
 
-async def test_visoes_existem_e_sem_pii(db_conn: asyncpg.Connection) -> None:
+async def test_visoes_existem_e_sem_pii(owner_conn: asyncpg.Connection) -> None:
+    db_conn = owner_conn  # information_schema so mostra o que o papel atual pode ver
     cols = await _columns(db_conn)
     assert set(cols) == VIEWS
     for view, names in cols.items():
@@ -43,24 +44,26 @@ async def test_visoes_existem_e_sem_pii(db_conn: asyncpg.Connection) -> None:
     assert not {r["table_name"] for r in tables} & {"unknown_first_messages", "audit_log"}
 
 
-async def test_visoes_consultaveis_pelo_dono(db_conn: asyncpg.Connection) -> None:
+async def test_visoes_consultaveis_pelo_dono(owner_conn: asyncpg.Connection) -> None:
     for view in VIEWS:
-        await db_conn.fetch(f"SELECT * FROM assistant.{view} LIMIT 1")  # nome fixo, sem entrada
+        await owner_conn.fetch(f"SELECT * FROM assistant.{view} LIMIT 1")  # nome fixo, sem entrada
 
 
-async def test_apply_grants_idempotente(db_conn: asyncpg.Connection) -> None:
-    await db_conn.execute("SELECT assistant.apply_grants()")
-    await db_conn.execute("SELECT assistant.apply_grants()")
+async def test_apply_grants_idempotente(owner_conn: asyncpg.Connection) -> None:
+    await owner_conn.execute("SELECT assistant.apply_grants()")
+    await owner_conn.execute("SELECT assistant.apply_grants()")
 
 
 @pytest.fixture
-async def as_assistant(db_conn: asyncpg.Connection) -> AsyncIterator[asyncpg.Connection]:
+async def as_assistant(
+    db_conn: asyncpg.Connection, owner_conn: asyncpg.Connection
+) -> AsyncIterator[asyncpg.Connection]:
     exists = await db_conn.fetchval(
         "SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'jarvis_assistant')"
     )
     if not exists:
         pytest.skip(SKIP_REASON)
-    await db_conn.execute("SELECT assistant.apply_grants()")
+    await owner_conn.execute("SELECT assistant.apply_grants()")
     tx = db_conn.transaction()
     await tx.start()
     try:

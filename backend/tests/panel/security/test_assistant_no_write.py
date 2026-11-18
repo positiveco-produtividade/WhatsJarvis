@@ -160,10 +160,10 @@ async def _counts(conn: asyncpg.Connection) -> dict[str, int]:
 
 @pytest.mark.db
 async def test_argumentos_hostis_nao_alteram_nenhuma_tabela(
-    db_pool: asyncpg.Pool, db_conn: asyncpg.Connection, world: factories.PanelWorld
+    assistant_pool: asyncpg.Pool, db_conn: asyncpg.Connection, world: factories.PanelWorld
 ) -> None:
     before = await _counts(db_conn)
-    tools = AssistantTools(db_pool)
+    tools = AssistantTools(assistant_pool)
     for spec in tools.specs():
         for args in ({}, {"status": HOSTILE, "brand": HOSTILE, "name": HOSTILE, "search": HOSTILE}):
             await tools.call(spec.name, args)
@@ -202,11 +202,17 @@ class _HostileProvider:
 
 @pytest.mark.db
 async def test_servico_so_grava_o_registro_da_pergunta(
-    db_pool: asyncpg.Pool, db_conn: asyncpg.Connection, world: factories.PanelWorld
+    db_pool: asyncpg.Pool,
+    assistant_pool: asyncpg.Pool,
+    db_conn: asyncpg.Connection,
+    world: factories.PanelWorld,
 ) -> None:
     provider = _HostileProvider()
     service = AssistantService(
-        provider=provider, tools=AssistantTools(db_pool), panel_pool=db_pool, daily_limit=200
+        provider=provider,
+        tools=AssistantTools(assistant_pool),
+        panel_pool=db_pool,
+        daily_limit=200,
     )
     before = await _counts(db_conn)
     asked = await db_conn.fetchval("SELECT count(*) FROM ops.assistant_questions")
@@ -228,13 +234,15 @@ def test_servico_nunca_usa_o_pool_do_assistente_para_gravar() -> None:
 
 
 @pytest.fixture
-async def as_assistant(db_conn: asyncpg.Connection) -> AsyncIterator[asyncpg.Connection]:
+async def as_assistant(
+    db_conn: asyncpg.Connection, owner_conn: asyncpg.Connection
+) -> AsyncIterator[asyncpg.Connection]:
     exists = await db_conn.fetchval(
         "SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'jarvis_assistant')"
     )
     if not exists:
         pytest.skip(ROLE_SKIP)
-    await db_conn.execute("SELECT assistant.apply_grants()")
+    await owner_conn.execute("SELECT assistant.apply_grants()")
     tx = db_conn.transaction()
     await tx.start()
     try:

@@ -217,12 +217,14 @@ async def test_set_null_em_ticket_apagado_mantem_o_run(
     assert await db_conn.fetchval("SELECT count(*) FROM chat.brain_runs") == 1
 
 
-async def test_migration_idempotente(db_conn: asyncpg.Connection, uid: int) -> None:
+async def test_migration_idempotente(
+    db_conn: asyncpg.Connection, owner_conn: asyncpg.Connection, uid: int
+) -> None:
     sql = (MIGRATIONS_DIR / "202_brain_runs_ratings.sql").read_text(encoding="utf-8")
     trace = await _trace(db_conn, uid)
     await _run(db_conn, trace)
-    await db_conn.execute(sql)
-    await db_conn.execute(sql)
+    await owner_conn.execute(sql)
+    await owner_conn.execute(sql)
     assert await db_conn.fetchval("SELECT count(*) FROM chat.brain_runs") == 1
 
 

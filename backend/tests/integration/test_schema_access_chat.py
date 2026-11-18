@@ -231,7 +231,9 @@ async def test_outbound_messages_checks_e_unique(db_conn: asyncpg.Connection) ->
     assert row["attempts"] == 0
 
 
-async def test_audit_log_recusa_update_e_delete(db_conn: asyncpg.Connection) -> None:
+async def test_audit_log_recusa_update_e_delete(owner_conn: asyncpg.Connection) -> None:
+    """Gatilho: barra ate o dono. A recusa por permissao ao app esta em test_app_role.py."""
+    db_conn = owner_conn
     await db_conn.execute(
         "INSERT INTO ops.audit_log (at, actor_type, actor, action, target_type, target_id)"
         " VALUES ($1, 'cli', 'caio', 'register', 'user', '1')",

@@ -16,6 +16,7 @@ from app.core.clock import FakeClock
 from app.panel.services import monitor
 from app.panel.services.monitor import MonitorDeps
 from app.panel.services.workers import Loop, discover_loops
+from tests.db_support import owner_execute
 from tests.panel import factories
 
 pytestmark = pytest.mark.db
@@ -118,7 +119,7 @@ async def test_volume_no_limite_ou_abaixo_do_minimo_nao_alerta(
         await _traces(db_conn, uid, 10, now - timedelta(days=day, minutes=30))
     await _traces(db_conn, uid, 30, now - timedelta(minutes=10))  # = 3x, nao acima
     assert (await _cycle(db_conn, deps))["volume_spike"] is None
-    await db_conn.execute("TRUNCATE chat.message_trace CASCADE")
+    await owner_execute("TRUNCATE chat.message_trace CASCADE")
     await _traces(db_conn, uid, 29, now - timedelta(minutes=10))  # baseline 0, abaixo do minimo
     assert (await _cycle(db_conn, deps))["volume_spike"] is None
 
@@ -152,7 +153,7 @@ async def test_error_rate_abaixo_da_taxa_ou_do_minimo_nao_alerta(
     await _traces(db_conn, uid, 17, at)
     await _traces(db_conn, uid, 3, at, decision="error")  # 15%
     assert (await _cycle(db_conn, deps))["error_rate"] is None
-    await db_conn.execute("TRUNCATE chat.message_trace CASCADE")
+    await owner_execute("TRUNCATE chat.message_trace CASCADE")
     await _traces(db_conn, uid, 19, at, decision="error")  # 100%, mas so 19 mensagens
     assert (await _cycle(db_conn, deps))["error_rate"] is None
 

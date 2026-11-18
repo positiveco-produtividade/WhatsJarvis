@@ -17,6 +17,8 @@ from datetime import datetime, timedelta
 import asyncpg
 import pytest
 
+from tests.db_support import owner_execute
+
 __all__ = [
     "BRAND_A",
     "BRAND_B",
@@ -241,7 +243,7 @@ async def faq_table_exists(conn: asyncpg.Connection) -> bool:
 async def truncate_content(conn: asyncpg.Connection) -> None:
     """Limpa `content.*` (o TRUNCATE de tests/db_support.py nao cobre este schema)."""
     if await faq_table_exists(conn):
-        await conn.execute("TRUNCATE content.faq_items RESTART IDENTITY CASCADE")
+        await owner_execute("TRUNCATE content.faq_items RESTART IDENTITY CASCADE")
 
 
 async def create_faq(conn: asyncpg.Connection, now: datetime, *, count: int = FAQ_SIZE) -> FaqSeed:

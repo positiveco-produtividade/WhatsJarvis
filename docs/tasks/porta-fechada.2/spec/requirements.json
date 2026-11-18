@@ -3,8 +3,8 @@
   "title": "Papel da aplicacao sem DDL no banco",
   "story": "docs/stories/porta-fechada.2.md",
   "epic": "docs/epics/porta-fechada.md",
-  "phase": "1-requirements",
-  "status": "draft",
+  "phase": "4-implementation",
+  "status": "implemented",
   "revision": "2026-11-18 - D1-D4 decididas pelo Caio (todas na opcao recomendada)",
   "user_story": {
     "as_a": "dono do Jarvis",

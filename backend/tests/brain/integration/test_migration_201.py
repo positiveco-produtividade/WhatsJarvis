@@ -75,10 +75,12 @@ async def test_grava_botoes(db_conn: asyncpg.Connection) -> None:
     assert json.loads(stored) == buttons
 
 
-async def test_migration_idempotente(db_conn: asyncpg.Connection) -> None:
+async def test_migration_idempotente(
+    db_conn: asyncpg.Connection, owner_conn: asyncpg.Connection
+) -> None:
     sql = (MIGRATIONS_DIR / "201_brain_outbound.sql").read_text(encoding="utf-8")
-    await db_conn.execute(sql)
-    await db_conn.execute(sql)
+    await owner_conn.execute(sql)
+    await owner_conn.execute(sql)
     user_id = await factories.create_active_user(db_conn, NOW)
     await _insert(db_conn, user_id, "brain_notice")
     # Reexecutar a 201 recria o CHECK de `kind` com a lista dela; as migrations posteriores
@@ -86,7 +88,7 @@ async def test_migration_idempotente(db_conn: asyncpg.Connection) -> None:
     # antigo para os testes seguintes da mesma sessao (canal-waha.1, WA-T03).
     for later in migrate.discover(MIGRATIONS_DIR):
         if later.number > 201:
-            await db_conn.execute(later.sql)
+            await owner_conn.execute(later.sql)
 
 
 async def test_migrate_check_sem_pendentes(db_conn: asyncpg.Connection) -> None:

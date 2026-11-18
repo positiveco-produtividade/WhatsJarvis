@@ -1,6 +1,6 @@
 # História porta-fechada.2 — Papel da aplicação sem DDL no banco
 
-> **Épico:** [porta-fechada](../epics/porta-fechada.md) · **Status:** Draft (requisitos aguardando aprovação; decisões D1–D4 tomadas por Caio em 2026-11-18) · **Owner:** Caio · **Criado:** 2026-11-18
+> **Épico:** [porta-fechada](../epics/porta-fechada.md) · **Status:** Implementada em 2026-11-18 (fases 1 a 3 aprovadas por Caio em 2026-11-18; suíte inteira com o app como `jarvis_app`, perf e eval palavras verdes; aplicar no droplet junto com o deploy) · **Owner:** Caio · **Criado:** 2026-11-18
 
 Fonte de verdade: `docs/tasks/porta-fechada.2/spec/spec.md` e `requirements.json`.
 Em caso de divergência, vale o spec.

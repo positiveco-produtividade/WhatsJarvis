@@ -8,6 +8,7 @@ import pytest
 from app.core.clock import FakeClock
 from app.services.flags import Flags
 from app.services.tickets import create_media_ticket, format_ticket_number, media_label
+from tests.db_support import owner_execute
 from tests.integration.test_schema_access_chat import add_trace, add_user
 
 pytestmark = pytest.mark.db
@@ -16,7 +17,7 @@ NOW = datetime(2026, 10, 23, 12, 0, tzinfo=UTC)
 
 
 async def _setup(conn: asyncpg.Connection) -> tuple[int, int]:
-    await conn.execute("SELECT setval('ops.ticket_seq', 1, false)")
+    await owner_execute("SELECT setval('ops.ticket_seq', 1, false)")
     user_id = await add_user(
         conn, status="active", accepted_at=NOW, accepted_notice_version="v1"
     )
@@ -85,7 +86,7 @@ async def test_sem_alerta_e_sem_email(db_pool: asyncpg.Pool) -> None:
 async def test_numero_acima_de_9999_nao_trunca(db_pool: asyncpg.Pool) -> None:
     async with db_pool.acquire() as conn:
         user_id, trace_id = await _setup(conn)
-        await conn.execute("SELECT setval('ops.ticket_seq', 10000, false)")
+        await owner_execute("SELECT setval('ops.ticket_seq', 10000, false)")
         result = await create_media_ticket(
             conn, user_id, trace_id, "audio", flags=Flags(db_pool, FakeClock(NOW))
         )

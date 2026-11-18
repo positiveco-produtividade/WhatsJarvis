@@ -102,10 +102,12 @@ async def test_um_unico_check_de_kind(db_conn: asyncpg.Connection) -> None:
     assert [r["conname"] for r in names] == ["outbound_messages_kind_check"]
 
 
-async def test_migration_idempotente(db_conn: asyncpg.Connection) -> None:
+async def test_migration_idempotente(
+    db_conn: asyncpg.Connection, owner_conn: asyncpg.Connection
+) -> None:
     sql = (MIGRATIONS_DIR / "301_brand_session.sql").read_text(encoding="utf-8")
-    await db_conn.execute(sql)
-    await db_conn.execute(sql)
+    await owner_conn.execute(sql)
+    await owner_conn.execute(sql)
     user_id = await factories.create_active_user(db_conn, NOW)
     await _insert_outbound(db_conn, user_id, "brand_poll")
     await _set_brand(db_conn, user_id, "zaya", NOW)
@@ -114,7 +116,7 @@ async def test_migration_idempotente(db_conn: asyncpg.Connection) -> None:
     # antigo para os testes seguintes da mesma sessao (retorno-humano.1, RH-T01).
     for later in migrate.discover(MIGRATIONS_DIR):
         if later.number > 301:
-            await db_conn.execute(later.sql)
+            await owner_conn.execute(later.sql)
 
 
 async def test_migrate_check_sem_pendentes(db_conn: asyncpg.Connection) -> None:

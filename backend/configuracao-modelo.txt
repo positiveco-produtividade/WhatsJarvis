@@ -2,8 +2,14 @@
 # Nunca versione o .env. Este arquivo traz so as chaves, sem valores.
 
 # --- Banco (papel da aplicacao; nunca o superusuario postgres) ---
+# No PC: papel jarvis (dono). Em producao: papel jarvis_app, que so le e grava dados; o app
+# recusa subir em producao com o papel dono ou superusuario (porta-fechada.2).
 # Exemplo de forma: postgresql://jarvis:<senha>@localhost:5432/jarvis
 DATABASE_URL=
+# So para `python -m app.db.migrate` em producao: papel jarvis_owner (dono do banco). Vazia,
+# o runner usa DATABASE_URL (PC e CI). O app nunca le esta variavel.
+# Exemplo de forma: postgresql://jarvis_owner:<senha>@localhost:5432/jarvis
+MIGRATION_DATABASE_URL=
 # Usada so pelos testes: banco jarvis_test, papel jarvis_test, nunca o postgres.
 # Exemplo de forma: postgresql://jarvis_test:<senha>@localhost:5432/jarvis_test
 TEST_DATABASE_URL=

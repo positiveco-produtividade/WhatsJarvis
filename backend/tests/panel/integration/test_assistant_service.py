@@ -82,8 +82,8 @@ class ScriptedProvider:
 
 
 @pytest.fixture
-async def tools(db_pool: asyncpg.Pool) -> AssistantTools:
-    return AssistantTools(db_pool)
+async def tools(assistant_pool: asyncpg.Pool) -> AssistantTools:
+    return AssistantTools(assistant_pool)
 
 
 def _service(
@@ -92,10 +92,11 @@ def _service(
     clock: FakeClock,
     *,
     limit: int = 200,
+    tools_pool: asyncpg.Pool | None = None,
 ) -> AssistantService:
     return AssistantService(
         provider=provider,
-        tools=AssistantTools(pool),
+        tools=AssistantTools(tools_pool or pool),
         panel_pool=pool,
         daily_limit=limit,
         clock=clock,
@@ -209,13 +210,15 @@ async def test_pool_proprio_sessao_somente_leitura(migrated_database: str) -> No
 
 
 @pytest.fixture
-async def as_assistant(db_conn: asyncpg.Connection) -> AsyncIterator[asyncpg.Connection]:
+async def as_assistant(
+    db_conn: asyncpg.Connection, owner_conn: asyncpg.Connection
+) -> AsyncIterator[asyncpg.Connection]:
     exists = await db_conn.fetchval(
         "SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'jarvis_assistant')"
     )
     if not exists:
         pytest.skip(ROLE_SKIP)
-    await db_conn.execute("SELECT assistant.apply_grants()")
+    await owner_conn.execute("SELECT assistant.apply_grants()")
     tx = db_conn.transaction()
     await tx.start()
     try:
@@ -238,14 +241,17 @@ async def test_papel_real_executa_todas_as_ferramentas(as_assistant: asyncpg.Con
 
 
 async def test_resposta_registrada_com_ferramentas(
-    db_pool: asyncpg.Pool, world: factories.PanelWorld, clock: FakeClock
+    db_pool: asyncpg.Pool,
+    assistant_pool: asyncpg.Pool,
+    world: factories.PanelWorld,
+    clock: FakeClock,
 ) -> None:
     # ticket_stats filtra pelo now() do banco (janela de 7 dias), nao pelo relogio falso:
     # traz os tickets semeados em data fixa para perto de hoje, senao o teste vence com o tempo.
     async with db_pool.acquire() as conn:
         await conn.execute("UPDATE chat.tickets SET created_at = now() - interval '1 hour'")
     provider = ScriptedProvider([("ticket_stats", {}), ("list_tickets", {"limit": 3})])
-    answer = await _service(db_pool, provider, clock).ask(
+    answer = await _service(db_pool, provider, clock, tools_pool=assistant_pool).ask(
         asked_by=ADMIN, question="Quantos tickets abertos?"
     )
     assert answer.text == "Resposta pronta." and answer.agent.name == "Jarvis"
@@ -259,11 +265,11 @@ async def test_resposta_registrada_com_ferramentas(
 
 
 async def test_agente_da_marca_e_historico_limitado(
-    db_pool: asyncpg.Pool, clock: FakeClock
+    db_pool: asyncpg.Pool, assistant_pool: asyncpg.Pool, clock: FakeClock
 ) -> None:
     provider = ScriptedProvider()
     history = [ChatTurn("user" if i % 2 == 0 else "assistant", f"t{i}") for i in range(100)]
-    answer = await _service(db_pool, provider, clock).ask(
+    answer = await _service(db_pool, provider, clock, tools_pool=assistant_pool).ask(
         asked_by=ADMIN, question="Como esta a Jungle?", history=history
     )
     assert answer.agent.brand == "jungle"
@@ -301,11 +307,14 @@ async def test_limite_diario(db_pool: asyncpg.Pool, clock: FakeClock) -> None:
 
 
 async def test_erro_do_modelo_vira_linha_de_erro(
-    db_pool: asyncpg.Pool, clock: FakeClock, caplog: pytest.LogCaptureFixture
+    db_pool: asyncpg.Pool,
+    assistant_pool: asyncpg.Pool,
+    clock: FakeClock,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     provider = ScriptedProvider([("people_stats", {})], fail=True)
     with pytest.raises(AssistantFailedError):
-        await _service(db_pool, provider, clock).ask(
+        await _service(db_pool, provider, clock, tools_pool=assistant_pool).ask(
             asked_by=ADMIN, question="pergunta secreta 123"
         )
     async with db_pool.acquire() as conn:
@@ -337,13 +346,16 @@ def _gemini_handler(seen: list[dict[str, Any]]) -> Any:
 
 
 async def test_gemini_mock_ponta_a_ponta(
-    db_pool: asyncpg.Pool, world: factories.PanelWorld, clock: FakeClock
+    db_pool: asyncpg.Pool,
+    assistant_pool: asyncpg.Pool,
+    world: factories.PanelWorld,
+    clock: FakeClock,
 ) -> None:
     seen: list[dict[str, Any]] = []
     provider = GeminiProvider(
         api_key="chave-falsa", transport=httpx.MockTransport(_gemini_handler(seen))
     )
-    answer = await _service(db_pool, provider, clock).ask(
+    answer = await _service(db_pool, provider, clock, tools_pool=assistant_pool).ask(
         asked_by=ADMIN, question="Quantas pessoas?"
     )
     assert answer.text == "Tres pessoas." and answer.tools_used == ("people_stats",)

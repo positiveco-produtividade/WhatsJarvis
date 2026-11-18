@@ -45,9 +45,14 @@ No `farol`, a maior parte já existe: conferir com `python3.12 --version`, `psql
 sudo -u postgres psql
 ```
 ```sql
-CREATE ROLE jarvis LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE;
-\password jarvis
-CREATE DATABASE jarvis OWNER jarvis;
+-- Dono: cria e altera tabelas; so o runner de migrations usa (MIGRATION_DATABASE_URL).
+CREATE ROLE jarvis_owner LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE;
+\password jarvis_owner
+-- App: so le e grava dados (DATABASE_URL). As permissoes vem da migration 402 e o runner as
+-- reaplica a cada `migrate`; nenhum GRANT manual.
+CREATE ROLE jarvis_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE;
+\password jarvis_app
+CREATE DATABASE jarvis OWNER jarvis_owner;
 REVOKE ALL ON DATABASE jarvis FROM PUBLIC;
 -- Só se for ligar o assistente do painel (GEMINI_API_KEY):
 CREATE ROLE jarvis_assistant LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE;
@@ -55,9 +60,9 @@ CREATE ROLE jarvis_assistant LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE;
 \q
 ```
 
-A senha fica só no `.env` do servidor. A separação dono/aplicação (`jarvis_owner` + `jarvis_app`
-sem DDL) prevista na spec 4.10 ainda não está implementada: hoje o app roda com o papel dono,
-como no PC.
+As senhas ficam só no `.env` do servidor. O app roda como `jarvis_app` (sem DDL, sem alterar
+a auditoria) e **recusa subir em produção** com o papel dono ou um superusuário
+(porta-fechada.2). No PC o app continua com o papel dono (`jarvis`).
 
 ## 3. Enviar o código (a partir do PC, na raiz do repositório, pelo Git Bash)
 
@@ -97,7 +102,8 @@ Depois, no servidor, ajustar (`nano /opt/jarvis/backend/.env`):
 | Variável | Valor no servidor |
 |---|---|
 | `PRODUCTION` | `true` |
-| `DATABASE_URL` | `postgresql://jarvis:<senha do passo 2>@localhost:5432/jarvis` |
+| `DATABASE_URL` | `postgresql://jarvis_app:<senha do jarvis_app, passo 2>@localhost:5432/jarvis` |
+| `MIGRATION_DATABASE_URL` | `postgresql://jarvis_owner:<senha do jarvis_owner, passo 2>@localhost:5432/jarvis` (só o runner usa) |
 | `TEST_DATABASE_URL` | apagar a linha (nunca rodar testes no servidor) |
 | `DEV_AUTH_EMAIL` | apagar a linha (em produção a subida é recusada se estiver preenchida) |
 | `PANEL_PUBLIC_HOST` | `JARVIS_HOST` |
@@ -117,12 +123,11 @@ O resto (Gemini, Resend, IAM, textos, limites) pode ficar como no PC.
 ```bash
 ssh SERVIDOR
 cd /opt/jarvis/backend
-export DATABASE_URL="$(grep -E '^DATABASE_URL=' .env | cut -d= -f2-)"
+export MIGRATION_DATABASE_URL="$(grep -E '^MIGRATION_DATABASE_URL=' .env | cut -d= -f2-)"
 ../venv/bin/python -m app.db.migrate --status   # lista pendentes
-../venv/bin/python -m app.db.migrate            # aplica
-# Só com o assistente: dar a leitura ao jarvis_assistant (idempotente)
-psql "$DATABASE_URL" -c "SELECT assistant.apply_grants();"
-unset DATABASE_URL
+../venv/bin/python -m app.db.migrate            # aplica e reaplica as permissoes do jarvis_app
+                                                # e do jarvis_assistant (se o papel existir)
+unset MIGRATION_DATABASE_URL
 
 pm2 start /opt/jarvis/deploy/ecosystem.config.js
 pm2 save
@@ -216,7 +221,8 @@ No `farol`, conferir antes como o certificado do site do AUTO-1 é emitido e seg
 
 ```bash
 # 1. no PC: enviar o código (passo 3)
-# 2. se houver migration nova em backend/migrations/: aplicar (passo 6, só a parte do migrate)
+# 2. se houver migration nova em backend/migrations/: aplicar (passo 6, só a parte do migrate,
+#    sempre com MIGRATION_DATABASE_URL; as permissoes do app sao reaplicadas sozinhas)
 # 3. reiniciar e conferir
 ssh SERVIDOR 'pm2 restart jarvis --update-env && sleep 3 && \
   curl -s -o /dev/null -w "health: HTTP %{http_code}\n" http://127.0.0.1:8010/health && \
@@ -230,8 +236,10 @@ Se mudou `requirements.txt`, rodar o passo 4 antes de reiniciar.
 
 1. No servidor novo: passos 1, 2, 3, 4, 5 (o `.env` pode vir do servidor antigo por `scp` entre os dois, ajustando a senha do banco).
 2. Parar o Jarvis antigo para o banco não mudar durante a cópia: `ssh ANTIGO 'pm2 stop jarvis'`.
-3. Banco: `ssh ANTIGO 'pg_dump -Fc -U jarvis -h localhost jarvis' > jarvis.dump`
-   e `ssh NOVO 'pg_restore -U jarvis -h localhost -d jarvis --no-owner' < jarvis.dump`. Depois `migrate --status` no novo deve dizer que não falta nada.
+3. Banco: `ssh ANTIGO 'pg_dump -Fc -U jarvis_owner -h localhost jarvis' > jarvis.dump`
+   e `ssh NOVO 'pg_restore -U jarvis_owner -h localhost -d jarvis --no-owner --no-acl' < jarvis.dump`
+   (restaura como dono). Depois rodar `migrate` no novo (passo 6): não deve faltar migration, e ele
+   reaplica as permissões do `jarvis_app`, que o `--no-acl` não trouxe.
 4. WAHA: parar o container antigo (`docker stop jarvis-waha`), copiar a pasta
    `/opt/jarvis/waha-sessions` para o novo e subir o container (passo 7). Se a sessão não
    voltar `WORKING`, ler o QR code de novo (passo 8). **Nunca deixar os dois WAHA ligados com o mesmo número.**

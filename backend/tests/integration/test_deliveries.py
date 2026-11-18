@@ -16,6 +16,7 @@ from app.services.alerts import raise_alert
 from app.services.deliveries import build_email, dispatch
 from app.services.flags import Flags
 from app.services.tickets import create_media_ticket
+from tests.db_support import owner_execute
 from tests.integration.test_schema_access_chat import add_trace, add_user
 
 pytestmark = pytest.mark.db
@@ -237,7 +238,7 @@ async def test_ticket_vai_so_ao_grupo_nunca_email(db_pool: asyncpg.Pool) -> None
     cfg, flags, clock = make_settings(), Flags(db_pool, FakeClock(NOW)), FakeClock(NOW)
     await _group_flag(db_pool, flags, True)
     async with db_pool.acquire() as conn:
-        await conn.execute("SELECT setval('ops.ticket_seq', 11, false)")
+        await owner_execute("SELECT setval('ops.ticket_seq', 11, false)")
         user_id = await add_user(
             conn, status="active", accepted_at=NOW, accepted_notice_version="v1"
         )

@@ -31,6 +31,14 @@ def _load_test_url_from_env_file() -> None:
 
 _load_test_url_from_env_file()
 
+# porta-fechada.2 (PA-13, D3): quem le TEST_DATABASE_URL (Settings dos testes, create_app,
+# CLI) conecta como jarvis_app, o papel do app em producao. O dono so vem pelo fixture
+# `database_url` e por `owner_conn`/`owner_execute` (tests/db_support.py), que tiram o papel.
+if os.environ.get(_KEY):
+    from tests.db_support import app_role_dsn  # noqa: E402
+
+    os.environ[_KEY] = app_role_dsn(os.environ[_KEY])
+
 # A suite nunca le o backend/.env de quem roda (CANAL-WAHA-1, T01): antes, campos do .env
 # (chaves da Meta, PRODUCTION, DEV_AUTH_EMAIL) mudavam o resultado e quebravam o CI.
 # So TEST_DATABASE_URL vem do .env (acima). Valores abaixo sao ficticios e so preenchem o
