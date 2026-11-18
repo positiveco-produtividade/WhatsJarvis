@@ -168,8 +168,9 @@ async def test_ligada_aviso_de_midia_vai_ao_grupo_sem_telefone(
     body = waha_spy.bodies()[0]
     assert isinstance(body, dict)
     text = str(body["text"])
-    assert "aguardando a equipe" in text and "[áudio]".strip("[]") in text
-    assert PHONE not in text and NAME not in text
+    # retorno-humano.1 (RH-2, D4): o aviso mostra o primeiro nome e a UF, nunca o telefone.
+    assert "Mensagem:\n[áudio]\n" in text and f"Vendedor: {NAME} (" in text
+    assert PHONE not in text and "987654321" not in text
 
 
 async def test_ligada_falha_do_waha_nao_levanta_e_fica_para_retentar(

@@ -13,6 +13,7 @@ from app.config import Settings
 from app.core.clock import FakeClock
 from app.core.values import OutboundKind
 from app.services import outbox
+from app.services import workers as workers_mod
 from app.services.alerts import raise_alert
 from app.services.counters import SecurityCounters
 from app.services.flags import Flags
@@ -264,3 +265,94 @@ async def test_falha_no_flush_nao_impede_o_resto_do_ciclo(db_pool: asyncpg.Pool)
     result = await env.workers().run_cycle()
     assert result.outbound == 1 and result.flushed == 0
     assert await _status(db_pool, "chat.outbound_messages", due) == "sent"
+
+
+# --- Ordem das partes (canal-waha.1 WA-17; retorno-humano.1 RH-9) ----------------------------
+
+
+async def _part(
+    pool: asyncpg.Pool,
+    user_id: int,
+    kind: OutboundKind,
+    *,
+    trace_id: int | None = None,
+    ticket_id: int | None = None,
+) -> int:
+    async with pool.acquire() as conn:
+        return await outbox.enqueue(
+            conn,
+            _Target(user_id),
+            kind,
+            body="parte",
+            inbound_trace_id=trace_id,
+            ticket_id=ticket_id,
+            clock=FakeClock(NOW),
+        )
+
+
+async def _ticket(pool: asyncpg.Pool, user_id: int, number: str) -> int:
+    ticket_id: int = await pool.fetchval(
+        "INSERT INTO chat.tickets (ticket_number, user_id, kind, status, created_at, updated_at) "
+        "VALUES ($1, $2, 'question', 'awaiting', $3, $3) RETURNING id",
+        number,
+        user_id,
+        NOW,
+    )
+    return ticket_id
+
+
+async def _trace(pool: asyncpg.Pool, user_id: int, wamid: str) -> int:
+    trace_id: int = await pool.fetchval(
+        "INSERT INTO chat.message_trace (wa_message_id, msg_type, received_at, user_id, "
+        "access_decision, decision) VALUES ($1, 'text', $2, $3, 'allowed', 'answered') "
+        "RETURNING id",
+        wamid,
+        NOW,
+        user_id,
+    )
+    return trace_id
+
+
+async def _due(pool: asyncpg.Pool) -> list[int]:
+    rows = await pool.fetch(workers_mod._DUE_OUTBOUND, NOW, 50)  # noqa: SLF001
+    return [r["id"] for r in rows]
+
+
+async def _mark_sent(pool: asyncpg.Pool, out_id: int) -> None:
+    await pool.execute("UPDATE chat.outbound_messages SET status = 'sent' WHERE id = $1", out_id)
+
+
+async def test_partes_da_resposta_humana_saem_em_ordem_por_ticket(db_pool: asyncpg.Pool) -> None:
+    """RH-9: a parte 2 da resposta da equipe so sai depois da 1; outro ticket nao espera."""
+    user_id = await _active_user(db_pool)
+    ticket_a = await _ticket(db_pool, user_id, "J-0501")
+    ticket_b = await _ticket(db_pool, user_id, "J-0502")
+    a1 = await _part(db_pool, user_id, OutboundKind.HUMAN_REPLY, ticket_id=ticket_a)
+    a2 = await _part(db_pool, user_id, OutboundKind.HUMAN_REPLY, ticket_id=ticket_a)
+    b1 = await _part(db_pool, user_id, OutboundKind.HUMAN_REPLY, ticket_id=ticket_b)
+    assert await _due(db_pool) == [a1, b1]
+    await db_pool.execute("UPDATE chat.outbound_messages SET status = 'sending' WHERE id = $1", a1)
+    assert await _due(db_pool) == [b1]
+    await _mark_sent(db_pool, a1)
+    assert await _due(db_pool) == [a2, b1]
+
+
+async def test_ordem_por_mensagem_recebida_continua_igual(db_pool: asyncpg.Pool) -> None:
+    """Regressao (WA-17): partes do cerebro seguem presas a mensagem recebida, sem ticket."""
+    user_id = await _active_user(db_pool)
+    trace_id = await _trace(db_pool, user_id, "wamid.ordem")
+    p1 = await _part(db_pool, user_id, OutboundKind.BRAIN_ANSWER, trace_id=trace_id)
+    p2 = await _part(db_pool, user_id, OutboundKind.BRAIN_ANSWER, trace_id=trace_id)
+    solta = await _part(db_pool, user_id, OutboundKind.MEDIA_ACK)
+    assert await _due(db_pool) == [p1, solta]
+    await _mark_sent(db_pool, p1)
+    assert await _due(db_pool) == [p2, solta]
+
+
+async def test_saidas_sem_rastro_nem_ticket_nao_esperam_umas_pelas_outras(
+    db_pool: asyncpg.Pool,
+) -> None:
+    user_id = await _active_user(db_pool)
+    first = await _part(db_pool, user_id, OutboundKind.MEDIA_ACK)
+    second = await _part(db_pool, user_id, OutboundKind.RATE_LIMIT_NOTICE)
+    assert await _due(db_pool) == [first, second]

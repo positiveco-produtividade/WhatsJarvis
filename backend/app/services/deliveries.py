@@ -2,11 +2,19 @@
 
 `dispatch(pool, delivery_id)` faz o claim atomico (pending -> sending), envia pelo canal
 e grava `sent`, `pending` (com backoff), `failed`, `skipped` ou `panel_only`. Falha nunca
-propaga ao chamador (webhook). E-mail e grupo nunca carregam telefone, nome nem texto de
-mensagem; logs trazem so ids e codigos curtos.
+propaga ao chamador (webhook). E-mail e aviso de alerta nunca carregam telefone, nome nem
+texto de mensagem. O aviso de ticket escalado no grupo (retorno-humano.1, RH-2, D4) leva o
+primeiro nome e a UF do vendedor, a pergunta e o link para o Inbox, nunca o telefone. Logs
+trazem so ids e codigos curtos.
+
+Envio ao grupo: um por vez, com `TEAM_GROUP_MIN_INTERVAL_SECONDS` entre dois envios no mesmo
+processo (RH-3). Ticket nao escalado (respondido pelo Jarvis) nao vai ao grupo: `skipped`.
 """
 
+import asyncio
 import logging
+import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
@@ -16,6 +24,7 @@ import httpx
 
 from app.config import Settings, get_settings
 from app.core.clock import Clock, SystemClock
+from app.core.values import BRAND_NAMES
 from app.services.flags import Flags
 from app.services.notifications import DeliveryResult, DeliveryStatus, send_email
 from app.services.waha import send_group_text
@@ -37,7 +46,39 @@ _FINISH = (
 )
 _ALERT = "SELECT severity, kind, message, user_id, created_at FROM ops.alerts WHERE id = $1"
 _ALERT_COUNT = "SELECT count(*) FROM ops.alerts WHERE kind = $1 AND created_at > $2"
-_TICKET = "SELECT ticket_number, user_id, message FROM chat.tickets WHERE id = $1"
+_TICKET = (
+    "SELECT t.ticket_number, t.kind, t.brand, t.message, t.escalated, t.escalation_reason, "
+    "u.name, u.ufs FROM chat.tickets t JOIN access.users u ON u.id = t.user_id WHERE t.id = $1"
+)
+INBOX_TICKET_PATH = "/dashboard/inbox/ticket/"
+GROUP_MESSAGE_MAX_CHARS = 1000
+NOT_ESCALATED = "not_escalated"
+
+# Motivo de escalada -> texto do aviso (RH-2). Desconhecido ou ausente: "escalado".
+REASON_LABELS: dict[str, str] = {
+    "no_match": "sem resposta na FAQ",
+    "not_answerable": "sem resposta na FAQ",
+    "no_price_in_source": "preço fora da base",
+    "paused": "Jarvis pausado",
+    "brand_disabled": "marca desligada",
+    "rating_down": "vendedor marcou 👎 na resposta",
+    "brand_access_request": "pedido de acesso à marca",
+    "commercial_condition": "condição comercial",
+    "calc_not_supported": "cálculo que o Jarvis não faz",
+    "out_of_scope": "fora do escopo",
+    "injection": "mensagem suspeita",
+}
+MEDIA_REASON = "mídia (o Jarvis não lê áudio nem imagem)"
+DEFAULT_REASON = "escalado"
+_ANON_PREFIX = "anon:"
+
+# Intervalo entre avisos no grupo (RH-3): trava e relogio monotonico do processo. `_sleep` e
+# `_monotonic` sao trocados nos testes.
+_group_lock: asyncio.Lock | None = None
+_group_lock_loop: asyncio.AbstractEventLoop | None = None
+_last_group_send: float | None = None
+_sleep: Callable[[float], Awaitable[None]] = asyncio.sleep
+_monotonic: Callable[[], float] = time.monotonic
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,10 +129,59 @@ def build_alert_group_text(*, severity: str, kind: str, user_id: int | None) -> 
     return f"Alerta {severity}: {kind}{who}. Veja o painel."
 
 
-def build_ticket_group_text(*, ticket_number: str, user_id: int, message: str) -> str:
-    """Ex.: 'Midia de usuario #12 (audio) aguardando a equipe - ticket J-0012'."""
-    label = message.strip().strip("[]") or "mídia"
-    return f"Mídia de usuário #{user_id} ({label}) aguardando a equipe — ticket {ticket_number}"
+class _KeepUnknown(dict[str, str]):
+    """`format_map` que deixa `{campo}` desconhecido como esta (modelo vindo da configuracao)."""
+
+    def __missing__(self, key: str) -> str:
+        return "{" + key + "}"
+
+
+def seller_label(name: str | None, ufs: list[str] | None) -> str:
+    """Primeiro nome e UF(s) do vendedor; nunca telefone. Anonimizado (LGPD) = 'Vendedor'."""
+    raw = (name or "").strip()
+    first = "" if raw.startswith(_ANON_PREFIX) else (raw.split()[0] if raw else "")
+    who = first or "Vendedor"
+    places = "/".join(u for u in (ufs or []) if u)
+    return f"{who} ({places})" if places else who
+
+
+def _message_label(kind: str, message: str | None) -> str:
+    text = (message or "").strip()
+    if kind == "media":
+        return text or "[mídia]"
+    if not text:
+        return "(mensagem removida)"
+    if len(text) > GROUP_MESSAGE_MAX_CHARS:
+        text = text[: GROUP_MESSAGE_MAX_CHARS - 1].rstrip() + "…"
+    return f"“{text}”"
+
+
+def build_ticket_group_text(
+    *,
+    template: str,
+    ticket_number: str,
+    kind: str,
+    brand: str | None,
+    escalation_reason: str | None,
+    message: str | None,
+    seller_name: str | None,
+    seller_ufs: list[str] | None,
+    link_base: str,
+) -> str:
+    """Aviso de ticket escalado no grupo (RH-2), montado com o modelo da configuracao."""
+    if kind == "media":
+        reason = MEDIA_REASON
+    else:
+        reason = REASON_LABELS.get(escalation_reason or "", DEFAULT_REASON)
+    fields = _KeepUnknown(
+        ticket=ticket_number,
+        marca=BRAND_NAMES.get(brand or "", "não identificada"),
+        motivo=reason,
+        vendedor=seller_label(seller_name, seller_ufs),
+        mensagem=_message_label(kind, message),
+        link=f"{link_base.rstrip('/')}{INBOX_TICKET_PATH}{ticket_number}",
+    )
+    return template.format_map(fields)
 
 
 async def _alert_content(
@@ -119,20 +209,31 @@ async def _alert_content(
     )
 
 
-async def _ticket_content(conn: Any, source_id: int) -> Content | None:
+async def _ticket_content(conn: Any, source_id: int, cfg: Settings) -> Content | str | None:
+    """Texto do aviso; `NOT_ESCALATED` se o Jarvis respondeu (nao vai ao grupo, RH-1)."""
     row = await conn.fetchrow(_TICKET, source_id)
     if row is None:
         return None
+    if not row["escalated"]:
+        return NOT_ESCALATED
     return Content(
         build_ticket_group_text(
-            ticket_number=row["ticket_number"], user_id=row["user_id"], message=row["message"]
+            template=cfg.text_team_group_ticket,
+            ticket_number=row["ticket_number"],
+            kind=row["kind"],
+            brand=row["brand"],
+            escalation_reason=row["escalation_reason"],
+            message=row["message"],
+            seller_name=row["name"],
+            seller_ufs=list(row["ufs"] or []),
+            link_base=cfg.panel_link_base,
         )
     )
 
 
-async def _load_content(conn: Any, claimed: Any, cfg: Settings) -> Content | None:
+async def _load_content(conn: Any, claimed: Any, cfg: Settings) -> Content | str | None:
     if claimed["source_type"] == "ticket":
-        return await _ticket_content(conn, claimed["source_id"])
+        return await _ticket_content(conn, claimed["source_id"], cfg)
     return await _alert_content(conn, claimed["source_id"], claimed["channel"], cfg)
 
 
@@ -168,7 +269,32 @@ async def _send(
 ) -> DeliveryResult:
     if claimed["channel"] == "email":
         return await send_email(content.subject, content.body, settings=cfg, client=email_client)
-    return await send_group_text(content.body, settings=cfg, client=waha_client)
+    return await _send_group_spaced(content.body, cfg, waha_client)
+
+
+def _group_send_lock() -> asyncio.Lock:
+    """Trava do envio ao grupo, uma por event loop (o app tem um; os testes, varios)."""
+    global _group_lock, _group_lock_loop
+    loop = asyncio.get_running_loop()
+    if _group_lock is None or _group_lock_loop is not loop:
+        _group_lock, _group_lock_loop = asyncio.Lock(), loop
+    return _group_lock
+
+
+async def _send_group_spaced(
+    text: str, cfg: Settings, client: httpx.AsyncClient | None
+) -> DeliveryResult:
+    """Um envio ao grupo por vez, com o intervalo minimo desde o anterior (RH-3)."""
+    global _last_group_send
+    async with _group_send_lock():
+        if _last_group_send is not None:
+            wait = cfg.team_group_min_interval_seconds - (_monotonic() - _last_group_send)
+            if wait > 0:
+                await _sleep(wait)
+        try:
+            return await send_group_text(text, settings=cfg, client=client)
+        finally:
+            _last_group_send = _monotonic()
 
 
 async def _run(
@@ -189,6 +315,9 @@ async def _run(
     if content is None:
         await _finish(pool, delivery_id, "failed", error="source_missing", now=now)
         return "failed"
+    if isinstance(content, str):  # ticket nao escalado: nao e aviso para o grupo
+        await _finish(pool, delivery_id, "skipped", error=content, now=now)
+        return "skipped"
     result = await _send(claimed, content, cfg, email_client, waha_client)
     status, next_at = _retry_status(result, claimed["attempts"], cfg, now)
     error = None if result.ok else result.detail

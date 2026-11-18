@@ -13,6 +13,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, Protocol
+from uuid import UUID
 
 from app.config import Settings
 from app.core.clock import Clock, SystemClock
@@ -67,9 +68,11 @@ REPLY_WINDOW = timedelta(hours=24)  # WAHA: so envia a quem escreveu nesse inter
 _INSERT = (
     "INSERT INTO chat.outbound_messages "
     "(user_id, to_phone, kind, required_status, body, template, inbound_trace_id, "
-    "optin_request_id, status, attempts, next_attempt_at, created_at, reply_buttons) "
+    "optin_request_id, status, attempts, next_attempt_at, created_at, reply_buttons, "
+    "ticket_id, author, author_email, client_token) "
     "VALUES ($1::bigint, $2::text, $3::text, $4::text, $5::text, $6::jsonb, $7::bigint, "
-    "$8::bigint, $9::text, 0, $10, $10, $11::jsonb) RETURNING id"
+    "$8::bigint, $9::text, 0, $10, $10, $11::jsonb, $12::bigint, $13::text, $14::text, "
+    "$15::uuid) RETURNING id"
 )
 
 
@@ -106,9 +109,17 @@ async def enqueue(
     inbound_trace_id: int | None = None,
     optin_request_id: int | None = None,
     reply_buttons: Sequence[Mapping[str, str]] | None = None,
+    ticket_id: int | None = None,
+    author: str | None = None,
+    author_email: str | None = None,
+    client_token: UUID | None = None,
     clock: Clock | None = None,
 ) -> int:
-    """Grava uma saida `pending` na transacao do chamador e devolve o id."""
+    """Grava uma saida `pending` na transacao do chamador e devolve o id.
+
+    `ticket_id`, `author`, `author_email` e `client_token` sao da resposta humana
+    (retorno-humano.1, RH-7/RH-11); `client_token` repetido levanta `UniqueViolationError`.
+    """
     kind_value = parse_kind(kind)  # valida antes de tocar no banco
     now = (clock or SystemClock()).now()
     row_id: int = await conn.fetchval(
@@ -124,6 +135,10 @@ async def enqueue(
         OutboundStatus.PENDING.value,
         now,
         None if reply_buttons is None else json.dumps([dict(b) for b in reply_buttons]),
+        ticket_id,
+        author,
+        author_email,
+        client_token,
     )
     return row_id
 
@@ -153,10 +168,26 @@ _RECENT_INBOUND = (
 )
 
 
-def reply_only_for(settings: Settings, channel: Channel) -> bool:
+@dataclass(frozen=True)
+class ReplyWindow:
+    """Regra "so responde" (WA-16) ligada, com os kinds que podem sair fora da janela de 24 h."""
+
+    exempt_kinds: frozenset[str] = frozenset()
+
+
+# Excecao da resposta humana (ADR 2026-11-17, retorno-humano.1 D2): o padrao de `reply_only=True`.
+HUMAN_REPLY_EXEMPT = ReplyWindow(frozenset({OutboundKind.HUMAN_REPLY.value}))
+
+
+def reply_only_for(settings: Settings, channel: Channel) -> ReplyWindow | None:
     """Regra "so responde" (WA-16): ligada por OUTBOUND_REPLY_ONLY no canal sem modelos (WAHA),
-    onde o Jarvis nunca inicia conversa. Na Meta (so nos testes), sempre desligada."""
-    return settings.outbound_reply_only and not channel.capabilities.templates
+    onde o Jarvis nunca inicia conversa. Na Meta (so nos testes), sempre desligada (None).
+
+    A resposta da equipe (`human_reply`) fica fora da janela, salvo
+    `HUMAN_REPLY_IGNORE_WINDOW=false`."""
+    if not (settings.outbound_reply_only and not channel.capabilities.templates):
+        return None
+    return HUMAN_REPLY_EXEMPT if settings.human_reply_ignore_window else ReplyWindow()
 
 
 def set_reply_policy(policy: ReplyPolicy) -> None:
@@ -416,7 +447,7 @@ async def dispatch(
     channel: Channel,
     policy: ReplyPolicy | None = None,
     clock: Clock | None = None,
-    reply_only: bool = False,
+    reply_only: bool | ReplyWindow | None = False,
 ) -> OutboundStatus | None:
     """Despacha uma saida `pending` (spec 4.4.7); devolve o status final ou None sem claim.
 
@@ -426,7 +457,8 @@ async def dispatch(
     inesperada do canal deixa a linha `sending` para a recuperacao (PF-30).
 
     A chamada ao canal acontece SEM conexao do banco (claim e gravacao em conexoes separadas).
-    `reply_only` (WA-16, ver `reply_only_for`): descarta a quem nao escreveu em 24 h.
+    `reply_only` (WA-16, ver `reply_only_for`): descarta a quem nao escreveu em 24 h, exceto os
+    kinds isentos da regra (`True` = isencao padrao, so `human_reply`).
     """
     active_policy = policy or _policy
     time = clock or SystemClock()
@@ -438,7 +470,12 @@ async def dispatch(
         recipient = _Recipient(row["user_id"], row["to_phone"], status)
         if await _discard_if_blocked(conn, row, recipient, active_policy):
             return OutboundStatus.DISCARDED
-        if reply_only and await _discard_outside_window(conn, row, time.now()):
+        window = HUMAN_REPLY_EXEMPT if reply_only is True else (reply_only or None)
+        if (
+            window is not None
+            and row["kind"] not in window.exempt_kinds
+            and await _discard_outside_window(conn, row, time.now())
+        ):
             return OutboundStatus.DISCARDED
         try:
             _validate_content(row)

@@ -8,11 +8,12 @@ from typing import Any
 import asyncpg
 import pytest
 
+from app.config import Settings
 from app.core.clock import FakeClock
 from app.core.errors import InvalidValue
 from app.core.values import OutboundKind, OutboundStatus
 from app.services import outbox
-from app.services.channel import ReplyButton, TemplateMessage
+from app.services.channel import WAHA_CAPABILITIES, ReplyButton, TemplateMessage
 from app.services.flags import Flags
 from app.services.reply_policy import AllowAllPolicy, FlagsReplyPolicy, PolicyDecision
 from tests.fakes import FakeChannel
@@ -345,3 +346,89 @@ async def test_saida_inexistente_ou_ja_tratada_devolve_none(db_pool: asyncpg.Poo
     channel = FakeChannel()
     assert await run(db_pool, 999, channel) is None
     assert channel.calls == []
+
+
+# --- Resposta da equipe fora da janela de 24 h (retorno-humano.1, ADR 2026-11-17) ---------
+
+
+async def queue_kind(conn: asyncpg.Connection, user: Target, kind: OutboundKind) -> int:
+    return await outbox.enqueue(conn, user, kind, body="Oi", clock=FakeClock(RECEIVED))
+
+
+@pytest.mark.db
+async def test_resposta_humana_sai_fora_da_janela_e_o_resto_nao(db_pool: asyncpg.Pool) -> None:
+    """Sem mensagem do vendedor nas ultimas 24 h: so `human_reply` sai (RH-10)."""
+    async with db_pool.acquire() as conn:
+        user = await add_user(conn)  # nenhum rastro: o vendedor nao escreveu em 24 h
+        humana = await queue_kind(conn, user, OutboundKind.HUMAN_REPLY)
+        bot = await queue_kind(conn, user, OutboundKind.BRAIN_NOTICE)
+    channel = FakeChannel(capabilities=WAHA_CAPABILITIES)
+    assert await run(db_pool, humana, channel, reply_only=True) is OutboundStatus.SENT
+    assert await run(db_pool, bot, channel, reply_only=True) is OutboundStatus.DISCARDED
+    async with db_pool.acquire() as conn:
+        assert (await row_of(conn, bot))["discard_reason"] == "no_inbound_window"
+    assert len(channel.calls) == 1
+
+
+@pytest.mark.db
+async def test_sem_isencao_a_resposta_humana_respeita_a_janela(db_pool: asyncpg.Pool) -> None:
+    """HUMAN_REPLY_IGNORE_WINDOW=false volta a aplicar a WA-16 tambem a equipe."""
+    async with db_pool.acquire() as conn:
+        user = await add_user(conn)
+        humana = await queue_kind(conn, user, OutboundKind.HUMAN_REPLY)
+    channel = FakeChannel(capabilities=WAHA_CAPABILITIES)
+    status = await run(db_pool, humana, channel, reply_only=outbox.ReplyWindow())
+    assert status is OutboundStatus.DISCARDED and channel.calls == []
+
+
+@pytest.mark.db
+async def test_pausa_nao_segura_a_resposta_humana(db_pool: asyncpg.Pool) -> None:
+    """RH-13: com o Jarvis pausado, a resposta da equipe sai."""
+    flags = Flags(db_pool, FakeClock(RECEIVED))
+    async with db_pool.acquire() as conn:
+        await flags.set_bool(conn, "paused", True, "caio")
+        user = await add_user(conn)
+        humana = await queue_kind(conn, user, OutboundKind.HUMAN_REPLY)
+    channel = FakeChannel()
+    status = await run(db_pool, humana, channel, policy=FlagsReplyPolicy(flags))
+    assert status is OutboundStatus.SENT
+
+
+@pytest.mark.db
+async def test_resposta_humana_a_vendedor_revogado_e_descartada(db_pool: asyncpg.Pool) -> None:
+    """RH-12: a isencao da janela nao passa por cima do status do vendedor."""
+    async with db_pool.acquire() as conn:
+        user = await add_user(conn)
+        humana = await queue_kind(conn, user, OutboundKind.HUMAN_REPLY)
+        await conn.execute(
+            "UPDATE access.users SET status = 'revoked', revoked_at = $2, revoked_by = 'caio', "
+            "revoked_reason = 'left_company' WHERE id = $1",
+            user.id,
+            RECEIVED,
+        )
+    channel = FakeChannel(capabilities=WAHA_CAPABILITIES)
+    assert await run(db_pool, humana, channel, reply_only=True) is OutboundStatus.DISCARDED
+    assert channel.calls == []
+
+
+def _settings(**over: Any) -> Settings:
+    base: dict[str, Any] = {
+        "database_url": "postgresql://x",
+        "channel_provider": "meta",
+        "whatsapp_app_secret": "s",
+        "whatsapp_verify_token": "v",
+        "whatsapp_access_token": "t",
+        "whatsapp_phone_number_id": "1",
+    }
+    return Settings(_env_file=None, **{**base, **over})  # type: ignore[arg-type]
+
+
+def test_regra_da_janela_por_canal_e_configuracao() -> None:
+    meta = FakeChannel()
+    waha = FakeChannel(capabilities=WAHA_CAPABILITIES)
+    assert outbox.reply_only_for(_settings(), meta) is None
+    assert outbox.reply_only_for(_settings(outbound_reply_only=False), waha) is None
+    assert outbox.reply_only_for(_settings(), waha) == outbox.HUMAN_REPLY_EXEMPT
+    assert outbox.reply_only_for(_settings(human_reply_ignore_window=False), waha) == (
+        outbox.ReplyWindow()
+    )

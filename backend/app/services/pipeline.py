@@ -61,7 +61,7 @@ logger = logging.getLogger(__name__)
 IDENTITY_CONFLICT_DEDUP = timedelta(hours=24)
 RATE_LIMIT_ALERT_DEDUP = timedelta(hours=1)
 OPT_OUT_REASON = "proactive_opt_out"
-_IGNORED_STATUSES = frozenset({"sent", "delivered", "read"})
+_ACK_STATUSES = frozenset({"delivered", "read"})
 
 _FAIL_OUTBOUND = (
     "UPDATE chat.outbound_messages SET status = 'failed', error_code = $2::text "
@@ -82,6 +82,16 @@ _SET_LIMIT_NOTICE = (
 _DELIVERIES_OF = (
     "SELECT id FROM ops.deliveries WHERE source_type = $1::text "
     "AND source_id = $2::bigint ORDER BY id"
+)
+# Acks de entrega e leitura (retorno-humano.1, RH-15): so preenchem o que ainda esta vazio, para
+# um ack atrasado nunca apagar ou adiantar um horario; "lida" implica "entregue".
+_ACK_DELIVERED = (
+    "UPDATE chat.outbound_messages SET delivered_at = COALESCE(delivered_at, $2) "
+    "WHERE wa_message_id = $1::text AND delivered_at IS NULL"
+)
+_ACK_READ = (
+    "UPDATE chat.outbound_messages SET delivered_at = COALESCE(delivered_at, $2), "
+    "read_at = COALESCE(read_at, $2) WHERE wa_message_id = $1::text AND read_at IS NULL"
 )
 _TRACE_BY_REPLY = (
     "SELECT id FROM chat.message_trace WHERE reply_wa_message_id = $1::text LIMIT 1"
@@ -602,13 +612,18 @@ class Pipeline:
     # ---- statuses -----------------------------------------------------------------
 
     async def handle_status(self, st: InboundStatus) -> MessageOutcome | None:
-        """Ignora sent/delivered/read; `failed` marca a saida e o rastro de origem."""
-        if st.status in _IGNORED_STATUSES or not st.is_failed:
+        """`failed` marca a saida e o rastro de origem; `delivered`/`read` gravam o horario na
+        saida (RH-15); os demais (ex.: `sent`) sao ignorados."""
+        if not st.is_failed and st.status not in _ACK_STATUSES:
             return None
         try:
             with translate_db_errors():
                 async with self._pool.acquire() as conn, transaction(conn):
-                    await self._apply_failed(conn, st)
+                    if st.is_failed:
+                        await self._apply_failed(conn, st)
+                    else:
+                        query = _ACK_READ if st.status == "read" else _ACK_DELIVERED
+                        await conn.execute(query, st.wa_message_id, self._clock.now())
         except TransientDbError:
             raise
         except Exception as exc:

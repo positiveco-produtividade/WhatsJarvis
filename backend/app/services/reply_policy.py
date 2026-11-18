@@ -14,13 +14,15 @@ from app.services.flags import Flags
 REASON_PAUSED = "paused"
 REASON_BRAND_DISABLED = "brand_disabled"
 
-# Consentimento/LGPD nao depende de pausa (decisao "pausa x opt-in", spec 4.9).
+# Consentimento/LGPD nao depende de pausa (decisao "pausa x opt-in", spec 4.9). A resposta
+# da equipe tambem nao: a pausa cala so as respostas automaticas (retorno-humano.1, RH-13).
 PAUSE_EXEMPT_KINDS: frozenset[str] = frozenset(
     {
         ReplyKind.WELCOME_TEMPLATE.value,
         ReplyKind.OPTIN_REMINDER.value,
         ReplyKind.OPTIN_CONFIRMATION.value,
         ReplyKind.OPTIN_DECLINED.value,
+        ReplyKind.HUMAN_REPLY.value,
     }
 )
 

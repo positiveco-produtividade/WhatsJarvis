@@ -255,7 +255,11 @@ async def test_ticket_vai_so_ao_grupo_nunca_email(db_pool: asyncpg.Pool) -> None
         )  # fmt: skip
     assert status == "sent" and not mail.requests
     text = json.loads(waha.requests[0].content)["text"]
-    assert text == f"Mídia de usuário #{user_id} (áudio) aguardando a equipe — ticket J-0011"
+    # retorno-humano.1 (RH-2): formato novo, com o link para o Inbox; nunca o telefone.
+    assert text.startswith("🔔 Vendedor enviou nova pergunta (ticket J-0011)\n")
+    assert "Vendedor: Ana (SP)\n" in text and "Mensagem:\n[áudio]\n" in text
+    assert "https://painel.example.com/dashboard/inbox/ticket/J-0011" in text
+    assert PHONE not in text and f"#{user_id}" not in text
     assert ticket.ticket_number == "J-0011"
 
 

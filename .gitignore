@@ -1,6 +1,12 @@
 # Dados licenciados (Nielsen) e internos (GMR) e planilhas de origem: nunca versionar
 *.xlsx
 docs/designs/dados/
+# Bases e documentos soltos na raiz (sell-in, Scanntech, FAQs em PDF, formulários).
+# docs/planilhas/*.csv continua versionado; o PRD em PDF já versionado não é afetado.
+/*.csv
+/*.CSV
+/*.pdf
+/*.docx
 
 # Piloto técnico: chaves e logs locais
 piloto/.env

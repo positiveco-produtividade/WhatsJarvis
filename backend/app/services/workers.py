@@ -35,12 +35,15 @@ BATCH_LIMIT = 50
 # Partes da mesma resposta saem em ordem (canal-waha.1, WA-17): uma parte so e pega quando
 # nenhuma parte anterior da mesma mensagem recebida (mesmo inbound_trace_id, id menor) esta
 # `pending` ou `sending`. Antes, a varredura podia mandar a parte 2 com a 1 ainda em voo.
+# A resposta da equipe nao tem mensagem recebida propria: as partes dela se ordenam pelo
+# ticket (mesmo ticket_id, retorno-humano.1 RH-9).
 _DUE_OUTBOUND = (
     "SELECT o.id FROM chat.outbound_messages o "
     "WHERE o.status = 'pending' AND o.next_attempt_at <= $1 "
     "AND NOT EXISTS (SELECT 1 FROM chat.outbound_messages p "
-    "WHERE o.inbound_trace_id IS NOT NULL AND p.inbound_trace_id = o.inbound_trace_id "
-    "AND p.id < o.id AND p.status IN ('pending', 'sending')) "
+    "WHERE p.id < o.id AND p.status IN ('pending', 'sending') AND ("
+    "(o.inbound_trace_id IS NOT NULL AND p.inbound_trace_id = o.inbound_trace_id) "
+    "OR (o.ticket_id IS NOT NULL AND p.ticket_id = o.ticket_id))) "
     "ORDER BY o.next_attempt_at, o.id LIMIT $2"
 )
 _DUE_DELIVERIES = (

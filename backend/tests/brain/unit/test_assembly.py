@@ -12,6 +12,7 @@ from app.services.brain.assembly import (
     INTERACTIVE_BODY_MAX_CHARS,
     PART_MAX_CHARS,
     assemble,
+    pack_parts,
     signature_for,
 )
 
@@ -119,3 +120,33 @@ def test_property_concat_reproduces_original(n: int) -> None:
     parts = assemble(text, brands=["jungle"], source_line="Fonte: x")
     assert all(len(p) <= PART_MAX_CHARS for p in parts)
     assert _squash(_body(parts, "Fonte: x\n— Duda · Jungle")) == _squash(text)
+
+
+# --- pack_parts: mesmas regras, sem fonte nem assinatura (retorno-humano.1, RH-9) -----------
+
+
+def test_pack_parts_curto_uma_parte_sem_assinatura() -> None:
+    assert pack_parts("  Temos sim.  ") == ("Temos sim.",)
+
+
+def test_pack_parts_vazio_sem_partes() -> None:
+    assert pack_parts("   ") == ()
+
+
+@pytest.mark.parametrize("n", [1, 5, 40, 120])
+def test_pack_parts_divide_por_frase_sem_perder_texto(n: int) -> None:
+    frases = " ".join(f"Frase numero {i} com algum conteudo." for i in range(n))
+    texto = "Cabecalho:\n\n" + frases
+    parts = pack_parts(texto)
+    assert all(len(p) <= PART_MAX_CHARS for p in parts)
+    assert _squash("".join(parts)) == _squash(texto)
+
+
+def test_pack_parts_igual_ao_corpo_do_assemble() -> None:
+    """Sem mudar o resultado de `assemble`: as partes do corpo sao as mesmas."""
+    texto = " ".join(f"Frase {i} de teste para dividir." for i in range(80))
+    sufixo = "\n\n" + signature_for(None)
+    montado = assemble(texto, limit=2000)
+    assert pack_parts(texto, limit=2000)[:-1] == montado[:-1]
+    assert montado[-1].endswith(sufixo)
+

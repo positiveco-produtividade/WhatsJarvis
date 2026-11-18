@@ -1,4 +1,5 @@
 """outbox.enqueue: destino, required_status por tipo, kind invalido, transacao (AC-17/21/23/30)."""
+import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -129,3 +130,66 @@ async def test_roda_na_transacao_do_chamador(db_pool: asyncpg.Pool) -> None:
                 await outbox.enqueue(conn, user, OutboundKind.MEDIA_ACK, body="x")
                 raise RuntimeError("rollback")
         assert await conn.fetchval("SELECT count(*) FROM chat.outbound_messages") == 0
+
+
+async def add_ticket(conn: asyncpg.Connection, user: Target) -> int:
+    return int(
+        await conn.fetchval(
+            "INSERT INTO chat.tickets (ticket_number, user_id, kind, status, created_at, "
+            "updated_at) VALUES ('J-0777', $1, 'question', 'awaiting', $2, $2) RETURNING id",
+            user.id,
+            NOW,
+        )
+    )
+
+
+@pytest.mark.db
+async def test_resposta_humana_grava_ticket_autor_e_token(db_conn: asyncpg.Connection) -> None:
+    """RH-7/RH-11: a resposta da equipe leva ticket, autor e token; as outras saidas nao."""
+    user = await add_user(db_conn)
+    ticket_id = await add_ticket(db_conn, user)
+    token = uuid.uuid4()
+    row_id = await outbox.enqueue(
+        db_conn,
+        user,
+        OutboundKind.HUMAN_REPLY,
+        body="Retorno da equipe (Caio) sobre sua pergunta: Temos sim.",
+        ticket_id=ticket_id,
+        author="Caio",
+        author_email="admin@example.test",
+        client_token=token,
+        clock=FakeClock(NOW),
+    )
+    row = await fetch(db_conn, row_id)
+    assert (row["kind"], row["required_status"]) == ("human_reply", "active")
+    assert (row["ticket_id"], row["author"], row["author_email"], row["client_token"]) == (
+        ticket_id,
+        "Caio",
+        "admin@example.test",
+        token,
+    )
+    assert row["delivered_at"] is None and row["read_at"] is None
+    other = await fetch(
+        db_conn, await outbox.enqueue(db_conn, user, OutboundKind.MEDIA_ACK, body="ok")
+    )
+    assert (other["ticket_id"], other["author"], other["client_token"]) == (None, None, None)
+
+
+@pytest.mark.db
+async def test_token_repetido_e_recusado(db_conn: asyncpg.Connection) -> None:
+    """RH-11: o mesmo token (clique duplo) nao grava uma segunda resposta."""
+    user = await add_user(db_conn)
+    ticket_id = await add_ticket(db_conn, user)
+    token = uuid.uuid4()
+    await outbox.enqueue(
+        db_conn, user, OutboundKind.HUMAN_REPLY, body="a", ticket_id=ticket_id, client_token=token
+    )
+    with pytest.raises(asyncpg.UniqueViolationError):
+        await outbox.enqueue(
+            db_conn,
+            user,
+            OutboundKind.HUMAN_REPLY,
+            body="a",
+            ticket_id=ticket_id,
+            client_token=token,
+        )

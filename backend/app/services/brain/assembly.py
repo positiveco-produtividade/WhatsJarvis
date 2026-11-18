@@ -74,6 +74,13 @@ def _pack(text: str, limit: int) -> list[str]:
     return [p.strip() for p in parts if p.strip()]
 
 
+def pack_parts(text: str, limit: int = PART_MAX_CHARS) -> tuple[str, ...]:
+    """Divide `text` em partes de ate `limit` pela mesma regra das respostas do cerebro, sem
+    fonte nem assinatura (retorno-humano.1: resposta da equipe, RH-9). Vazio = nenhuma parte."""
+    body = text.strip()
+    return tuple(_pack(body, limit)) if body else ()
+
+
 def assemble(
     text: str,
     *,

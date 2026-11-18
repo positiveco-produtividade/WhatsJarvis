@@ -21,6 +21,7 @@ EXEMPT_KINDS = [
     ReplyKind.OPTIN_REMINDER,
     ReplyKind.OPTIN_CONFIRMATION,
     ReplyKind.OPTIN_DECLINED,
+    ReplyKind.HUMAN_REPLY,  # a pausa cala so respostas automaticas (retorno-humano.1, RH-13)
 ]
 
 

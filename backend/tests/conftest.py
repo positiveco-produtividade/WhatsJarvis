@@ -48,6 +48,9 @@ _TEST_SETTINGS_DEFAULTS = {
     "WHATSAPP_VERIFY_TOKEN": "token-de-verificacao-de-teste",
     "WHATSAPP_ACCESS_TOKEN": "token-de-acesso-de-teste",
     "WHATSAPP_PHONE_NUMBER_ID": "100000000000001",
+    # Intervalo entre avisos no grupo (retorno-humano.1, RH-3): zero para as suites existentes
+    # nao esperarem 3 s reais; test_group_notice.py liga o intervalo com relogio falso.
+    "TEAM_GROUP_MIN_INTERVAL_SECONDS": "0",
 }
 for _name, _value in _TEST_SETTINGS_DEFAULTS.items():
     os.environ.setdefault(_name, _value)
