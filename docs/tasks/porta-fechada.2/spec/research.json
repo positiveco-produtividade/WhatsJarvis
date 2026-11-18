@@ -1,0 +1,51 @@
+{
+  "task_id": "PORTA-FECHADA-2",
+  "date": "2026-11-18",
+  "findings": [
+    {
+      "topic": "papeis previstos",
+      "fact": "spec PF 4.2.6 e 4.10 preveem jarvis_owner (DDL) e jarvis_app (DML, sem UPDATE/DELETE em audit_log); nunca implementado",
+      "source": "docs/tasks/porta-fechada.1/spec/spec.md:456,825; deploy/RUNBOOK.md:58"
+    },
+    {
+      "topic": "GRANTs pendentes",
+      "fact": "nenhuma migration da GRANT ao app; 202 e 401 deixam para o runbook",
+      "source": "docs/tasks/cerebro.1/spec/verificacao-externa.md item 5; migrations/202, 401"
+    },
+    {
+      "topic": "padrao existente",
+      "fact": "105 cria assistant.apply_grants() idempotente e a chama se o papel existir; dev_db_setup.sql da GRANT jarvis_assistant TO jarvis_test",
+      "source": "backend/migrations/105_roles_assistant.sql; backend/scripts/dev_db_setup.sql"
+    },
+    {
+      "topic": "runner",
+      "fact": "main() le so DATABASE_URL do ambiente; apply_pending e usado tambem pelo fixture de testes",
+      "source": "backend/app/db/migrate.py:188-200; backend/tests/db_support.py"
+    },
+    {
+      "topic": "app sem DDL em tempo de execucao",
+      "fact": "o app so usa DML, pg_advisory_* e sequencias; nenhum CREATE/ALTER/TRUNCATE/SET ROLE fora do runner",
+      "source": "grep em backend/app"
+    },
+    {
+      "topic": "gatilhos",
+      "fact": "bump_faq_revision (escreve em ops.system_state) e audit_log_immutable rodam como quem dispara: o app precisa de DML em ops.system_state (coberto por PA-4)",
+      "source": "backend/migrations/101_content_faq.sql, 001"
+    },
+    {
+      "topic": "fixtures",
+      "fact": "migrated_database e usado em ~30 pontos (db_pool, Settings, create_app); TRUNCATE e migrations usam conexoes proprias",
+      "source": "backend/tests/db_support.py"
+    },
+    {
+      "topic": "config",
+      "fact": "Settings usa extra=ignore: MIGRATION_DATABASE_URL no .env nao quebra o app",
+      "source": "backend/app/config.py:62-65"
+    },
+    {
+      "topic": "health",
+      "fact": "/health chama migrate.is_up_to_date no pool do app: precisa de SELECT em ops.schema_migrations",
+      "source": "backend/app/main.py:122"
+    }
+  ]
+}

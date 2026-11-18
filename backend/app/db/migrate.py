@@ -1,6 +1,6 @@
 """Runner minimo de migrations SQL numeradas (ADR 2026-10-23, spec 4.2.6).
 
-Uso (a partir de backend/, com DATABASE_URL no ambiente):
+Uso (a partir de backend/, com MIGRATION_DATABASE_URL ou DATABASE_URL no ambiente):
     python -m app.db.migrate            aplica as pendentes
     python -m app.db.migrate --status   lista aplicadas/pendentes
     python -m app.db.migrate --check    sai com codigo 1 se faltar migration
@@ -8,6 +8,9 @@ Uso (a partir de backend/, com DATABASE_URL no ambiente):
 Regras: ordem pelo prefixo numerico; prefixo duplicado e recusado; uma transacao
 por arquivo; pg_advisory_lock; versao e SHA-256 em ops.schema_migrations; arquivo
 ja aplicado e depois alterado e recusado. Nunca roda sozinho na subida do servico.
+Conexao (porta-fechada.2, PA-2): MIGRATION_DATABASE_URL (papel dono, producao) e, se vazia,
+DATABASE_URL (PC e CI, onde o app ja e o dono). Ao fim de cada aplicacao, mesmo sem
+pendentes, reaplica as permissoes dos papeis restritos (PA-10, D1).
 So SQL compativel com PostgreSQL 16.
 """
 
@@ -29,6 +32,8 @@ DEFAULT_TABLE = "ops.schema_migrations"
 _LOCK_KEY = 7_422_001_001  # chave arbitraria do lock consultivo do runner
 _FILE_RE = re.compile(r"^(\d{3,})_[a-z0-9_]+\.sql$")
 _TABLE_RE = re.compile(r"^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$")
+# Funcoes idempotentes de permissao (migrations 105 e 402), chamadas se existirem.
+GRANT_FUNCTIONS = ("ops.apply_app_grants()", "assistant.apply_grants()")
 
 EXIT_OK = 0
 EXIT_PENDING = 1
@@ -122,9 +127,20 @@ async def apply_pending(
                     mig.checksum,
                 )
             done.append(mig.version)
+        await refresh_grants(conn)
         return done
     finally:
         await conn.execute("SELECT pg_advisory_unlock($1)", _LOCK_KEY)
+
+
+async def refresh_grants(conn: Any) -> list[str]:
+    """Reaplica as permissoes dos papeis restritos; devolve as funcoes chamadas."""
+    called: list[str] = []
+    for function in GRANT_FUNCTIONS:
+        if await conn.fetchval("SELECT to_regprocedure($1) IS NOT NULL", function):
+            await conn.execute(f"SELECT {function}")
+            called.append(function)
+    return called
 
 
 async def _table_exists(conn: Any, table: str) -> bool:
@@ -191,9 +207,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     group.add_argument("--status", action="store_true", help="lista aplicadas e pendentes")
     group.add_argument("--check", action="store_true", help="codigo 1 se faltar migration")
     args = parser.parse_args(argv)
-    dsn = os.environ.get("DATABASE_URL")
+    dsn = os.environ.get("MIGRATION_DATABASE_URL") or os.environ.get("DATABASE_URL")
     if not dsn:
-        print("DATABASE_URL nao definida no ambiente", file=sys.stderr)
+        print("MIGRATION_DATABASE_URL e DATABASE_URL nao definidas no ambiente", file=sys.stderr)
         return EXIT_ERROR
     mode = "status" if args.status else "check" if args.check else "apply"
     try:

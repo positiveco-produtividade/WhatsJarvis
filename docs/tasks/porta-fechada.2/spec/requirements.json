@@ -1,0 +1,146 @@
+{
+  "task_id": "PORTA-FECHADA-2",
+  "title": "Papel da aplicacao sem DDL no banco",
+  "story": "docs/stories/porta-fechada.2.md",
+  "epic": "docs/epics/porta-fechada.md",
+  "phase": "1-requirements",
+  "status": "draft",
+  "revision": "2026-11-18 - D1-D4 decididas pelo Caio (todas na opcao recomendada)",
+  "user_story": {
+    "as_a": "dono do Jarvis",
+    "i_want": "que o app rode em producao com um papel que so le e grava dados",
+    "so_that": "uma falha no app nao consiga mudar a estrutura do banco nem a auditoria, e migrations novas nao dependam de GRANT manual"
+  },
+  "decisions": {
+    "D1": "runner reaplica as permissoes ao fim de cada migrate (funcao idempotente)",
+    "D2": "recusar a subida em producao com papel dono ou superusuario",
+    "D3": "fluxos principais testados como jarvis_app via SET ROLE; Caio roda o dev_db_setup.sql atualizado uma vez",
+    "D4": "no PC o app continua com o papel dono"
+  },
+  "acceptance_criteria": [
+    {
+      "id": "PA-1",
+      "title": "Dois papeis",
+      "given": "runbook de producao",
+      "when": "o banco e criado",
+      "then": "jarvis_owner (LOGIN, sem superusuario, dono do banco) e jarvis_app (LOGIN, sem superusuario/CREATEDB/CREATEROLE, nao dono de nada); PUBLIC sem acesso ao banco",
+      "testable": true
+    },
+    {
+      "id": "PA-2",
+      "title": "Runner como dono",
+      "given": "MIGRATION_DATABASE_URL preenchida (ou vazia)",
+      "when": "app.db.migrate roda (aplicar, --status, --check)",
+      "then": "conecta com MIGRATION_DATABASE_URL; vazia usa DATABASE_URL como hoje",
+      "testable": true
+    },
+    {
+      "id": "PA-3",
+      "title": "App com o papel restrito",
+      "given": "producao",
+      "when": "o app sobe",
+      "then": "DATABASE_URL e jarvis_app; painel, lacos de fundo e CLI usam essa conexao",
+      "testable": true
+    },
+    {
+      "id": "PA-4",
+      "title": "Dados",
+      "given": "papel da aplicacao",
+      "when": "as permissoes sao aplicadas",
+      "then": "USAGE nos schemas access/chat/ops/content; SELECT/INSERT/UPDATE/DELETE em tabelas e visoes; USAGE/SELECT em sequencias; excecoes PA-5 e PA-6",
+      "testable": true
+    },
+    {
+      "id": "PA-5",
+      "title": "Auditoria imutavel",
+      "given": "papel da aplicacao",
+      "when": "UPDATE, DELETE ou TRUNCATE em ops.audit_log",
+      "then": "recusado por permissao; INSERT e SELECT funcionam",
+      "testable": true
+    },
+    {
+      "id": "PA-6",
+      "title": "Controle de migrations",
+      "given": "papel da aplicacao",
+      "when": "acessa ops.schema_migrations",
+      "then": "so SELECT",
+      "testable": true
+    },
+    {
+      "id": "PA-7",
+      "title": "Sem estrutura",
+      "given": "papel da aplicacao",
+      "when": "CREATE em qualquer schema (inclusive public), ALTER, DROP, TRUNCATE, gatilho ou GRANT",
+      "then": "recusado",
+      "testable": true
+    },
+    {
+      "id": "PA-8",
+      "title": "Sem o assistente",
+      "given": "permissoes aplicadas",
+      "when": "papel da aplicacao",
+      "then": "nada no schema assistant nem EXECUTE nas funcoes de GRANT; jarvis_assistant inalterado",
+      "testable": true
+    },
+    {
+      "id": "PA-9",
+      "title": "Repetivel",
+      "given": "jarvis_app existe",
+      "when": "permissoes aplicadas duas vezes",
+      "then": "mesmo resultado, sem erro",
+      "testable": true
+    },
+    {
+      "id": "PA-10",
+      "title": "Migrations futuras (D1)",
+      "given": "migration nova com tabela ou sequencia",
+      "when": "aplicada pelo runner",
+      "then": "jarvis_app ganha as permissoes de PA-4 sem passo manual (runner reaplica ao fim)",
+      "testable": true
+    },
+    {
+      "id": "PA-11",
+      "title": "Sem o papel",
+      "given": "jarvis_app nao existe",
+      "when": "as migrations rodam",
+      "then": "tudo como hoje, com NOTICE de permissoes nao aplicadas",
+      "testable": true
+    },
+    {
+      "id": "PA-12",
+      "title": "Subida com papel errado (D2)",
+      "given": "PRODUCTION=true",
+      "when": "o app sobe com papel dono de tabelas do Jarvis ou superusuario",
+      "then": "subida recusada com o nome do papel e o motivo, nunca a URL; fora de producao nada e checado",
+      "testable": true
+    },
+    {
+      "id": "PA-13",
+      "title": "Funciona com o papel restrito (D3)",
+      "given": "banco de teste com permissoes aplicadas",
+      "when": "fluxos principais rodam como jarvis_app (SET ROLE)",
+      "then": "passam: mensagem ate a resposta e fila de saida; escalado e aviso; painel (concluir, responder, FAQ, sugestoes, controles, cadastro); LGPD; retencao; CLI da FAQ; /health",
+      "testable": true
+    },
+    {
+      "id": "PA-14",
+      "title": "Documentacao",
+      "given": "runbook",
+      "when": "servidor novo",
+      "then": "passos 2, 5 e 6 criam os dois papeis, preenchem DATABASE_URL e MIGRATION_DATABASE_URL e migram como dono; STATE.md sem GRANT manual pendente",
+      "testable": true
+    }
+  ],
+  "non_functional": [
+    "SQL compativel com PostgreSQL 16; sem dependencia nova",
+    "senhas so no .env do servidor; mensagens citam o papel, nunca a URL",
+    "PC sem o papel novo continua funcionando (PA-11)",
+    "suite atual passa sem mudanca de comportamento"
+  ],
+  "out_of_scope": [
+    "banco do droplet (ainda nao existe; comandos no runbook)",
+    "RLS, troca de senha, pgbouncer",
+    "mais papeis",
+    "mudar jarvis_assistant"
+  ]
+}

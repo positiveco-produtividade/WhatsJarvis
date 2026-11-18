@@ -24,6 +24,7 @@ funções de conteúdo serão construídas.
 | ID | História |
 |---|---|
 | porta-fechada.1 | Receber mensagens da WhatsApp Cloud API e aplicar a lista positiva com opt-in |
+| porta-fechada.2 | Papel da aplicação sem DDL no banco (`jarvis_owner` / `jarvis_app`) |
 
 ## Fora deste épico
 

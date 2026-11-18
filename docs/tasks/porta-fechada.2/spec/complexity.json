@@ -1,0 +1,36 @@
+{
+  "task_id": "PORTA-FECHADA-2",
+  "size": "M",
+  "points": 5,
+  "estimate_hours": 14,
+  "breakdown": [
+    {
+      "area": "migration 402 + teste",
+      "hours": 2
+    },
+    {
+      "area": "runner: MIGRATION_DATABASE_URL e refresh_grants",
+      "hours": 1.5
+    },
+    {
+      "area": "roles.py + guarda na subida + teste",
+      "hours": 2
+    },
+    {
+      "area": "fixtures com jarvis_app, dev_db_setup, CI, ajuste dos testes que precisam do dono",
+      "hours": 4
+    },
+    {
+      "area": "varredura do catalogo (test_app_role)",
+      "hours": 2
+    },
+    {
+      "area": "runbook, modelo de configuracao, STATE, ADR, verificacao final",
+      "hours": 2.5
+    }
+  ],
+  "risks": [
+    "numero de testes que dependem de ser dono desconhecido ate rodar a suite",
+    "parametro role na partida da conexao (plano B: init do pool)"
+  ]
+}

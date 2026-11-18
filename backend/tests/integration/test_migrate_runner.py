@@ -113,3 +113,72 @@ def test_recusa_banco_que_nao_termina_em_test() -> None:
     with pytest.raises(RuntimeError, match="_test"):
         assert_test_database("postgresql://jarvis:x@localhost:5432/jarvis")
     assert_test_database("postgresql://jarvis_test:x@localhost:5432/jarvis_test")
+
+
+# --- porta-fechada.2 (PA-T02): URL do dono e permissoes reaplicadas ---------------------------
+
+
+@pytest.mark.db
+def test_main_prefere_migration_database_url(
+    migrated_database: str, database_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """PA-2: com as duas, vale a do dono; DATABASE_URL invalida nem e tentada."""
+    monkeypatch.setenv("MIGRATION_DATABASE_URL", database_url)
+    monkeypatch.setenv("DATABASE_URL", "postgresql://ninguem:x@127.0.0.1:1/nada_test")
+    assert migrate.main(["--check"]) == migrate.EXIT_OK
+
+
+@pytest.mark.db
+def test_main_sem_url_de_migration_usa_database_url(
+    migrated_database: str, database_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("MIGRATION_DATABASE_URL", "")
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    assert migrate.main(["--check"]) == migrate.EXIT_OK
+
+
+def test_main_sem_nenhuma_url(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.delenv("MIGRATION_DATABASE_URL", raising=False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    assert migrate.main(["--check"]) == migrate.EXIT_ERROR
+    err = capsys.readouterr().err
+    assert "MIGRATION_DATABASE_URL" in err and "DATABASE_URL" in err
+
+
+def test_erro_de_conexao_nao_mostra_a_senha(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("MIGRATION_DATABASE_URL", "postgresql://dono:segredo-pa2@127.0.0.1:1/x_test")
+    assert migrate.main(["--status"]) == migrate.EXIT_ERROR
+    captured = capsys.readouterr()
+    assert "segredo-pa2" not in captured.err + captured.out
+
+
+@pytest.mark.db
+async def test_reaplica_permissoes_a_cada_aplicacao(
+    database_url: str, conn: asyncpg.Connection, mig_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """PA-10 (D1): apply chama refresh_grants mesmo sem pendentes; status e check nao."""
+    calls: list[int] = []
+    real = migrate.refresh_grants
+
+    async def spy(c: asyncpg.Connection) -> list[str]:
+        calls.append(1)
+        return await real(c)
+
+    monkeypatch.setattr(migrate, "refresh_grants", spy)
+    await migrate._run("status", database_url, mig_dir, TABLE)
+    await migrate._run("check", database_url, mig_dir, TABLE)
+    assert calls == []
+    await migrate._run("apply", database_url, mig_dir, TABLE)
+    await migrate._run("apply", database_url, mig_dir, TABLE)  # sem pendentes
+    assert calls == [1, 1]
+
+
+@pytest.mark.db
+async def test_refresh_grants_chama_as_funcoes_que_existem(
+    migrated_database: str, conn: asyncpg.Connection
+) -> None:
+    assert await migrate.refresh_grants(conn) == list(migrate.GRANT_FUNCTIONS)

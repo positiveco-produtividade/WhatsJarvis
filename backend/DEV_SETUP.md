@@ -39,6 +39,15 @@ Testes marcados `db` pulam sozinhos sem `TEST_DATABASE_URL`.
    (banco `jarvis`, papel `jarvis`) e `TEST_DATABASE_URL` (banco `jarvis_test`, papel `jarvis_test`).
    Nunca aponte `TEST_DATABASE_URL` para `jarvis` nem para o banco do droplet: os testes fazem `TRUNCATE`.
 
+## Papel da aplicacao `jarvis_app` (porta-fechada.2)
+Em producao o app conecta como `jarvis_app` (so le e grava dados) e as migrations como o dono
+(`MIGRATION_DATABASE_URL`). No PC o app continua com o papel dono (`jarvis`), mas **os testes
+rodam o app como `jarvis_app`** para provar que ele funciona sem DDL. Por isso o script acima
+cria `jarvis_app` (NOLOGIN, sem senha) e da `GRANT jarvis_app TO jarvis_test`. Quem ja tinha
+rodado o script antes de 2026-11-18 roda de novo (idempotente, passo 1). Sem o papel, a suite
+falha com a instrucao. As permissoes vem da migration 402 e o runner as reaplica a cada
+`python -m app.db.migrate` (e a cada sessao de testes).
+
 ## Atencao: PG 18 local x PG 16 em producao
 Nenhuma migration ou SQL pode usar recursos do 17/18 (`uuidv7()`, colunas virtuais geradas,
 `RETURNING OLD/NEW`, `WITHOUT OVERLAPS`, `MERGE ... RETURNING`).

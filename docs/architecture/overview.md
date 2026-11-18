@@ -76,6 +76,12 @@ contracts (API schemas, message envelopes), never via shared mutable state.
 
 Architectural Decision Records. New entries at the top.
 
+### 2026-11-18 — App sem DDL: papéis `jarvis_owner` e `jarvis_app`, permissões reaplicadas pelo runner (proposto, Fase 2 de porta-fechada.2)
+- **Context:** A spec de porta-fechada.1 previu dono e aplicação separados no banco, mas o app roda com o papel dono. As migrations do cérebro (202) e do retorno humano (401) deixaram GRANTs para fazer à mão no servidor.
+- **Decision:** Em produção, `jarvis_owner` é dono do banco e roda as migrations (`MIGRATION_DATABASE_URL`); o app usa `jarvis_app` (`DATABASE_URL`), só com DML, sem UPDATE/DELETE em `ops.audit_log`. A função `ops.apply_app_grants()` (migration 402) dá as permissões e o runner a reaplica ao fim de cada `migrate`. O app recusa subir em produção com papel dono ou superusuário. Os testes rodam o app como `jarvis_app`.
+- **Alternatives:** `ALTER DEFAULT PRIVILEGES` (invisível, depende de quem cria o objeto); GRANT manual a cada migration (esquecível); manter um papel só (o app poderia apagar tabelas e reescrever a auditoria).
+- **Consequences:** Uma variável a mais no `.env` do servidor e um passo único no PC (`dev_db_setup.sql`). Migration que precisar de permissão diferente para o app altera a função.
+
 ### 2026-11-17 — Resposta humana fora da janela de 24 h no WAHA (exceção à WA-16) (aceito pelo Caio em 2026-11-17, Fase 2 de retorno-humano.1)
 - **Context:** A equipe passa a responder os escalados pelo painel (retorno-humano.1), e a resposta sai pelo número do Jarvis. O Caio decidiu "sem prazo" para essa resposta (D2). Hoje o outbox descarta, no WAHA, qualquer saída a quem não escreveu nas últimas 24 h (WA-16, "só responde").
 - **Decision:** O kind `human_reply` é o **único** que o outbox envia sem mensagem do vendedor nas últimas 24 h. Todas as outras saídas continuam "só responde". A exceção pode ser desligada por configuração (`HUMAN_REPLY_IGNORE_WINDOW=false`). No mesmo design, os avisos ao grupo da equipe passam a sair pelo WAHA do próprio Jarvis, e não mais pelo do AUTO-1 (D5).

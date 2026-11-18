@@ -20,6 +20,12 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'jarvis_assistant') THEN
     CREATE ROLE jarvis_assistant LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD '__DEFINIR_SENHA__';
   END IF;
+  -- Papel da aplicacao em producao (porta-fechada.2). Aqui e NOLOGIN: ninguem entra com ele no
+  -- PC; os testes o assumem (SET ROLE) para provar que o app funciona sem DDL. As permissoes
+  -- vem da migration 402 (ops.apply_app_grants), reaplicadas a cada `python -m app.db.migrate`.
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'jarvis_app') THEN
+    CREATE ROLE jarvis_app NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT;
+  END IF;
 END
 $$;
 
@@ -36,3 +42,6 @@ REVOKE ALL ON DATABASE jarvis_test FROM PUBLIC;
 -- Testes do painel: o papel de teste pode assumir jarvis_assistant (SET ROLE) para provar
 -- que a leitura do assistente nao ve PII nem escreve. So no banco local de teste.
 GRANT jarvis_assistant TO jarvis_test;
+-- Testes: o app roda como jarvis_app (porta-fechada.2, D3). Depois, rodar as migrations de novo
+-- (ou a suite) para aplicar as permissoes: o runner chama ops.apply_app_grants().
+GRANT jarvis_app TO jarvis_test;

@@ -64,9 +64,11 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U jarvis_ci -d postgres <<'SQL'
           CREATE ROLE jarvis_test LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD 'ci-only-not-a-secret';
           CREATE ROLE jarvis_assistant LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD 'ci-only-not-a-secret';
+          CREATE ROLE jarvis_app NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT;
           ALTER DATABASE jarvis_test OWNER TO jarvis_test;
           REVOKE ALL ON DATABASE jarvis_test FROM PUBLIC;
           GRANT jarvis_assistant TO jarvis_test;
+          GRANT jarvis_app TO jarvis_test;
           SQL
 
       - name: Aplicar migrations
