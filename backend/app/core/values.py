@@ -80,6 +80,8 @@ class OutboundKind(StrEnum):
     BRAIN_NOTICE = "brain_notice"
     BRAND_POLL = "brand_poll"  # enquete da marca da conversa (canal-waha.1, WA-15)
     HUMAN_REPLY = "human_reply"  # resposta da equipe pelo painel (retorno-humano.1, RH-7)
+    # aviso de marca liberada a pedido do vendedor (cadastro.1, CA-11; migration 403)
+    BRAND_ACCESS_GRANTED = "brand_access_granted"
 
 
 class OutboundStatus(StrEnum):
@@ -109,6 +111,7 @@ class ReplyKind(StrEnum):
     BRAIN_NOTICE = "brain_notice"
     BRAND_POLL = "brand_poll"
     HUMAN_REPLY = "human_reply"
+    BRAND_ACCESS_GRANTED = "brand_access_granted"
 
 
 class BrainOutcome(StrEnum):

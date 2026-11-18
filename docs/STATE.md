@@ -19,6 +19,11 @@ Keep it lean — when it grows past ~10k tokens, archive entries older than
 
 ## Current Work
 
+- **Parado em 2026-11-18 (retomar daqui):**
+  - **cadastro.1 (editar cadastro e trocar número), Fase 4 em andamento:** código das CA-T01..T04 escrito e **ainda não testado** (migration 403, `users.update`, `app/panel/services/people_edit.py`, `app/panel/api/pessoas_editar.py`, templates `_pessoa_form.html`/`_pessoa_ficha.html`/`_pessoa_trocar_numero.html`). Próximo: rodar `tests/integration/test_users_update.py`, `test_outbox_dispatch.py`, `test_migration_401.py`, `test_values.py`; escrever `tests/panel/integration/test_pessoas_editar.py` (T03/T04); depois T05 (segurança e mapa), T06 (E2E) e T07 (suíte inteira). Desvio a registrar no `task.md`: a orquestração (concluir pedido + aviso) ficou em `people_edit.py` porque `app/services` não importa `app.panel`; a troca de número devolve a ficha nova no modal (sem `HX-Redirect`).
+  - **Bug achado pelos E2E (não corrigido):** o drawer do ticket não abre a partir de Escalados nem de um alerta no navegador real: o htmx herda `hx-select` do quadro (`#escalados-board`, `#alerts-area`) para os botões "Detalhar"/"Abrir J-xxxx". Correção: `hx-select="unset"` nos botões de `_kanban_cartao.html` (linha 10) e `_alert_card.html` (linha 24), e tirar o `xfail` de `tests/e2e/test_drawer.py`.
+  - **E2E do painel (PN-T65/T66) prontos:** Playwright para Python em `backend/tests/e2e/` (marcador `e2e`, fora da suíte padrão): `pytest tests/e2e -m e2e -q` → 8 passam, 2 xfail (o bug acima).
+  - **Resumo das 08:05 (PN-T72) pronto:** `app/panel/services/daily_summary.py`.
 - **porta-fechada.2 implementada (2026-11-18; PA-T01..PA-T08, fases 1 a 3 aprovadas pelo Caio no mesmo dia):** em produção o app usa `jarvis_app` (só DML; `ops.audit_log` só INSERT/SELECT; sem TRUNCATE nem DDL) e as migrations usam `jarvis_owner` por `MIGRATION_DATABASE_URL`. Migration 402 (`ops.apply_app_grants()`), reaplicada pelo runner a cada `migrate`; o app recusa subir em produção com papel dono ou superusuário (`app/db/roles.py`). Os testes rodam o app como `jarvis_app` (a própria `TEST_DATABASE_URL` carrega o papel); no PC o app continua como dono. Passo único no PC: `dev_db_setup.sql` (feito pelo Caio em 2026-11-18). Spec: `docs/tasks/porta-fechada.2/spec/spec.md`.
 - **retorno-humano.1 implementada (2026-11-17 a 2026-11-18; RH-T01..RH-T14, fases 1 a 3 aprovadas pelo Caio em 2026-11-17):** a equipe responde os escalados pelo painel e a resposta sai pelo número do Jarvis, na conversa do vendedor. (1) **Grupo da equipe só avisa:** cada escalado vira aviso no grupo de WhatsApp (formato do AUTO-1, com primeiro nome e UF do vendedor, a pergunta e o link `/dashboard/inbox/ticket/J-n`), pelo **WAHA do próprio Jarvis**, com 3 s entre avisos; ticket respondido pelo Jarvis não vai ao grupo; o que se escreve no grupo é ignorado. (2) **Resposta pelo Inbox** (link abre na pergunta, com a caixa pronta) **ou pela gaveta do ticket**: "Retorno da equipe (Nome) sobre sua pergunta:", em partes de 700, sem prazo (exceção à WA-16, ADR 2026-11-17, reversível por `HUMAN_REPLY_IGNORE_WINDOW=false`), a pausa não segura; conclui o ticket; complemento permitido; situação na fila/enviada/entregue/lida/falhou (acks gravados). (3) **Sugestões para a FAQ** em Relatórios (Criar item com origem `sugestao`, Descartar). Migration 401. Spec: `docs/tasks/retorno-humano.1/spec/spec.md` (seção 12: divergências da Fase 4). Resolve o achado do mapeamento de 06/11 ("concluir não responde ao vendedor").
 - **Para ligar o grupo (go-live de retorno-humano.1, cada passo com o Caio):** criar o grupo com o número do Jarvis; `TEAM_GROUP_CHAT_ID=<id>@g.us` e `TEAM_GROUP_ENABLED=true` (as antigas `WAHA_BASE_URL/WAHA_API_KEY/WAHA_SESSION` não são mais lidas); migrations 401 e 402 pelo runner com `MIGRATION_DATABASE_URL` (as permissões do `jarvis_app` saem sozinhas, porta-fechada.2); o link do aviso só abre no celular com o painel publicado (`jarvis.positiveco.com.br` + IAM). O layout de celular do Inbox (JS troca `flex`/`hidden`) não foi testado em aparelho real.
@@ -101,14 +106,14 @@ Open issues stopping progress. Remove (or move to Lessons) once resolved.
 
 ### B-001 — Pendências do dono (porta-fechada.1)  ·  found 2026-10-26  ·  impede go-live, não impede o código
 - **Problem:** itens que dependem do Caio/Positive e não podem ser resolvidos por código:
-  - **Produção no WhatsApp:** o número de teste só manda para até 5 números da lista "Até". Para os 100 vendedores: número próprio do Jarvis (chip novo, não a Positive Co), forma de pagamento na conta da Meta, empresa verificada, e **token permanente de usuário do sistema** (o temporário caiu durante o teste, erro 190).
-  - **Editar cadastro no painel (lacuna):** não há tela para alterar perfil, marcas, UFs, canais ou gestor de uma pessoa já cadastrada (só cadastrar, retirar, reativar, reenviar, trocar número via CLI e LGPD). Em 2026-10-27 foi preciso mudar um perfil de teste direto no banco (com auditoria). Candidato a tarefa do próximo ciclo do painel.
-  - **Q8:** aprovação e pagamento do modelo de boas-vindas na Meta (sem ele não há envio real da boas-vindas).
-  - **Q12:** para produção, o Jarvis precisa de uma conta WhatsApp própria (não usar a Positive Co). Acesso do app à Positive Co verificado em 2026-10-26: inexistente.
+  - ~~**Produção no WhatsApp pela Meta**~~ superado pelo canal WAHA (ADR 2026-11-13): o número próprio do Jarvis (+55 85 98208-0355) é pareado no WAHA no go-live; não há token, modelo pago nem verificação de empresa.
+  - **Editar cadastro no painel (lacuna):** não há tela para alterar perfil, marcas, UFs, canais ou gestor de uma pessoa já cadastrada (só cadastrar, retirar, reativar, reenviar, trocar número via CLI e LGPD). Em 2026-10-27 foi preciso mudar um perfil de teste direto no banco (com auditoria). Candidato a tarefa do próximo ciclo do painel. **Virando história própria em 2026-11-18** (cadastro.1).
+  - ~~**Q8** (modelo de boas-vindas pago na Meta)~~ superado pelo WAHA (sem modelo).
+  - ~~**Q12** (conta WhatsApp própria na Meta)~~ superado: o Jarvis tem chip próprio no WAHA.
   - **Q17:** validação jurídica do texto da 1ª mensagem de desconhecido (`UNKNOWN_FIRST_TEXT_STORE` continua desligada).
-  - **DNS:** subdomínio `*.positiveco.com.br` do Jarvis ainda não aponta para o droplet.
+  - **DNS:** registro `jarvis` → `159.89.55.129` ainda não criado; quem administra o DNS ainda a confirmar. Checklist: `docs/tasks/canal-waha.1/go-live.md`.
   - **Chaves do WhatsApp ausentes em `backend/.env`:** a CLI (`python -m app.cli`) e qualquer execução real carregam o `Settings` completo; preencher ou criar um `Settings` reduzido para a CLI.
-  - **Remoto GitHub não criado:** o `ci.yml` nunca rodou.
+  - ~~**Remoto GitHub não criado**~~ resolvido: o repositório está no GitHub (branch `caio`) e o CI roda a cada push.
   - **PRD §10 (mídia):** o texto do PRD sobre mídia diverge do AC-36; corrigir exige decisão do Caio e ADR (`docs/prd.md` não foi alterado). Apenas listado.
   - **Nomes comerciais dos produtos** (respostas da GMR) e **chave do Gemini** (cérebro real, fora desta entrega).
   - **Revisão jurídica** do aviso de opt-in e das mensagens.
@@ -124,12 +129,9 @@ Open issues stopping progress. Remove (or move to Lessons) once resolved.
 - **`frontend/package-lock.json` não gerado:** precisa de rede (o CSS foi gerado com o binário do AUTO-1, sem `npm install`).
 - **Revisão visual:** `docs/tasks/painel.1/visual-review.md` (PN-59) é conferida pelo Caio.
 
-### B-002 — Python 3.12 nunca executado localmente  ·  found 2026-10-26  ·  baixo
-- **Problem:** a suíte só rodou em Python 3.14 (+ PG 18); produção é 3.12 + PG 16.
-- **Workaround:** ruff `py312` e mypy 3.12 estáticos.
-- **Path to resolve:** criar o remoto GitHub para o CI rodar em 3.12 + PG 16 (ou instalar 3.12 localmente).
-
 ## Lessons Learned
+
+- **2026-11-18 — B-002 resolvido:** o PC atual roda Python 3.12.10 e PostgreSQL 16.16 (as versões da produção) e o CI no GitHub roda a suíte em 3.12 + PG 16.
 
 Non-obvious things discovered the hard way. Keep these even after archiving.
 
@@ -185,14 +187,14 @@ Logged here for traceability instead of vanishing into git history alone.
 Loose action items not yet formalized into tasks.
 
 - [ ] Desenho da lista positiva (incremento 1): WhatsApp está lançando nomes de usuário e o BSUID (ID por empresa). Mensagens de quem usa nome de usuário podem chegar sem telefone — guardar telefone **e** BSUID no aceite; não depender só do número. Visto em 2026-10-20 no painel da Meta.
-- [ ] Forma de pagamento no WhatsApp Manager — necessária antes de enviar modelos (boas-vindas); não precisa para testes iniciados pelo usuário.
+- [x] ~~Forma de pagamento no WhatsApp Manager~~ superado pelo WAHA (sem modelos pagos).
 - [ ] **Conta WhatsApp "Positive Co" (ID 1903250273702051, número +55 11 5196-0583) NÃO é conta de teste**: já está em uso pela Positive (~37,7 mil entregas e ~US$ 945 de cobrança no mês, visto em 2026-10-20). O app Jarvis foi autorizado nela por engano. Descobrir com o marketing quem usa; criar uma conta WhatsApp separada para o Jarvis e depois remover o acesso do app à Positive Co. Webhooks de uma conta vão para todos os apps inscritos — compartilhar conta exporia as conversas do Jarvis ao outro sistema.
 - [x] Conta de teste da Meta criada com número +1 555 670 8419 (objeto 1361767417026383 citado no erro de registro — confirmar se é a conta ou o número). Primeira mensagem (hello_world) recebida no celular do Caio em 2026-10-20. Desenvolvimento segue nessa conta.
 - [x] Confirmar que o token do app Jarvis não inclui mais a conta Positive Co. **Verificado em 2026-10-26:** a conta não lista o Jarvis em apps conectados e o token do Jarvis recebe erro de permissão ao ler a conta 1903250273702051. O número só aparece no campo "De" da Configuração da API porque a lista mostra o que a conta pessoal enxerga no portfólio.
 - [x] Stack decidida em 2026-10-20: Opção A, padrão AUTO-1 (ver ADR em `docs/architecture/overview.md`).
-- [ ] Subdomínio `jarvis.positiveco.com.br` apontando para o droplet (159.89.55.129) — descobrir quem gerencia o DNS.
-- [ ] No droplet: criar banco `jarvis` no Postgres, checar pgvector, pasta `/opt/jarvis`, processo PM2, site nginx + certificado. Pedir confirmação antes de cada mudança (servidor compartilhado em produção).
-- [ ] Spec do incremento 1 (webhook WhatsApp + lista positiva + aceite) via `/spec-new`.
+- [ ] Subdomínio `jarvis.positiveco.com.br` apontando para o droplet (159.89.55.129) — descobrir quem gerencia o DNS. Ordem do go-live: `docs/tasks/canal-waha.1/go-live.md`.
+- [ ] No droplet: seguir `docs/tasks/canal-waha.1/go-live.md` (banco com `jarvis_owner`/`jarvis_app`, `/opt/jarvis`, PM2, WAHA, nginx + certificado; pgvector não é usado). Cada passo com confirmação do Caio.
+- [x] Spec do incremento 1: feita e implementada como porta-fechada.1 (depois canal-waha.1 trocou a Meta pelo WAHA).
 - [x] **Piloto técnico (PILOTO-TECNICO-1) validado em 2026-10-23**: celular do Caio → Meta (número de teste) → `piloto/server.js` local (túnel do VS Code) → resposta pela FAQ sem IA (Guia + Nielsen + GMR, 223 itens), assinada pelo agente da marca. 5/5 perguntas de teste corretas, incluindo o "não sei" para preço. Lições: (1) a Meta entrega o remetente BR sem o 9º dígito, mas o número de teste só envia para o número cadastrado com o 9 → responder sempre para o número da lista positiva; (2) cumprimentos variam ("oiii", "olá, tudo bem?") → normalizar antes de detectar.
 - [ ] Nomes comerciais dos produtos para as respostas da GMR (hoje saem como descrição SAP, ex.: "Suplemento Alim ATDC Ucof Capp" = Ultracoffee Cappuccino).
 - [x] App "Jarvis" criado no Meta for Developers com caso de uso "Conectar-se com os clientes pelo WhatsApp" (2026-10-20).

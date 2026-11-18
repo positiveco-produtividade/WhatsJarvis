@@ -5,5 +5,7 @@ ruff==0.15.15
 mypy==2.3.1
 # Base de fusos para o Windows (ZoneInfo("America/Sao_Paulo")); no Linux vem do sistema.
 tzdata==2026.6
-# playwright (E2E, T65/T66): opcional e NAO instalado nesta maquina; sem ele os
-# testes E2E ficam "nao executados". Nao fixado aqui de proposito.
+# Opcional, fora do CI: E2E do painel (PN-T65/T66, tests/e2e, marcador `e2e`, fora da suite
+# padrao). Comentado de proposito para o CI nao instalar; sem ele os E2E pulam com o motivo.
+# Para rodar: pip install playwright==1.65.2 && python -m playwright install chromium
+#   pytest tests/e2e -m e2e -q

@@ -1,7 +1,7 @@
 """Chave do grupo da equipe (PN-49, PN-60, PN-61): desligada = nada ao WAHA; ligada = aviso.
 
 Postgres real; WAHA e Resend como espioes (`WahaSpy`/`ResendSpy`, sem rede). O resumo das
-08:05 (PN-61) ainda nao existe no codigo: o teste dele esta marcado xfail(strict).
+08:05 (PN-61): laco `daily_summary` (PN-T72); comportamento em test_daily_summary.py.
 """
 
 from __future__ import annotations
@@ -220,7 +220,6 @@ async def test_webhook_midia_com_chave_ligada_avisa_o_grupo(db_pool: asyncpg.Poo
 # ----------------------------------------------------------------- PN-61: resumo 08:05
 
 
-@pytest.mark.xfail(strict=True, reason="resumo 08:05 ainda nao implementado")
 def test_resumo_diario_das_0805_existe_como_laco_do_painel() -> None:
     """Spec PN-61: com a chave ligada, o grupo recebe o resumo diario as 08:05.
 

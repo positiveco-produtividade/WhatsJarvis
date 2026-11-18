@@ -1,0 +1,47 @@
+{
+  "task_id": "CADASTRO-1",
+  "date": "2026-11-18",
+  "findings": [
+    {
+      "topic": "cadastro hoje",
+      "fact": "POST /dashboard/pessoas/nova valida com users.validate_row (8 campos) e grava com users.register; formulario _pessoa_form.html",
+      "source": "backend/app/panel/api/pessoas_cadastro.py"
+    },
+    {
+      "topic": "validade",
+      "fact": "valid_until e sempre None: validate_row nao le, formulario e importacao nao tem o campo",
+      "source": "backend/app/services/users.py:132-170",
+      "impact": "validade fora da edicao (spec 7)"
+    },
+    {
+      "topic": "troca de numero",
+      "fact": "users.swap_number revoga A (number_change) e cria B pending_optin com os mesmos dados, aviso na fila, auditoria user.number_swapped, numa transacao; recebe telefones",
+      "source": "backend/app/services/users.py:437-471; backend/app/cli.py:335"
+    },
+    {
+      "topic": "pedido de acesso",
+      "fact": "ticket awaiting com escalation_reason brand_access_request por pessoa e marca; question_tickets busca o aberto",
+      "source": "backend/app/services/question_tickets.py:20,52-55,135"
+    },
+    {
+      "topic": "concluir",
+      "fact": "tickets_admin.conclude(conn, ticket_id, author, actor=, clock=) conclui awaiting com auditoria e nao envia nada",
+      "source": "backend/app/panel/services/tickets_admin.py:99"
+    },
+    {
+      "topic": "marca da conversa",
+      "fact": "access.users.active_brand/active_brand_at (migration 301), CHECK de par nulo",
+      "source": "backend/migrations/301_brand_session.sql"
+    },
+    {
+      "topic": "janela 24 h",
+      "fact": "outbox.HUMAN_REPLY_EXEMPT isenta human_reply; reply_policy.PAUSE_EXEMPT_KINDS isenta da pausa",
+      "source": "backend/app/services/outbox.py; backend/app/services/reply_policy.py"
+    },
+    {
+      "topic": "concorrencia",
+      "fact": "FAQ usa updated_at/version com status conflict (PN-17)",
+      "source": "backend/app/panel/services/faq_admin.py:42,107"
+    }
+  ]
+}

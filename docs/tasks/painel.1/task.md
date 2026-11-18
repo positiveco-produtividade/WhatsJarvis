@@ -172,6 +172,37 @@ Fonte: `spec/spec.md` (4, 5, 8, 9.1), `spec/requirements.json`, `spec/complexity
 | PN-T70 | Runbook e roteiro de smoke | 3 | PN-T01 | `deploy/painel/RUNBOOK-painel.md` (checklist 8.2 e reversao 9; cada passo no servidor exige confirmacao do Caio), `deploy/painel/smoke-checklist.md` | 8.2 (smoke com o Caio), 9 | revisao manual contra spec 8.2 e 9 |
 | PN-T71 | Copiar as 7 propostas de ADR para o overview | 1.5 | aprovacao explicita do Caio | `docs/architecture/overview.md` (so a secao 8, ADRs 1-7 de spec 9.1) | CLAUDE.md (mudanca em architecture exige ADR) | revisao manual; serializar com qualquer edicao de PF no mesmo arquivo |
 
+
+## P12 - Pendencias retomadas em 2026-11-18 (Fase 3 aprovada pelo Caio em 2026-11-18)
+
+O grupo da equipe passou a existir de verdade (retorno-humano.1, WAHA do Jarvis) e o Playwright
+foi instalado; duas lacunas do painel.1 voltam. Spec ja aprovada (PN-61, PN-1/5/14/15/45/47/48/50).
+
+| ID | Titulo | h | depends_on | files_touched | AC | Verificacao |
+|---|---|---|---|---|---|---|
+| PN-T72 `[x]` | Resumo diario das 08:05 no grupo | 4 | retorno-humano.1 (envio ao grupo) | `B/app/panel/services/daily_summary.py` (laco do painel `LOOP`, descoberto por `discover_loops`), `B/app/config.py` (`TEXT_TEAM_GROUP_DAILY_SUMMARY`, `DAILY_SUMMARY_TIME=08:05`, fuso `America/Fortaleza`), `BT/panel/integration/test_daily_summary.py`, `BT/panel/integration/test_team_group_flag.py` (tira o `xfail`), `BT/panel/AC_MAP.md` (PN-61 sai das lacunas), `BT/panel/test_ac_coverage.py` (se necessario) | PN-61 | Relogio falso: 08:04 nada; 08:05 uma entrega `group` com o texto; segunda passada no mesmo dia nao repete (dedup por dia em `ops.deliveries`/`system_state`, sobrevive a reinicio); todo dia, inclusive fim de semana (decisao do Caio: "igual ao AUTO-1"); sem pendentes manda "0 pendentes"; chave desligada nada sai; WAHA fora do ar: a entrega fica para retentativa pelo laco de entregas, sem repetir o resumo |
+| PN-T65 `[ ]` | E2E base (Playwright para Python) | 4 | Playwright instalado (2026-11-18) | `BT/e2e/conftest.py` (sobe o app real com IAM falso numa porta local, banco de teste, papel `jarvis_app`), `BT/e2e/test_auth_marca.py`, `BT/e2e/test_drawer.py`, `B/pytest.ini` ou `pyproject` (marcador `e2e`, fora da suite padrao como o `perf`), `B/requirements-dev.txt` (linha do playwright, opcional) | PN-1, PN-5, PN-14, PN-15 | `pytest tests/e2e -m e2e -q`; sem Playwright/Chromium: pula com o motivo |
+| PN-T66 `[ ]` | E2E modais e widget (Playwright para Python) | 3.5 | PN-T65 | `BT/e2e/test_modais.py`, `BT/e2e/test_assistente.py` | PN-45, PN-47, PN-48, PN-50 | idem |
+
+**Texto proposto do resumo** (PN-T72; configuravel, sem nome nem telefone de vendedor):
+
+```
+📊 Jarvis — pendentes (18/11/2026)
+⏳ Escalados aguardando resposta: 5
+   🔴 Muito urgentes: 1 · 🟠 Urgentes: 3 · 🟢 Pouco urgentes: 1
+🕐 Mais antigo: J-0123, há 3 dias
+🔑 Pedidos de acesso a marca: 2
+⚠ Respostas da equipe que falharam: 0
+Abrir: <link /dashboard/escalados>
+```
+Sem pendentes: `📊 Jarvis — 0 pendentes (18/11/2026)`.
+
+As linhas PN-T65/PN-T66 acima substituem as de P10 (mesmos criterios, outra ferramenta).
+
+**Desvio (PN-T72):** o envio usa `deliveries.send_team_group_text` (novo helper publico, mesmo intervalo entre avisos do RH-3); `B/app/services/deliveries.py` entrou na lista de arquivos. O controle de "uma vez por dia" fica na auditoria (`daily_summary.sent`), como a retencao faz com `retention.purge`, e nao em `ops.deliveries` (evita migration para um `source_type` novo).
+
+**Desvio (E2E):** a spec e as tarefas originais previam Playwright em TypeScript (`F/e2e/*.spec.ts`, `npx`). Este PC nao tem Node; os E2E passam a ser Playwright para Python, dentro do pytest (mesmos criterios, mesma opcionalidade: marcador `e2e` fora da suite padrao e do CI).
+
 ---
 
 ## Parallel Execution Map

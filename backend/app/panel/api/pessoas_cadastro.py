@@ -49,7 +49,7 @@ from app.panel.values import (
 )
 from app.services import audit, users
 
-__all__ = ["FormValues", "router"]
+__all__ = ["FIELD_LABELS", "FormValues", "render_person_form", "router"]
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +67,7 @@ SUCCESS_TEXT = (
     "o acesso libera depois do Aceito."
 )
 ACTION_AUTHORIZED = "access_attempt.authorized"
-_FIELD_LABELS: dict[str, str] = {
+FIELD_LABELS: dict[str, str] = {
     users.KEY_NAME: "Nome",
     users.KEY_PHONE: "Telefone",
     users.KEY_PROFILE: "Perfil",
@@ -165,20 +165,26 @@ async def _load_pedido(
     return Pedido(attempt_id, int(row["attempt_count"]), hidden_number=hidden), row["phone_key"]
 
 
-def _render_form(
+def render_person_form(
     request: Request,
     admin: PanelSession,
     values: FormValues,
     *,
     pedido: Pedido | None = None,
     problems: tuple[str, ...] = (),
+    action: str = PATH,
+    editing: bool = False,
+    version: str = "",
 ) -> Response:
+    """Formulario de pessoa: cadastro, autorizacao de pedido ou edicao (cadastro.1)."""
     context = {
         "csrf_token": csrf_token_for(request, admin),
         "values": values,
-        "action": PATH,
+        "action": action,
         "errors": list(problems),
         "pedido": pedido,
+        "editing": editing,
+        "version": version,
         "profile_options": [(p, PROFILE_LABELS.get(p, p)) for p in PROFILES],
         "uf_options": [(u, u) for u in UFS],
         "channel_options": [(c, CHANNEL_LABELS.get(c, c)) for c in CHANNELS],
@@ -188,7 +194,7 @@ def _render_form(
 
 
 def _field_problems(errors: list[users.FieldError]) -> tuple[str, ...]:
-    return tuple(f"{_FIELD_LABELS.get(e.field, e.field)}: {e.reason}" for e in errors)
+    return tuple(f"{FIELD_LABELS.get(e.field, e.field)}: {e.reason}" for e in errors)
 
 
 async def _save(
@@ -237,7 +243,7 @@ async def nova(
         if loaded is not None:
             shown, phone_key = loaded
             values = FormValues(phone=f"+{phone_key}" if phone_key else "", brands=tuple(BRANDS))
-    return _render_form(request, admin, values, pedido=shown)
+    return render_person_form(request, admin, values, pedido=shown)
 
 
 @router.post(PATH, include_in_schema=False, dependencies=[Depends(require_csrf)])
@@ -263,12 +269,14 @@ async def criar(
     shown = Pedido(attempt_id, 0) if attempt_id is not None else None
     checked = users.validate_row(values.as_row(), now=get_clock(request).now())
     if isinstance(checked, list):
-        return _render_form(request, admin, values, pedido=shown, problems=_field_problems(checked))
+        return render_person_form(
+            request, admin, values, pedido=shown, problems=_field_problems(checked)
+        )
     try:
         async with request.app.state.pool.acquire() as conn:
             await _save(conn, request, admin, checked, attempt_id)
     except DuplicatePhone:
         logger.info("panel_person_duplicate_phone")
-        return _render_form(request, admin, values, pedido=shown, problems=(DUPLICATE_TEXT,))
+        return render_person_form(request, admin, values, pedido=shown, problems=(DUPLICATE_TEXT,))
     logger.info("panel_person_registered", extra={"from_request": attempt_id is not None})
     return _done()

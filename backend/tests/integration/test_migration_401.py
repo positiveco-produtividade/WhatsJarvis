@@ -221,6 +221,11 @@ async def test_migration_idempotente(
     sql = (MIGRATIONS_DIR / "401_retorno_humano.sql").read_text(encoding="utf-8")
     await owner_conn.execute(sql)
     await owner_conn.execute(sql)
+    # Reexecutar a 401 recria o CHECK de `kind` com a lista dela; as posteriores que ampliam a
+    # lista (403, brand_access_granted) sao reaplicadas para nao vazar o estado (cadastro.1).
+    for later in migrate.discover(MIGRATIONS_DIR):
+        if later.number > 401:
+            await owner_conn.execute(later.sql)
     user_id = await factories.create_active_user(db_conn, NOW)
     ticket_id = await _ticket(db_conn, user_id)
     await _outbound(db_conn, user_id, "human_reply", ticket_id=ticket_id, token=uuid.uuid4())

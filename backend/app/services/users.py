@@ -411,6 +411,142 @@ async def resend(
     return user
 
 
+
+# ---------------------------------------------------------------------------
+# Edicao pelo painel (cadastro.1, CA-2..CA-10)
+# ---------------------------------------------------------------------------
+
+ACTION_UPDATED = "user.update"
+UPDATE_OK = "ok"
+UPDATE_NOOP = "noop"
+UPDATE_CONFLICT = "conflict"
+UPDATE_NOT_EDITABLE = "not_editable"
+UPDATE_NOT_FOUND = "not_found"
+EDITABLE_STATUSES = frozenset({"pending_optin", "active", "declined"})
+# Campos com valor na auditoria (nao sao dado pessoal); os demais so pelo nome (CA-8).
+_AUDITED_VALUES = ("profile", "ufs", "channels", "brands")
+_EDITABLE_FIELDS = ("name", "profile", "company", "ufs", "channels", "brands", "manager_name")
+
+_LOCK_FOR_EDIT = (
+    "SELECT id, name, phone_e164, profile, company, ufs, channels, brands, manager_name, "
+    "status, active_brand, updated_at, "
+    "(name LIKE 'anon:%' OR phone_e164 LIKE 'anon:%') AS anonymized "
+    "FROM access.users WHERE id = $1 FOR UPDATE"
+)
+_UPDATE_USER = (
+    "UPDATE access.users SET name = $2, profile = $3, company = $4, ufs = $5::text[], "
+    "channels = $6::text[], brands = $7::text[], manager_name = $8, updated_at = $9, "
+    "active_brand = CASE WHEN active_brand = ANY($7::text[]) THEN active_brand END, "
+    "active_brand_at = CASE WHEN active_brand = ANY($7::text[]) THEN active_brand_at END "
+    "WHERE id = $1"
+)
+
+
+@dataclass(frozen=True)
+class UpdateResult:
+    """Desfecho de `update`. `granted`: marcas acrescentadas (ordem do formulario).
+    `current`: a linha lida (nos casos de conflito, os dados atuais para o formulario)."""
+
+    status: str
+    changed: tuple[str, ...] = ()
+    granted: tuple[str, ...] = ()
+    phone_e164: str | None = None
+    user_status: str | None = None
+    updated_at: datetime | None = None
+    current: Mapping[str, Any] | None = None
+
+
+def _as_tuple(value: Any) -> tuple[str, ...]:
+    return tuple(value or ())
+
+
+def _current_values(row: Any) -> dict[str, Any]:
+    return {
+        "name": row["name"],
+        "profile": row["profile"],
+        "company": row["company"],
+        "ufs": _as_tuple(row["ufs"]),
+        "channels": _as_tuple(row["channels"]),
+        "brands": _as_tuple(row["brands"]),
+        "manager_name": row["manager_name"],
+    }
+
+
+def _new_values(data: ValidatedUser) -> dict[str, Any]:
+    return {
+        "name": data.name,
+        "profile": data.profile,
+        "company": data.company,
+        "ufs": tuple(data.ufs),
+        "channels": tuple(data.channels),
+        "brands": tuple(data.brands),
+        "manager_name": data.manager_name,
+    }
+
+
+def _same(field: str, old: Any, new: Any) -> bool:
+    if field in ("ufs", "channels", "brands"):
+        return set(old) == set(new)
+    return bool(old == new)
+
+
+async def update(
+    conn: Any,
+    user_id: int,
+    data: ValidatedUser,
+    *,
+    expected_updated_at: datetime | None,
+    actor: str,
+    actor_type: str = "panel",
+    clock: Clock | None = None,
+) -> UpdateResult:
+    """Edita os dados de uma pessoa (cadastro.1). So `access.users` e a auditoria.
+
+    Na transacao do chamador (subtransacao): trava a linha; recusa revogada/anonimizada
+    (CA-6) e edicao concorrente (`updated_at` diferente do lido no formulario, CA-5); nada
+    mudou = `noop` sem gravar (CA-4). Status, aceite e telefone nunca mudam (CA-7). Se a
+    marca da conversa saiu das marcas, ela e apagada no mesmo UPDATE (CA-10). Concluir
+    pedidos de acesso e avisar o vendedor e de quem chama (painel), com `granted`.
+    """
+    now = (clock or SystemClock()).now()
+    async with conn.transaction():
+        row = await conn.fetchrow(_LOCK_FOR_EDIT, user_id)
+        if row is None:
+            return UpdateResult(UPDATE_NOT_FOUND)
+        old = _current_values(row)
+        if row["status"] not in EDITABLE_STATUSES or row["anonymized"]:
+            return UpdateResult(UPDATE_NOT_EDITABLE, user_status=row["status"], current=old)
+        if expected_updated_at is None or row["updated_at"] != expected_updated_at:
+            return UpdateResult(
+                UPDATE_CONFLICT, user_status=row["status"], updated_at=row["updated_at"],
+                current=old,
+            )  # fmt: skip
+        new = _new_values(data)
+        changed = tuple(f for f in _EDITABLE_FIELDS if not _same(f, old[f], new[f]))
+        if not changed:
+            return UpdateResult(
+                UPDATE_NOOP, user_status=row["status"], updated_at=row["updated_at"], current=old
+            )
+        await conn.execute(
+            _UPDATE_USER, user_id, new["name"], new["profile"], new["company"],
+            list(new["ufs"]), list(new["channels"]), list(new["brands"]), new["manager_name"],
+            now,
+        )  # fmt: skip
+        granted = tuple(b for b in new["brands"] if b not in set(old["brands"]))
+        await audit.write(
+            conn, actor_type, actor, ACTION_UPDATED, TARGET_TYPE, str(user_id),
+            old={f: list(old[f]) if isinstance(old[f], tuple) else old[f]
+                 for f in _AUDITED_VALUES if f in changed},
+            new={"changed": list(changed),
+                 **{f: list(new[f]) if isinstance(new[f], tuple) else new[f]
+                    for f in _AUDITED_VALUES if f in changed}},
+            clock=clock,
+        )  # fmt: skip
+    return UpdateResult(
+        UPDATE_OK, changed=changed, granted=granted, phone_e164=row["phone_e164"],
+        user_status=row["status"], updated_at=now,
+    )  # fmt: skip
+
 def _phone_key(raw: str, field: str) -> tuple[str, str]:
     try:
         phone = normalize_phone(raw)

@@ -118,7 +118,6 @@ def test_referencias_automatizadas_existem(automated: dict[int, list[str]]) -> N
 
 def test_referencias_de_lacunas_existem(sections: dict[str, list[str]]) -> None:
     refs = REF_RE.findall("\n".join(sections["lacunas conhecidas"]))
-    assert refs, "a lacuna do PN-61 deve apontar para o teste xfail"
     assert all(_ref_exists(r) for r in refs)
 
 
@@ -127,8 +126,9 @@ def test_manuais_tem_motivo_e_lacunas_declaradas(sections: dict[str, list[str]])
     assert all(len(reason) >= 10 for reason in manual.values())
     assert 59 in manual
     gaps = _bullet_pns(sections["lacunas conhecidas"])
-    assert 61 in gaps and "xfail" in gaps[61]
-    assert "Playwright" in "\n".join(sections["lacunas conhecidas"])
+    assert 61 not in gaps  # resumo das 08:05 implementado (PN-T72, 2026-11-18)
+    gaps_text = "\n".join(sections["lacunas conhecidas"])
+    assert "Playwright" in gaps_text and "nao executados" not in gaps_text  # E2E rodam (T65/T66)
 
 
 # --- retorno-humano.1 (RH-T13): RH-1..RH-21 -----------------------------------------------

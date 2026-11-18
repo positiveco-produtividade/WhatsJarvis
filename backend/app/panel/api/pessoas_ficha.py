@@ -147,6 +147,8 @@ def _person(record: asyncpg.Record) -> dict[str, Any]:
         "can_revoke": status in _REVOKABLE and not _is_self(record),
         "can_reactivate": status in _REACTIVABLE and not _is_anonymized(record),
         "can_resend": status == "pending_optin" and not _is_anonymized(record),
+        # cadastro.1 (CA-1, CA-6, CA-12): editar e trocar numero so para quem nao foi retirado
+        "can_edit": status in users.EDITABLE_STATUSES and not _is_anonymized(record),
         "is_self": _is_self(record),
     }
 

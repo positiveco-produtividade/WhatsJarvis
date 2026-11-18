@@ -52,6 +52,7 @@ def test_outbound_kinds_match_spec_check() -> None:
         "brain_answer", "brain_answer_rate", "brain_notice",
         "brand_poll",  # canal-waha.1 (migration 301)
         "human_reply",  # retorno-humano.1 (migration 401)
+        "brand_access_granted",  # cadastro.1 (migration 403)
     }  # fmt: skip
 
 

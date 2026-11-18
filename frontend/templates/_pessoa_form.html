@@ -1,4 +1,5 @@
-{# Cadastro de pessoa e autorizacao de pedido (PN-T34; PN-32, PN-33, PN-36). Fragmento injetado em
+{# Cadastro de pessoa, autorizacao de pedido (PN-T34; PN-32, PN-33, PN-36) e edicao (cadastro.1:
+   editing=True, version = updated_at lido; telefone so leitura, a troca e pelo modal proprio). Fragmento injetado em
    #modal-body (base.html); layout e textos vem do prototipo. Contexto: values (FormValues), action,
    errors, pedido (Pedido ou None), profile_options, uf_options, channel_options, brand_options,
    csrf_token. UFs, canais e marcas sao grupos de caixinhas com o mesmo nome; js/pessoa_form.js so
@@ -17,11 +18,12 @@
     </div>
   </fieldset>
 {% endmacro %}
-{{ modal_head('Autorizar número' if pedido else 'Cadastrar pessoa') }}
+{{ modal_head('Editar cadastro' if editing else ('Autorizar número' if pedido else 'Cadastrar pessoa')) }}
 <form method="post" action="{{ action }}" hx-post="{{ action }}" hx-target="#modal-body" hx-swap="innerHTML"
       hx-disabled-elt="find button[type=submit]" class="px-4 py-4 space-y-3" data-pessoa-form>
   {{ csrf_field(csrf_token) }}
   {% if pedido %}<input type="hidden" name="pedido" value="{{ pedido.id }}">{% endif %}
+  {% if editing %}<input type="hidden" name="versao" value="{{ version }}">{% endif %}
 
   {% if pedido and pedido.hidden_number %}
   <p role="alert" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700"><strong>Número oculto:</strong> o WhatsApp não mostrou o telefone desta pessoa. Confirme com ela quem é (por exemplo, ligando) antes de autorizar e digite o telefone verdadeiro abaixo. Ao salvar, as próximas mensagens dela serão reconhecidas.</p>
@@ -38,7 +40,12 @@
   </div>
   <div>
     <label for="pf-telefone" class="block text-xs font-medium text-ink-600">Telefone (com DDD)</label>
+    {% if editing %}
+    <input id="pf-telefone" value="{{ values.phone }}" readonly aria-readonly="true" class="mt-1 w-full rounded-lg border border-ink-200 bg-ink-50 px-2 py-1.5 text-sm font-mono text-ink-600">
+    <p class="mt-1 text-[11px] text-ink-400">Para mudar o número, use “Trocar número” na ficha.</p>
+    {% else %}
     <input id="pf-telefone" name="telefone" value="{{ values.phone }}" maxlength="30" inputmode="tel" autocomplete="off" placeholder="+55 85 9XXXX-XXXX" class="mt-1 w-full rounded-lg border border-ink-300 px-2 py-1.5 text-sm font-mono">
+    {% endif %}
   </div>
   <div class="grid grid-cols-2 gap-2">
     <div>
@@ -60,9 +67,13 @@
     <input id="pf-gestor" name="gestor" value="{{ values.manager }}" maxlength="200" autocomplete="off" placeholder="Nome do gestor" class="mt-1 w-full rounded-lg border border-ink-300 px-2 py-1.5 text-sm">
   </div>
 
+  {% if editing %}
+  <p class="text-[11px] text-ink-400">As marcas valem já na próxima mensagem. Se você liberar uma marca que a pessoa pediu, o pedido é concluído e ela recebe um aviso no WhatsApp.</p>
+  {% else %}
   <p class="text-[11px] text-ink-400">Ao salvar, o Jarvis manda a mensagem de boas-vindas com o aviso de privacidade. O acesso só libera depois do <strong>Aceito</strong>.</p>
+  {% endif %}
   <div class="flex items-center gap-2 pt-1">
-    <button type="submit" class="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-ink-800">{{ 'Autorizar' if pedido else 'Cadastrar' }}</button>
+    <button type="submit" class="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-ink-800">{{ 'Salvar' if editing else ('Autorizar' if pedido else 'Cadastrar') }}</button>
     <button type="button" data-overlay-close class="rounded-lg border border-ink-300 bg-white px-3 py-1.5 text-xs font-medium text-ink-700 hover:bg-ink-50">Cancelar</button>
   </div>
 </form>

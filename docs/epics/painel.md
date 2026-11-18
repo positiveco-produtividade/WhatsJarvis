@@ -15,6 +15,7 @@ Jarvis e ver relatórios de uso.
 | ID | História |
 |---|---|
 | painel.1 | Painel com Mensagens, FAQ, Pessoas autorizadas e Relatórios |
+| cadastro.1 | Editar o cadastro e trocar o número pelo painel |
 
 ## Fora deste épico (por enquanto)
 

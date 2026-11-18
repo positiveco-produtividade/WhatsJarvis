@@ -1,0 +1,23 @@
+{# Trocar numero (cadastro.1; CA-12, CA-13). Fragmento para #modal-body, no modelo do modal de
+   revogar. Contexto: person (id, name, phone), action, typed, error, csrf_token. Mesma regra da
+   CLI (swap-number): o cadastro atual e retirado e um novo, igual, recebe o aviso de novo. #}
+{% from "_macros.html" import csrf_field, error_list, modal_head %}
+{% if person %}
+{{ modal_head('Trocar número') }}
+<form method="post" action="{{ action }}" hx-post="{{ action }}" hx-target="#modal-body" hx-swap="innerHTML"
+      hx-disabled-elt="find button" class="px-4 py-4 space-y-3" data-trocar-numero-form>
+  {{ csrf_field(csrf_token) }}
+  <p class="text-sm text-ink-700"><strong>{{ person.name }}</strong> · <span class="font-mono text-xs">{{ person.phone }}</span></p>
+  <p class="text-xs text-ink-500">O número atual é retirado (motivo: troca de número) e um cadastro igual é criado com o número novo. A pessoa recebe o aviso de privacidade de novo e só volta a usar o Jarvis depois do <strong>Aceito</strong>.</p>
+  {% if error %}{{ error_list([error]) }}{% endif %}
+  <div>
+    <label for="tn-telefone" class="block text-xs font-medium text-ink-600">Número novo (com DDD)</label>
+    <input id="tn-telefone" name="telefone" value="{{ typed }}" required maxlength="30" inputmode="tel" autocomplete="off" placeholder="+55 85 9XXXX-XXXX" data-ficha-focus class="mt-1 w-full rounded-lg border border-ink-300 px-2 py-1.5 text-sm font-mono">
+  </div>
+  <div class="flex gap-2 pt-1">
+    <button type="submit" class="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-ink-800">Trocar número</button>
+    <button type="button" data-overlay-close class="rounded-lg border border-ink-300 bg-white px-3 py-1.5 text-xs font-medium text-ink-700 hover:bg-ink-50">Cancelar</button>
+  </div>
+</form>
+<script src="{{ static_v('js/pessoa_ficha.js') }}"></script>
+{% endif %}

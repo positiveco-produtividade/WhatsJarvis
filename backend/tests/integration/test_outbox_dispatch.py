@@ -411,6 +411,41 @@ async def test_resposta_humana_a_vendedor_revogado_e_descartada(db_pool: asyncpg
     assert channel.calls == []
 
 
+
+# --- Aviso de marca liberada (cadastro.1, CA-11, D4) ---------------------------------------
+
+
+@pytest.mark.db
+async def test_marca_liberada_sai_fora_da_janela(db_pool: asyncpg.Pool) -> None:
+    async with db_pool.acquire() as conn:
+        user = await add_user(conn)  # o vendedor nao escreveu nas ultimas 24 h
+        aviso = await queue_kind(conn, user, OutboundKind.BRAND_ACCESS_GRANTED)
+    channel = FakeChannel(capabilities=WAHA_CAPABILITIES)
+    assert await run(db_pool, aviso, channel, reply_only=True) is OutboundStatus.SENT
+
+
+@pytest.mark.db
+async def test_marca_liberada_sem_isencao_respeita_a_janela(db_pool: asyncpg.Pool) -> None:
+    async with db_pool.acquire() as conn:
+        user = await add_user(conn)
+        aviso = await queue_kind(conn, user, OutboundKind.BRAND_ACCESS_GRANTED)
+    channel = FakeChannel(capabilities=WAHA_CAPABILITIES)
+    status = await run(db_pool, aviso, channel, reply_only=outbox.ReplyWindow())
+    assert status is OutboundStatus.DISCARDED and channel.calls == []
+
+
+@pytest.mark.db
+async def test_pausa_segura_o_aviso_de_marca_liberada(db_pool: asyncpg.Pool) -> None:
+    """Diferente da resposta humana: e aviso automatico, a pausa do Jarvis segura."""
+    flags = Flags(db_pool, FakeClock(RECEIVED))
+    async with db_pool.acquire() as conn:
+        await flags.set_bool(conn, "paused", True, "caio")
+        user = await add_user(conn)
+        aviso = await queue_kind(conn, user, OutboundKind.BRAND_ACCESS_GRANTED)
+    channel = FakeChannel()
+    status = await run(db_pool, aviso, channel, policy=FlagsReplyPolicy(flags))
+    assert status is OutboundStatus.DISCARDED and channel.calls == []
+
 def _settings(**over: Any) -> Settings:
     base: dict[str, Any] = {
         "database_url": "postgresql://x",

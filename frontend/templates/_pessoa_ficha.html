@@ -48,6 +48,12 @@
   {% endif %}
 
   <div class="flex items-center gap-2 flex-wrap pt-1">
+    {% if person.can_edit %}
+    <button type="button" hx-get="/dashboard/pessoas/{{ person.id }}/editar" hx-target="#modal-body" hx-swap="innerHTML"
+            class="rounded-lg border border-ink-300 bg-white px-3 py-1.5 text-xs font-medium text-ink-700 hover:bg-ink-50">Editar</button>
+    <button type="button" hx-get="/dashboard/pessoas/{{ person.id }}/trocar-numero" hx-target="#modal-body" hx-swap="innerHTML"
+            class="rounded-lg border border-ink-300 bg-white px-3 py-1.5 text-xs font-medium text-ink-700 hover:bg-ink-50">Trocar número</button>
+    {% endif %}
     {% if person.can_revoke %}
     <button type="button" hx-get="/dashboard/pessoas/{{ person.id }}/revogar" hx-target="#modal-body" hx-swap="innerHTML"
             class="rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs font-medium text-ink-600 hover:bg-red-50 hover:text-red-700 hover:border-red-200">Revogar acesso</button>

@@ -153,6 +153,11 @@ class Settings(BaseSettings):
     # Resposta humana pelo painel (retorno-humano.1, RH-6 a RH-13)
     human_reply_max_chars: int = 4000
     human_reply_ignore_window: bool = True  # exceção à WA-16 (ADR 2026-11-17)
+    # Aviso ao vendedor quando o admin libera uma marca que ele pediu (cadastro.1, CA-11).
+    text_brand_access_granted: str = "Seu acesso a {marca} foi liberado. Pode perguntar!"
+    # Resumo diario das 08:05 no grupo (painel.1 PN-61, PN-T72). Placeholder: {data}.
+    text_team_group_daily_summary_title: str = "📊 Jarvis — pendentes ({data})"
+    text_team_group_daily_summary_empty: str = "📊 Jarvis — 0 pendentes ({data})"
     text_human_reply_header: str = "Retorno da equipe ({nome}) sobre sua pergunta:"
     text_human_reply_header_no_name: str = "Retorno da equipe sobre sua pergunta:"
 

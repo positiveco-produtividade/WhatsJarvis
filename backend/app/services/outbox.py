@@ -53,6 +53,7 @@ REQUIRED_STATUS: Mapping[OutboundKind, UserStatus] = {
     OutboundKind.BRAIN_NOTICE: UserStatus.ACTIVE,
     OutboundKind.BRAND_POLL: UserStatus.ACTIVE,
     OutboundKind.HUMAN_REPLY: UserStatus.ACTIVE,
+    OutboundKind.BRAND_ACCESS_GRANTED: UserStatus.ACTIVE,
 }
 
 # Limites da Meta para mensagem interativa de botoes (verificacao-externa.md).
@@ -176,15 +177,19 @@ class ReplyWindow:
 
 
 # Excecao da resposta humana (ADR 2026-11-17, retorno-humano.1 D2): o padrao de `reply_only=True`.
-HUMAN_REPLY_EXEMPT = ReplyWindow(frozenset({OutboundKind.HUMAN_REPLY.value}))
+# Fora da janela de 24 h (ADR 2026-11-17 e extensao de cadastro.1, D4): a resposta da equipe
+# e o aviso de marca liberada a pedido do proprio vendedor.
+HUMAN_REPLY_EXEMPT = ReplyWindow(
+    frozenset({OutboundKind.HUMAN_REPLY.value, OutboundKind.BRAND_ACCESS_GRANTED.value})
+)
 
 
 def reply_only_for(settings: Settings, channel: Channel) -> ReplyWindow | None:
     """Regra "so responde" (WA-16): ligada por OUTBOUND_REPLY_ONLY no canal sem modelos (WAHA),
     onde o Jarvis nunca inicia conversa. Na Meta (so nos testes), sempre desligada (None).
 
-    A resposta da equipe (`human_reply`) fica fora da janela, salvo
-    `HUMAN_REPLY_IGNORE_WINDOW=false`."""
+    A resposta da equipe (`human_reply`) e o aviso de marca liberada (`brand_access_granted`)
+    ficam fora da janela, salvo `HUMAN_REPLY_IGNORE_WINDOW=false`."""
     if not (settings.outbound_reply_only and not channel.capabilities.templates):
         return None
     return HUMAN_REPLY_EXEMPT if settings.human_reply_ignore_window else ReplyWindow()

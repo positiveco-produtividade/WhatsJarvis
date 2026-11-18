@@ -297,6 +297,13 @@ async def _send_group_spaced(
             _last_group_send = _monotonic()
 
 
+async def send_team_group_text(
+    text: str, cfg: Settings, client: httpx.AsyncClient | None = None
+) -> DeliveryResult:
+    """Envio avulso ao grupo (resumo diario, PN-61) respeitando o intervalo entre avisos."""
+    return await _send_group_spaced(text, cfg, client)
+
+
 async def _run(
     pool: Any,
     claimed: Any,

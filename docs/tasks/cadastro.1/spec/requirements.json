@@ -1,0 +1,142 @@
+{
+  "task_id": "CADASTRO-1",
+  "title": "Editar o cadastro e trocar o numero pelo painel",
+  "story": "docs/stories/cadastro.1.md",
+  "epic": "docs/epics/painel.md",
+  "phase": "2-design",
+  "status": "draft",
+  "revision": "2026-11-18 - D1-D6 decididas pelo Caio; Fase 1 aprovada; validade fora da edicao (nunca gravada, spec 7)",
+  "user_story": {
+    "as_a": "admin do painel",
+    "i_want": "editar os dados de uma pessoa cadastrada e trocar o numero dela pela ficha",
+    "so_that": "liberar marcas, corrigir UFs e perfis sem mexer no banco nem na linha de comando"
+  },
+  "acceptance_criteria": [
+    {
+      "id": "CA-1",
+      "title": "Abrir a edicao",
+      "given": "admin na ficha de pessoa pending_optin, active ou declined",
+      "when": "clica Editar",
+      "then": "formulario do cadastro preenchido; telefone so leitura",
+      "testable": true
+    },
+    {
+      "id": "CA-2",
+      "title": "Salvar",
+      "given": "formulario de edicao",
+      "when": "salva dados validos",
+      "then": "pessoa atualizada, ficha com os dados novos e 'Cadastro atualizado'; validacao igual ao cadastro",
+      "testable": true
+    },
+    {
+      "id": "CA-3",
+      "title": "Dados invalidos",
+      "given": "dados invalidos",
+      "when": "salva",
+      "then": "erro no campo; nada gravado",
+      "testable": true
+    },
+    {
+      "id": "CA-4",
+      "title": "Sem mudanca",
+      "given": "nenhum campo alterado",
+      "when": "salva",
+      "then": "nada gravado nem auditado; 'Nada foi alterado'",
+      "testable": true
+    },
+    {
+      "id": "CA-5",
+      "title": "Edicao concorrente",
+      "given": "dois admins editando",
+      "when": "o segundo salva depois do primeiro",
+      "then": "aviso de conflito com os dados atuais; nada do segundo gravado (padrao PN-17)",
+      "testable": true
+    },
+    {
+      "id": "CA-6",
+      "title": "Quem nao edita",
+      "given": "pessoa revoked ou excluida pela LGPD",
+      "when": "abre a ficha ou faz POST direto",
+      "then": "sem botao Editar; POST recusado sem gravar",
+      "testable": true
+    },
+    {
+      "id": "CA-7",
+      "title": "Status e aceite intactos",
+      "given": "edicao",
+      "when": "gravada",
+      "then": "status, aceite, versao do aviso, historico de opt-in e telefone nao mudam",
+      "testable": true
+    },
+    {
+      "id": "CA-8",
+      "title": "Auditoria",
+      "given": "edicao gravada",
+      "when": "consulta a auditoria",
+      "then": "user.update com admin, pessoa e nomes dos campos; perfil/UFs/canais/marcas com antes e depois; nome/empresa/gestor so como alterado",
+      "testable": true
+    },
+    {
+      "id": "CA-9",
+      "title": "Efeito imediato",
+      "given": "marcas alteradas",
+      "when": "proxima mensagem do vendedor",
+      "then": "acesso, enquete e 'qual marca?' ja usam as marcas novas",
+      "testable": true
+    },
+    {
+      "id": "CA-10",
+      "title": "Marca da conversa retirada",
+      "given": "marca da conversa ativa",
+      "when": "admin retira essa marca",
+      "then": "marca da conversa apagada na mesma gravacao",
+      "testable": true
+    },
+    {
+      "id": "CA-11",
+      "title": "Pedido de acesso atendido (D2)",
+      "given": "pedidos de acesso abertos da pessoa para uma marca",
+      "when": "admin da essa marca",
+      "then": "pedidos concluidos com o admin como autor; vendedor active recebe 'Seu acesso a {marca} foi liberado. Pode perguntar!' (uma por marca, texto configuravel); nao active: so conclui",
+      "testable": true
+    },
+    {
+      "id": "CA-12",
+      "title": "Trocar numero (D1)",
+      "given": "pessoa pending_optin, active ou declined",
+      "when": "admin informa novo telefone e confirma no modal",
+      "then": "regra do swap-number: antigo revogado (number_change), novo pending_optin com os mesmos dados, aviso ao numero novo, admin vai a ficha nova; uma transacao, auditado",
+      "testable": true
+    },
+    {
+      "id": "CA-13",
+      "title": "Numero invalido ou ja cadastrado",
+      "given": "telefone invalido ou de outra pessoa (com/sem 9o digito)",
+      "when": "admin confirma",
+      "then": "erro no modal; nada muda",
+      "testable": true
+    },
+    {
+      "id": "CA-14",
+      "title": "Acesso e privacidade",
+      "given": "rotas novas",
+      "when": "sem sessao de admin ou POST sem CSRF",
+      "then": "recusadas; logs sem nome, telefone, empresa ou gestor; rotas na varredura de seguranca",
+      "testable": true
+    }
+  ],
+  "decisions": {
+    "D1": "botao Trocar numero com a regra do swap-number (decidido)",
+    "D2": "liberar marca pedida conclui o pedido e avisa o vendedor (decidido)",
+    "D3": "resumo diario fica no painel.1 (PN-61)",
+    "D4": "aviso de CA-11 fora da janela de 24 h (decidido; estende ADR 2026-11-17)",
+    "D5": "declined pode ser editada (decidido)",
+    "D6": "qualquer admin edita (decidido)"
+  },
+  "out_of_scope": [
+    "edicao em lote ou por planilha",
+    "mudar status a mao",
+    "editar pela CLI",
+    "avisar o vendedor de outras mudancas"
+  ]
+}

@@ -868,7 +868,7 @@ Onda final **opcional**. Entrega arquivos versionados; **nenhum comando é execu
 - `node -e "require('./deploy/ecosystem.config.js')"` carrega sem erro (se Node disponível; o piloto usa Node) ou revisão manual.
 - Revisão: nenhum IP, senha ou token no arquivo além do placeholder.
 
-**Estimate:** 2 h  **Status:** `[ ]`
+**Estimate:** 2 h  **Status:** `[x]` (entregue no commit `0dfb665` "deploy" e revisto em porta-fechada.2; ver `deploy/`)
 
 ---
 
@@ -886,7 +886,7 @@ Onda final **opcional**. Entrega arquivos versionados; **nenhum comando é execu
 **Verification:**
 - Revisão cruzada com 4.10, 8.2 e 9 (cada item presente; nenhum comando destrutivo sem aviso).
 
-**Estimate:** 2 h  **Status:** `[ ]`
+**Estimate:** 2 h  **Status:** `[x]` (entregue no commit `0dfb665` "deploy" e revisto em porta-fechada.2; ver `deploy/`)
 
 ---
 

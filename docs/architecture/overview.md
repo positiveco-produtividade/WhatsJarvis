@@ -87,6 +87,7 @@ Architectural Decision Records. New entries at the top.
 - **Decision:** O kind `human_reply` é o **único** que o outbox envia sem mensagem do vendedor nas últimas 24 h. Todas as outras saídas continuam "só responde". A exceção pode ser desligada por configuração (`HUMAN_REPLY_IGNORE_WINDOW=false`). No mesmo design, os avisos ao grupo da equipe passam a sair pelo WAHA do próprio Jarvis, e não mais pelo do AUTO-1 (D5).
 - **Alternatives:** Manter 24 h e responder por fora depois disso; pedir confirmação de risco depois de 24 h.
 - **Consequences:** O número do Jarvis pode iniciar conversa nesses casos, o que aumenta o risco de restrição no WAHA (aceito). Mitigação: só admin envia, e sempre a quem já falou com o Jarvis. Substitui em parte a WA-16 de canal-waha.1.
+- **Extensão (proposta em 2026-11-18, Fase 2 de cadastro.1, D4 do Caio):** o aviso `brand_access_granted` ("Seu acesso a {marca} foi liberado"), enviado quando o admin dá ao vendedor uma marca que ele pediu, também sai fora da janela, pelo mesmo interruptor. Diferente da resposta humana, a pausa do Jarvis segura esse aviso.
 
 ### 2026-11-13 — WAHA como canal dos vendedores; Meta como segunda opção (aceito pelo Caio em 2026-11-13, Fase 2 de canal-waha.1)
 - **Context:** O go-live pela WhatsApp Cloud API está parado em pendências da Meta (número próprio, verificação, pagamento, token permanente, modelo aprovado; B-001). O ADR de 2026-10-20 rejeitou o WAHA para vendedores por ser não oficial, ter risco de banimento e não ter listas interativas. A Positive já opera WAHA no droplet para o AUTO-1.

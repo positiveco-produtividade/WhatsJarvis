@@ -1,0 +1,32 @@
+{
+  "task_id": "CADASTRO-1",
+  "size": "M",
+  "points": 8,
+  "estimate_hours": 20,
+  "breakdown": [
+    {
+      "area": "users.update + auditoria + marca da conversa",
+      "hours": 4
+    },
+    {
+      "area": "pedido de acesso concluido + kind brand_access_granted + migration 403 + janela",
+      "hours": 4
+    },
+    {
+      "area": "rotas e templates de edicao",
+      "hours": 4.5
+    },
+    {
+      "area": "trocar numero pelo painel",
+      "hours": 2.5
+    },
+    {
+      "area": "seguranca, mapa de criterios, docs, verificacao final",
+      "hours": 5
+    }
+  ],
+  "risks": [
+    "formulario compartilhado com cadastro e pedido",
+    "mensagem automatica fora da janela (D4)"
+  ]
+}
