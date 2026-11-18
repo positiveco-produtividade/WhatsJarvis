@@ -1,6 +1,6 @@
 ---
 task_id: CANAL-WAHA-1
-status: draft
+status: implemented
 phase: 4-implementation
 tasks_approved_by: Caio
 tasks_approved_at: 2026-11-13

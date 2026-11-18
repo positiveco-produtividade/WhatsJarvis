@@ -219,6 +219,10 @@ No `farol`, conferir antes como o certificado do site do AUTO-1 é emitido e seg
 
 ## Atualizar (o dia a dia)
 
+Atalho: `bash deploy/deploy.sh [SERVIDOR] [--migrate] [--pip] [--dry-run]` faz os passos abaixo,
+pedindo confirmação antes de cada um no servidor (comece com `--dry-run` para ver o que vai rodar).
+À mão:
+
 ```bash
 # 1. no PC: enviar o código (passo 3)
 # 2. se houver migration nova em backend/migrations/: aplicar (passo 6, só a parte do migrate,

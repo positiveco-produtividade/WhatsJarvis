@@ -1,6 +1,6 @@
 # História canal-waha.1 — Vendedores pelo WAHA, Meta guardada para depois
 
-> **Épico:** [canal-waha](../epics/canal-waha.md) · **Status:** Draft (requisitos aprovados por Caio em 2026-11-13; design em andamento) · **Owner:** Caio · **Criado:** 2026-11-13
+> **Épico:** [canal-waha](../epics/canal-waha.md) · **Status:** Implementada (WA-T01..WA-T24; fases 1 a 3 aprovadas por Caio em 2026-11-13). Falta só o go-live assistido (WA-T25): [`go-live.md`](../tasks/canal-waha.1/go-live.md) · **Owner:** Caio · **Criado:** 2026-11-13
 
 Fonte de verdade: `docs/tasks/canal-waha.1/spec/spec.md` e `requirements.json`.
 Em caso de divergência, vale o spec.

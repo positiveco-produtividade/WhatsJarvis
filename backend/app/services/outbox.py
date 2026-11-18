@@ -483,7 +483,9 @@ async def dispatch(
             await _fail_invalid(conn, row, error)
             raise
     result = await _send_with_retry(pool, channel, row)
-    async with pool.acquire() as conn:
+    # Fila e rastro numa transacao so: quem le nunca ve a saida final com o rastro sem
+    # resultado (era a causa do teste instavel test_trace_logs, 2026-11-18).
+    async with pool.acquire() as conn, conn.transaction():
         return await _record_outcome(conn, row, result, time.now())
 
 
