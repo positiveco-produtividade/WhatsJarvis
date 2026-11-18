@@ -1,0 +1,43 @@
+# Site nginx do Jarvis (spec porta-fechada.1, 4.10).
+# Copiar para /etc/nginx/sites-available/jarvis, trocar JARVIS_HOST pelo dominio
+# (ex.: jarvis.positiveco.com.br), ligar com symlink em sites-enabled e rodar
+#   nginx -t && systemctl reload nginx      (nunca restart: servidor compartilhado)
+# O certificado vem do certbot (`certbot --nginx -d JARVIS_HOST`), que acrescenta o bloco 443.
+#
+# O dominio PRECISA ser *.positiveco.com.br: o app so aceita esses hosts em producao
+# (TrustedHost) e o login do painel usa o cookie do IAM (accounts.positiveco.com.br).
+
+server {
+    listen 80;
+    server_name JARVIS_HOST;
+
+    # O limitador por IP do app le X-Real-IP; sempre o peer TCP, nunca o que o cliente mandar.
+    proxy_set_header Host              $host;
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_http_version 1.1;
+    proxy_read_timeout 15s;
+
+    # Importacoes do painel (CSV de pessoas, planilha da FAQ) vao ate 2 MB no app.
+    client_max_body_size 3m;
+
+    # Webhook do WAHA do Jarvis (HMAC SHA-512 validado no app, antes do banco).
+    location = /webhook/waha {
+        client_max_body_size 1m;
+        proxy_pass http://127.0.0.1:8010;
+    }
+
+    # Webhook da Meta: canal guardado e desligado. Fechado por fora.
+    location /webhook/whatsapp {
+        return 404;
+    }
+
+    location = /health {
+        proxy_pass http://127.0.0.1:8010;
+    }
+
+    # Painel (login pelo IAM), estaticos e demais rotas.
+    location / {
+        proxy_pass http://127.0.0.1:8010;
+    }
+}
