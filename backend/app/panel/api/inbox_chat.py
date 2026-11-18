@@ -4,9 +4,11 @@
 - ``POST /dashboard/inbox/{user_id}/concluir``  conclui os tickets aguardando da conversa
 - ``POST /dashboard/inbox/concluir-lote``       conclui os aguardando das conversas marcadas
 
-Somente leitura e conclusao: NAO ha caixa de resposta e NADA e enviado ao vendedor. "Responder
-em: Grupo da equipe" e so um indicador (desativado quando a chave ``team_group_enabled`` esta
-desligada, lida pela mesma conexao do pedido). Os tickets recentes abrem o drawer (T19).
+Responder ao vendedor (retorno-humano.1, RH-6/RH-14): a caixa do chat posta em
+``/dashboard/tickets/{n}/responder`` (``origem=inbox``) e a resposta sai pelo numero do Jarvis.
+O ticket da caixa e o ``t`` do pedido (link do aviso, RH-5) ou o escalado aguardando da conversa.
+"Concluir" continua sem enviar nada. "Responder em: Grupo da equipe" e so um indicador do aviso
+(desativado com a chave ``team_group_enabled`` desligada). Os tickets recentes abrem o drawer.
 Toda rota exige ``current_admin``; todo POST, ``require_csrf``. Uma conexao do pool por pedido.
 Nenhum texto de mensagem nem telefone vai a log.
 """
@@ -22,6 +24,7 @@ from urllib.parse import parse_qs, urlparse
 import asyncpg
 from fastapi import APIRouter, Depends, Form, Request, Response
 
+from app.panel.api.ticket_drawer import TICKET_NUMBER
 from app.panel.auth.sessions import PanelSession
 from app.panel.deps import (
     PanelRoute,
@@ -33,6 +36,7 @@ from app.panel.deps import (
     templates_for,
 )
 from app.panel.services import tickets_admin
+from app.panel.services.human_replies import ReplyBox, load_reply_box
 from app.panel.services.inbox_read import Chat, RecentTicket, get_chat, parse_tab
 from app.panel.services.scope import MEDIA_KIND, Scope
 from app.panel.values import classification_label, profile_label, ticket_status_label
@@ -101,7 +105,7 @@ def _escalated(chat: Chat) -> Escalated | None:
     return None
 
 
-def _flags(request: Request) -> Flags:
+def team_group_flags(request: Request) -> Flags:
     state = request.app.state
     existing: Flags | None = getattr(state, "flags", None)
     if existing is not None:
@@ -124,9 +128,15 @@ def render_chat(
     notice: dict[str, str] | None = None,
     status_code: int = 200,
     trigger: dict[str, Any] | None = None,
+    reply: ReplyBox | None = None,
+    focus_ticket: str | None = None,
+    reply_text: str = "",
 ) -> Response:
     context = {
         "chat": chat,
+        "reply": reply,
+        "focus_ticket": focus_ticket,
+        "reply_text": reply_text,
         "recent": _recent_views(chat) if chat else [],
         "escalated": _escalated(chat) if chat else None,
         "profile_name": profile_label(chat.header.profile) if chat else "",
@@ -149,13 +159,47 @@ def _author(admin: PanelSession, typed: str = "") -> str:
     return name[:AUTHOR_LIMIT]
 
 
+def reply_ticket(chat: Chat, wanted: str | None) -> str | None:
+    """Ticket da caixa de resposta: o pedido (``t``), se for desta conversa; senao o escalado
+    aguardando; senao o aguardando mais antigo."""
+    own = {t.ticket_number for t in chat.recent_tickets} | set(chat.awaiting_ticket_numbers)
+    if wanted and wanted in own:
+        return wanted
+    escalated = _escalated(chat)
+    if escalated is not None:
+        return escalated.number
+    return chat.awaiting_ticket_numbers[0] if chat.awaiting_ticket_numbers else None
+
+
+async def load_chat_reply(
+    request: Request, conn: asyncpg.Connection, chat: Chat, wanted: str | None
+) -> tuple[ReplyBox | None, str | None]:
+    """(caixa de resposta, ticket em foco) do chat. So ha foco (destaque e cursor na caixa)
+    quando o pedido trouxe o ticket (link do aviso, RH-5); sem ticket aplicavel, sem caixa."""
+    number = reply_ticket(chat, wanted)
+    if number is None:
+        return None, None
+    settings = request.app.state.settings
+    box = await load_reply_box(
+        conn, number, now=get_clock(request).now(), max_chars=settings.human_reply_max_chars
+    )
+    return box, (number if number == wanted else None)
+
+
 @router.get("/dashboard/inbox/{user_id}", include_in_schema=False)
 async def inbox_chat(
-    request: Request, user_id: int, admin: Annotated[PanelSession, Depends(current_admin)]
+    request: Request,
+    user_id: int,
+    admin: Annotated[PanelSession, Depends(current_admin)],
+    t: str | None = None,
 ) -> Response:
+    wanted = t if t and TICKET_NUMBER.fullmatch(t) else None
     async with request.app.state.pool.acquire() as conn:
         chat = await get_chat(conn, user_id, now=get_clock(request).now())
-        team_group = await _flags(request).team_group_enabled(conn=conn)
+        team_group = await team_group_flags(request).team_group_enabled(conn=conn)
+        reply, focus = (
+            await load_chat_reply(request, conn, chat, wanted) if chat else (None, None)
+        )
     if chat is None:
         return render_chat(
             request,
@@ -165,7 +209,9 @@ async def inbox_chat(
             notice={"kind": "erro", "text": NOT_FOUND_TEXT},
             status_code=404,
         )
-    return render_chat(request, admin, chat, team_group=team_group)
+    return render_chat(
+        request, admin, chat, team_group=team_group, reply=reply, focus_ticket=focus
+    )
 
 
 async def _conclude_all(
@@ -226,7 +272,10 @@ async def concluir_conversa(
         if done:
             logger.info("panel_inbox_concluded", extra={"count": done})
         chat = await get_chat(conn, user_id, now=get_clock(request).now())
-        team_group = await _flags(request).team_group_enabled(conn=conn)
+        team_group = await team_group_flags(request).team_group_enabled(conn=conn)
+        reply, focus = (
+            await load_chat_reply(request, conn, chat, None) if chat else (None, None)
+        )
     if chat is None:
         return render_chat(
             request,
@@ -243,7 +292,14 @@ async def concluir_conversa(
         notice = {"kind": "aviso", "text": "Nada aguardando atendimento nesta conversa."}
     trigger = _toast(notice["text"], notice["kind"], ticketChanged={"user": user_id})
     return render_chat(
-        request, admin, chat, team_group=team_group, notice=notice, trigger=trigger
+        request,
+        admin,
+        chat,
+        team_group=team_group,
+        notice=notice,
+        trigger=trigger,
+        reply=reply,
+        focus_ticket=focus,
     )
 
 

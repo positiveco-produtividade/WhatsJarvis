@@ -1,8 +1,10 @@
 """Formulario da FAQ e acoes (spec painel.1 4.5 e 4.7; task PN-T27; PN-23, PN-24, PN-26, PN-4).
 
 - ``GET  /dashboard/faq/nova``              modal vazio; ``?ticket=J-nnnn`` preenche pelo ticket
-                                            (nunca por texto na URL)
-- ``POST /dashboard/faq/nova``              cria
+                                            (nunca por texto na URL); ``?sugestao=<id>`` preenche
+                                            pergunta e resposta pela sugestao (retorno-humano.1)
+- ``POST /dashboard/faq/nova``              cria; com ``sugestao``, cria com origem ``sugestao``
+                                            e aprova a sugestao na mesma transacao (RH-18)
 - ``GET  /dashboard/faq/{id}/editar``       modal com o item
 - ``POST /dashboard/faq/{id}/editar``       salva; versao diferente = aviso com o texto atual,
                                             so ``force=1`` sobrescreve
@@ -37,7 +39,7 @@ from app.panel.deps import (
     require_csrf,
     templates_for,
 )
-from app.panel.services import faq_admin
+from app.panel.services import faq_admin, faq_suggestions
 from app.panel.services.faq_validation import ALL_BRANDS_KEY, FAQ_CATEGORIES, QUESTION_MAX_LENGTH
 from app.panel.services.scope import Scope
 from app.panel.values import (
@@ -57,6 +59,8 @@ TEMPLATE = "_faq_form.html"
 NEW_PATH = "/dashboard/faq/nova"
 ITEM_PATH = "/dashboard/faq/{item_id}"
 GONE_TEXT = "Esta pergunta não existe mais."
+SUGGESTION_DECIDED_TEXT = "Esta sugestão já foi decidida por outra pessoa. Nada foi criado."
+SUGGESTION_ORIGIN = "sugestao"
 _TICKET_PREFILL = (
     "SELECT brand, classification, message FROM ops.v_tickets WHERE ticket_number = $1"
 )
@@ -154,6 +158,7 @@ def _render_form(
     problems: tuple[str, ...] = (),
     conflict: faq_admin.FaqRecord | None = None,
     from_ticket: str | None = None,
+    from_suggestion: int | None = None,
 ) -> Response:
     """Fragmento do formulario para ``#modal-body``."""
     context = {
@@ -165,6 +170,7 @@ def _render_form(
         "errors": list(problems),
         "conflict": conflict,
         "from_ticket": from_ticket,
+        "from_suggestion": from_suggestion,
         "was_all_brands": item is not None and item.brand == ALL_BRANDS_KEY,
         "brand_options": _brand_options(),
         "category_options": [(c, classification_label(c)) for c in FAQ_CATEGORIES],
@@ -192,15 +198,38 @@ async def _prefill(conn: asyncpg.Connection, number: str, scope: Scope) -> FormV
     )
 
 
+def _from_suggestion(sug: faq_suggestions.Suggestion, scope: Scope) -> FormValues:
+    """Pergunta, resposta, marca e categoria da sugestao (RH-18); o admin revisa antes de salvar."""
+    return FormValues(
+        brand=sug.brand if sug.brand in BRANDS else (scope.brand or BRANDS[0]),
+        category=sug.category if sug.category in FAQ_CATEGORIES else FAQ_CATEGORIES[0],
+        question=sug.question.strip()[:QUESTION_MAX_LENGTH],
+        answer=sug.answer.strip(),
+    )
+
+
 @router.get(NEW_PATH, include_in_schema=False)
 async def nova(
     request: Request,
     admin: Annotated[PanelSession, Depends(current_admin)],
     scope: Annotated[Scope, Depends(brand_scope)],
     ticket: str | None = None,
+    sugestao: int | None = None,
 ) -> Response:
     values = FormValues(brand=scope.brand or BRANDS[0], category=FAQ_CATEGORIES[0])
     from_ticket = None
+    if sugestao is not None:
+        async with request.app.state.pool.acquire() as conn:
+            sug = await faq_suggestions.get_suggestion(conn, sugestao)
+        if sug is None or not sug.pending:
+            return _render_form(request, admin, values, problems=(SUGGESTION_DECIDED_TEXT,))
+        return _render_form(
+            request,
+            admin,
+            _from_suggestion(sug, scope),
+            from_ticket=sug.ticket_number,
+            from_suggestion=sug.id,
+        )
     if ticket:
         async with request.app.state.pool.acquire() as conn:
             prefilled = await _prefill(conn, ticket, scope)
@@ -219,8 +248,11 @@ async def criar(
     answer: Annotated[str, Form()] = "",
     variations: Annotated[list[str] | None, Form()] = None,
     bot_responde: Annotated[str | None, Form()] = None,
+    sugestao: Annotated[int | None, Form()] = None,
 ) -> Response:
     values = _form_values(brand, category, question, answer, variations, bot_responde)
+    if sugestao is not None:
+        return await _criar_da_sugestao(request, admin, values, sugestao)
     async with request.app.state.pool.acquire() as conn:
         result = await faq_admin.create_item(
             conn, values.as_input(), actor=admin.email, clock=get_clock(request)
@@ -229,6 +261,54 @@ async def criar(
         logger.info("panel_faq_created")
         return _done("Pergunta criada. O Jarvis já passa a usá-la.", close=True)
     return _render_form(request, admin, values, problems=_problem_texts(result))
+
+
+class _SuggestionDecided(Exception):
+    """A sugestao deixou de estar pendente no meio: desfaz a criacao do item."""
+
+
+async def _criar_da_sugestao(
+    request: Request, admin: PanelSession, values: FormValues, suggestion_id: int
+) -> Response:
+    """Cria o item (origem ``sugestao``) e aprova a sugestao numa unica transacao (RH-18)."""
+    clock = get_clock(request)
+    async with request.app.state.pool.acquire() as conn:
+        sug = await faq_suggestions.get_suggestion(conn, suggestion_id)
+        if sug is None or not sug.pending:
+            return _render_form(request, admin, values, problems=(SUGGESTION_DECIDED_TEXT,))
+        try:
+            async with conn.transaction():
+                result = await faq_admin.create_item(
+                    conn,
+                    values.as_input(),
+                    actor=admin.email,
+                    clock=clock,
+                    origin=SUGGESTION_ORIGIN,
+                    origin_ref=sug.ticket_number,
+                )
+                if result.ok and result.item is not None:
+                    approved = await faq_suggestions.approve(
+                        conn, suggestion_id, result.item.id, actor=admin.email, clock=clock
+                    )
+                    if not approved:
+                        raise _SuggestionDecided
+        except _SuggestionDecided:
+            return _render_form(request, admin, values, problems=(SUGGESTION_DECIDED_TEXT,))
+    if result.ok and result.item is not None:
+        logger.info("panel_faq_created", extra={"origin": SUGGESTION_ORIGIN})
+        response = _done("Pergunta criada a partir da sugestão.", close=True)
+        events = json.loads(response.headers["HX-Trigger"])
+        events["suggestionsChanged"] = {}
+        response.headers["HX-Trigger"] = json.dumps(events)
+        return response
+    return _render_form(
+        request,
+        admin,
+        values,
+        problems=_problem_texts(result),
+        from_ticket=sug.ticket_number,
+        from_suggestion=suggestion_id,
+    )
 
 
 @router.get(ITEM_PATH + "/editar", include_in_schema=False)

@@ -108,15 +108,25 @@ def test_no_inline_script_bodies(path: Path) -> None:
     assert not re.search(r"<script\b[^>]*/>", text)
 
 
+REPLY_TEMPLATES = ("_ticket_drawer.html", "_inbox_chat.html")
+
+
 @pytest.mark.parametrize("path", TEMPLATES, ids=_ids(TEMPLATES))
-def test_no_reply_to_seller(path: Path) -> None:
+def test_reply_to_seller_only_via_responder(path: Path) -> None:
+    """retorno-humano.1 (RH-6, substitui PN-13/15): so o drawer e o chat do Inbox respondem ao
+    vendedor, e sempre por POST em .../responder com token (RH-11) e CSRF."""
     text = _strip_jinja_comments(_text(path))
-    assert not re.search(r"responder\s+ao\s+vendedor", text, re.I)
-    if re.match(r"_?(inbox|ticket_drawer)", path.name):
-        assert "<textarea" not in text.lower(), "Inbox/drawer nao tem campo de resposta (PN-13/15)"
-        assert not re.search(
-            r"""name\s*=\s*["'](reply|resposta|responder|message)["']""", text, re.I
-        )
+    if path.name not in REPLY_TEMPLATES:
+        assert not re.search(r"responder\s+ao\s+vendedor", text, re.I)
+        assert "<textarea" not in text.lower() or "name=\"texto\"" not in text
+        return
+    for form in re.findall(r"<form\b.*?</form>", text, re.S | re.I):
+        if "<textarea" not in form.lower():
+            continue
+        posts_here = re.search(r"""hx-post\s*=\s*["'][^"']*/responder["']""", form)
+        assert posts_here, "caixa de resposta fora de /responder"
+        assert 'name="token"' in form and "csrf_field(" in form
+        assert not re.search(r"""name\s*=\s*["'](reply|resposta|message)["']""", form, re.I)
 
 
 @pytest.mark.parametrize("path", TEMPLATES, ids=_ids(TEMPLATES))

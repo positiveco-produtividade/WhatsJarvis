@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {# Relatorios (PN-T50; PN-42, PN-43). Contexto: top_rows, objection_rows, unanswered_rows
-   (ReportRow), period_options, period_key, month_options, month_key, relatorios_path, pdf_path.
+   (ReportRow), period_options, period_key, month_options, month_key, relatorios_path, pdf_path,
+   e o card de sugestoes (_faq_sugestoes.html: suggestions, pending_count, sug_filter, sug_path).
    "Criar na FAQ" abre o modal pelo numero do ticket (nunca o texto na URL). #}
 {% from "_macros.html" import empty_box, brand_chip %}
 {% block title %}Relatórios{% endblock %}
@@ -44,6 +45,8 @@
       <noscript><button type="submit" class="rounded-lg border border-ink-300 bg-white px-3 py-2 text-sm">Aplicar</button></noscript>
     </form>
   </div>
+
+  {% include "_faq_sugestoes.html" %}
 
   <div id="relatorios-resultado" aria-live="polite">
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">

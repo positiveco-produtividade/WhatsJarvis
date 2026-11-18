@@ -29,6 +29,7 @@ from app.panel.services.formatting import (
     responded_in,
     response_time_label,
 )
+from app.panel.services.human_replies import outbound_state
 from app.panel.services.mask import mask_phone_display
 from app.panel.services.scope import MEDIA_KIND, Scope
 
@@ -36,6 +37,7 @@ __all__ = [
     "BOT_LABEL",
     "CHAT_LIMIT",
     "HUMAN_LABEL",
+    "TEAM_LABEL",
     "PAGE_SIZE",
     "RECENT_TICKETS",
     "Chat",
@@ -58,6 +60,7 @@ CHAT_LIMIT = 200
 RECENT_TICKETS = 10
 BOT_LABEL = "Bot"
 HUMAN_LABEL = "Humano"
+TEAM_LABEL = "Equipe"
 SELLER_LABEL = "Vendedor"
 
 _PHONE_QUERY = re.compile(r"[\d\s()+\-]+")
@@ -126,7 +129,11 @@ class ConversationHeader:
 
 @dataclass(frozen=True, slots=True)
 class ChatEntry:
-    """Uma bolha. ``role``: seller | bot | human; ``author`` e a legenda exibida."""
+    """Uma bolha. ``role``: seller | bot | team | human; ``author`` e a legenda exibida.
+
+    ``team`` = resposta da equipe pelo painel (retorno-humano.1, RH-14), com a situacao do envio
+    (``state_label``/``state_tone``, RH-15); ``human`` = ticket concluido sem mensagem.
+    ``ticket``: numero do ticket da mensagem do vendedor ou da resposta (destaque, RH-5)."""
 
     role: str
     author: str
@@ -137,6 +144,9 @@ class ChatEntry:
     new_day: bool
     day: str
     responded_in: str | None
+    ticket: str | None = None
+    state_label: str | None = None
+    state_tone: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -328,17 +338,34 @@ async def inbox_counts(conn: asyncpg.Connection, scope: Scope) -> InboxCounts:
 
 _CHAT_SQL = """
     (SELECT 'seller' AS role, m.received_at AS at, m.body, m.msg_type AS kind, 0 AS rank,
-            m.decision_reason AS reason
+            m.decision_reason AS reason,
+            coalesce(m.ticket_number,
+                     (SELECT k.ticket_number FROM chat.tickets k WHERE k.trace_id = m.id
+                       ORDER BY k.id LIMIT 1)) AS ticket,
+            NULL::text AS status, NULL::timestamptz AS delivered_at,
+            NULL::timestamptz AS read_at, NULL::text AS error_code, NULL::text AS discard_reason
        FROM chat.message_trace m WHERE m.user_id = $1
        ORDER BY m.received_at DESC LIMIT $2)
     UNION ALL
-    (SELECT 'bot', coalesce(o.sent_at, o.created_at), o.body, o.kind, 1, NULL
+    (SELECT 'bot', coalesce(o.sent_at, o.created_at), o.body, o.kind, 1, NULL, NULL,
+            NULL, NULL, NULL, NULL, NULL
        FROM chat.outbound_messages o WHERE o.user_id = $1 AND o.status <> 'discarded'
+        AND o.kind <> 'human_reply'
        ORDER BY coalesce(o.sent_at, o.created_at) DESC LIMIT $2)
     UNION ALL
-    (SELECT 'human', t.answered_at, NULL, t.answered_by, 2, NULL
+    (SELECT 'team', coalesce(o.sent_at, o.created_at), o.body, o.author, 1, NULL,
+            k.ticket_number, o.status, o.delivered_at, o.read_at, o.error_code,
+            o.discard_reason
+       FROM chat.outbound_messages o LEFT JOIN chat.tickets k ON k.id = o.ticket_id
+      WHERE o.user_id = $1 AND o.kind = 'human_reply'
+      ORDER BY coalesce(o.sent_at, o.created_at) DESC LIMIT $2)
+    UNION ALL
+    (SELECT 'human', t.answered_at, NULL, t.answered_by, 2, NULL, t.ticket_number,
+            NULL, NULL, NULL, NULL, NULL
        FROM ops.v_tickets t WHERE t.user_id = $1 AND t.status = 'answered_human'
         AND t.answered_at IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM chat.outbound_messages h
+                         WHERE h.ticket_id = t.id AND h.kind = 'human_reply')
        ORDER BY t.answered_at DESC LIMIT $2)
 """
 
@@ -352,6 +379,7 @@ def _build_entries(records: list[asyncpg.Record], now: datetime) -> list[ChatEnt
         at: datetime = rec["at"]
         role: str = rec["role"]
         text, author, reply = _entry_parts(rec, role)
+        state_label, state_tone = outbound_state(rec) if role == "team" else (None, None)
         if role == "seller":
             last_question_at = at
         entries.append(
@@ -369,6 +397,9 @@ def _build_entries(records: list[asyncpg.Record], now: datetime) -> list[ChatEnt
                     if role != "seller" and last_question_at is not None
                     else None
                 ),
+                ticket=rec["ticket"],
+                state_label=state_label,
+                state_tone=state_tone,
             )
         )
         previous_at = at
@@ -381,6 +412,8 @@ def _entry_parts(rec: asyncpg.Record, role: str) -> tuple[str | None, str, str |
         return _trace_text(rec["body"], rec["kind"], rec["reason"]), SELLER_LABEL, rec["kind"]
     if role == "bot":
         return rec["body"] or _BOT_FALLBACK.get(rec["kind"]), BOT_LABEL, rec["kind"]
+    if role == "team":  # kind = autor da resposta (retorno-humano.1)
+        return rec["body"], f"{TEAM_LABEL} · {rec['kind'] or 'equipe'}", None
     return None, HUMAN_LABEL, rec["kind"]  # kind = quem concluiu (answered_by)
 
 

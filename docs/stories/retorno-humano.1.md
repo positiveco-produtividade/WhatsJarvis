@@ -1,6 +1,6 @@
 # História retorno-humano.1 — A equipe responde os escalados pelo Inbox e alimenta a FAQ
 
-> **Épico:** [retorno-humano](../epics/retorno-humano.md) · **Status:** Draft (requisitos e design aprovados por Caio em 2026-11-17; tarefas aguardando aprovação) · **Owner:** Caio · **Criado:** 2026-11-17
+> **Épico:** [retorno-humano](../epics/retorno-humano.md) · **Status:** Implementada em 2026-11-18 (requisitos, design e tarefas aprovados por Caio em 2026-11-17; suíte inteira, perf e eval palavras verdes; go-live do grupo pendente) · **Owner:** Caio · **Criado:** 2026-11-17
 
 Fonte de verdade: `docs/tasks/retorno-humano.1/spec/spec.md` e `requirements.json`.
 Em caso de divergência, vale o spec.

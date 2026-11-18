@@ -6,6 +6,11 @@
 
 O chat (``GET /dashboard/inbox/{user_id}``), "Concluir" e o lote sao da tarefa PN-T22: aqui so
 ha o link para eles. Somente leitura; nada e enviado a ninguem.
+
+- ``GET /dashboard/inbox/ticket/{J-n}`` (retorno-humano.1, RH-5): link do aviso no grupo.
+  Redireciona para a pagina ``/dashboard/inbox?u=<vendedor>&t=<J-n>`` (URL de pagina, para o
+  retorno do login funcionar); ``t`` abre o chat na pergunta, com a caixa de resposta pronta.
+  Ticket inexistente = 404. O link so leva o numero do ticket.
 """
 
 from __future__ import annotations
@@ -14,7 +19,9 @@ from typing import Annotated
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Request, Response
+from fastapi.responses import RedirectResponse
 
+from app.panel.api.ticket_drawer import TICKET_NUMBER
 from app.panel.auth.sessions import PanelSession
 from app.panel.deps import (
     PanelRoute,
@@ -31,6 +38,7 @@ router = APIRouter(route_class=PanelRoute)
 
 MAX_QUERY_LENGTH = 100
 TRUTHY = frozenset({"1", "true", "on", "sim"})
+_TICKET_OWNER = "SELECT user_id FROM chat.tickets WHERE ticket_number = $1"
 
 
 def _positive_int(raw: str | None, default: int) -> int:
@@ -65,6 +73,7 @@ def _build_context(
     page: InboxPage,
     q: str,
     selected: int | None,
+    focus_ticket: str | None = None,
 ) -> dict[str, object]:
     pages = max(1, -(-page.total // page.page_size))
     return {
@@ -75,6 +84,7 @@ def _build_context(
         "inbox": page,
         "q": q,
         "selected": selected,
+        "focus_ticket": focus_ticket,
         "pages": pages,
         "filters_qs": _filters_qs(page.tab, q, page.awaiting_only),
         "tab_conversas_qs": _filters_qs("conversas", q, page.awaiting_only),
@@ -94,6 +104,7 @@ async def inbox(
     so_aguardando: str | None = None,
     page: str | None = None,
     u: str | None = None,
+    t: str | None = None,
 ) -> Response:
     query = (q or "").strip()[:MAX_QUERY_LENGTH]
     only_awaiting = (so_aguardando or "").strip().lower() in TRUTHY
@@ -109,6 +120,33 @@ async def inbox(
             page=_positive_int(page, 1),
             now=now,
         )
-    context = _build_context(request, admin, scope, result, query, selected)
+    focus = t if selected and t and TICKET_NUMBER.fullmatch(t) else None
+    context = _build_context(request, admin, scope, result, query, selected, focus)
     name = "_inbox_lista.html" if _wants_fragment(request) else "inbox.html"
     return templates_for(request).TemplateResponse(request, name, context)
+
+
+@router.get("/dashboard/inbox/ticket/{number}", include_in_schema=False)
+async def inbox_ticket(
+    request: Request,
+    number: str,
+    admin: Annotated[PanelSession, Depends(current_admin)],
+    scope: Annotated[Scope, Depends(brand_scope)],
+) -> Response:
+    """Link do aviso no grupo (RH-5): abre o Inbox na conversa e na pergunta do ticket."""
+    owner = None
+    if TICKET_NUMBER.fullmatch(number):
+        async with request.app.state.pool.acquire() as conn:
+            owner = await conn.fetchval(_TICKET_OWNER, number)
+    if owner is None:
+        context = {
+            "active": "inbox",
+            "brand": scope.cookie_value,
+            "csrf_token": csrf_token_for(request, admin),
+            "admin_name": admin.name,
+        }
+        return templates_for(request).TemplateResponse(
+            request, "404.html", context, status_code=404
+        )
+    query = urlencode({"u": int(owner), "t": number})
+    return RedirectResponse(f"/dashboard/inbox?{query}", status_code=302)

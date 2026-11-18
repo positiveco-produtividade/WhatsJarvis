@@ -1,7 +1,8 @@
 {# Drawer do ticket (PN-T19; PN-15..18, PN-63). Fragmento injetado em #drawer-body (base.html).
-   Reusado pelo Inbox (T22) e por Escalados (T23). NAO ha "responder ao vendedor": o painel so
-   registra a conclusao. Contexto: ticket (TicketView ou vazio), admin_name, csrf_token,
-   notice {kind: ok|aviso|erro, text}, errors. Layout, textos e ordem vem do prototipo. #}
+   Reusado pelo Inbox (T22) e por Escalados (T23). "Responder ao vendedor" (retorno-humano.1,
+   RH-6..RH-15) posta em /responder e a resposta sai pelo numero do Jarvis; "Concluir" continua
+   sem enviar nada. Contexto: ticket (TicketView ou vazio), reply (ReplyBox ou vazio),
+   reply_text, admin_name, csrf_token, notice {kind: ok|aviso|erro, text}, errors. #}
 {% from "_macros.html" import brand_chip, class_chip, status_chip, csrf_field, error_list, empty_box %}
 {% set base = '/dashboard/tickets/' ~ (ticket.number if ticket else '') %}
 {% if not ticket %}
@@ -70,18 +71,49 @@
     <h3 class="text-xs uppercase tracking-wide text-ink-400 mb-2">Resposta enviada</h3>
     <div class="text-xs text-ink-500">Enviado automaticamente pelo Jarvis</div>
   </section>
-  {% elif ticket.status == 'answered_human' %}
+  {% elif ticket.status == 'answered_human' and not (reply and reply.replies) %}
   <section class="mb-6">
     <h3 class="text-xs uppercase tracking-wide text-ink-400 mb-2">Resposta enviada</h3>
-    <div class="bg-mint-50 border border-mint-200 rounded-xl p-4 text-sm">(concluído no painel — resposta dada fora, pelo grupo da equipe)</div>
+    <div class="bg-mint-50 border border-mint-200 rounded-xl p-4 text-sm">Concluído no painel sem mensagem ao vendedor.</div>
     <div class="text-xs text-ink-500 mt-2">Por <strong class="text-ink-700">{{ ticket.answered_by }}</strong> em {{ ticket.answered_label }}</div>
+  </section>
+  {% endif %}
+
+  {% if reply and reply.replies %}
+  <section class="mb-6" data-human-replies>
+    <h3 class="text-xs uppercase tracking-wide text-ink-400 mb-2">Respostas da equipe</h3>
+    {% for r in reply.replies %}
+    <div class="bg-mint-50 border border-mint-200 rounded-xl p-4 text-sm whitespace-pre-wrap mb-2">{{ r.body }}</div>
+    <div class="text-xs text-ink-500 mb-3">Equipe · <strong class="text-ink-700">{{ r.author }}</strong> · {{ r.when_label }} · <span data-reply-state="{{ r.tone }}" class="{{ 'text-red-700' if r.tone == 'erro' else ('text-mint-700' if r.tone == 'ok' else 'text-ink-500') }} font-semibold">{{ r.state_label }}</span></div>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  {% if reply and reply.allowed %}
+  <section class="bg-white border border-ink-200 rounded-xl p-5 mb-6" data-reply-box>
+    <h3 class="font-semibold text-ink-800 mb-1">Responder ao vendedor</h3>
+    <p class="text-xs text-ink-500 mb-3">Sai pelo número do Jarvis, na conversa do vendedor, e conclui o ticket. O vendedor escreveu {{ reply.seller_wrote_label }}.</p>
+    {% if reply.enabled %}
+    <form method="post" action="{{ base }}/responder" hx-post="{{ base }}/responder" hx-target="#drawer-body" hx-swap="innerHTML" hx-disabled-elt="find button">
+      {{ csrf_field(csrf_token) }}
+      <input type="hidden" name="token" value="{{ reply.token }}">
+      <input type="hidden" name="origem" value="drawer">
+      <label for="drawer-reply" class="sr-only">Resposta ao vendedor</label>
+      <textarea id="drawer-reply" name="texto" rows="4" maxlength="{{ reply.max_chars }}" required class="w-full mt-0.5 border border-ink-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-mint-400 focus:outline-none">{{ reply_text }}</textarea>
+      <div class="flex justify-end mt-2">
+        <button type="submit" class="bg-mint-600 hover:bg-mint-700 text-white text-sm font-medium px-4 py-2 rounded-lg">{{ 'Enviar complemento' if ticket.status == 'answered_human' else 'Enviar e concluir' }}</button>
+      </div>
+    </form>
+    {% else %}
+    <div role="status" class="rounded-lg border px-4 py-3 text-sm border-red-200 bg-red-50 text-red-800">{{ reply.block_text }}</div>
+    {% endif %}
   </section>
   {% endif %}
 
   {% if ticket.status == 'awaiting' %}
   <section class="bg-mint-50 border border-mint-200 rounded-xl p-5 mb-6">
     <h3 class="font-semibold text-mint-900 mb-1 flex items-center gap-2"><span aria-hidden="true">✓</span> Marcar como concluído</h3>
-    <p class="text-xs text-mint-800 mb-3">Registra que este ticket foi atendido. Nenhuma mensagem é enviada ao vendedor.</p>
+    <p class="text-xs text-mint-800 mb-3">Sem responder por aqui (por exemplo, quando a resposta já foi dada por fora). Nenhuma mensagem é enviada ao vendedor.</p>
     <form method="post" action="{{ base }}/concluir" hx-post="{{ base }}/concluir" hx-target="#drawer-body" hx-swap="innerHTML" hx-disabled-elt="find button" class="flex items-end gap-3">
       {{ csrf_field(csrf_token) }}
       <div class="flex-1">

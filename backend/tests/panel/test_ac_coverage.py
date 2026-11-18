@@ -129,3 +129,28 @@ def test_manuais_tem_motivo_e_lacunas_declaradas(sections: dict[str, list[str]])
     gaps = _bullet_pns(sections["lacunas conhecidas"])
     assert 61 in gaps and "xfail" in gaps[61]
     assert "Playwright" in "\n".join(sections["lacunas conhecidas"])
+
+
+# --- retorno-humano.1 (RH-T13): RH-1..RH-21 -----------------------------------------------
+
+RH_ACTIVE = list(range(1, 22))
+
+
+def _parse_rh(lines: list[str]) -> dict[int, list[str]]:
+    mapping: dict[int, list[str]] = {}
+    for line in lines:
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) < 2:
+            continue
+        match = re.fullmatch(r"RH-(\d+)", cells[0])
+        if match:
+            mapping[int(match.group(1))] = REF_RE.findall(cells[1])
+    return mapping
+
+
+def test_todo_rh_tem_teste_que_existe(sections: dict[str, list[str]]) -> None:
+    rh = _parse_rh(sections["retorno humano"])
+    assert set(rh) == set(RH_ACTIVE), f"RH fora do mapa: {sorted(set(RH_ACTIVE) - set(rh))}"
+    assert all(rh[n] for n in RH_ACTIVE)
+    missing = [(n, ref) for n, refs in rh.items() for ref in refs if not _ref_exists(ref)]
+    assert not missing, f"referencias inexistentes: {missing}"

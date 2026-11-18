@@ -273,3 +273,35 @@ async def test_read_volumes(db_conn: asyncpg.Connection, uid: int, clock: FakeCl
 
 def test_loop_is_discovered() -> None:
     assert "retention" in {loop.name for loop in discover_loops()}
+
+
+# --- Sugestoes de FAQ (retorno-humano.1, RH-20) ---------------------------------------------
+
+
+async def _suggestion(conn: asyncpg.Connection, uid: int, at: datetime) -> None:
+    ticket_id = await _ticket(conn, uid, at)
+    number = await conn.fetchval("SELECT ticket_number FROM chat.tickets WHERE id = $1", ticket_id)
+    await conn.execute(
+        "INSERT INTO content.faq_suggestions (ticket_id, ticket_number, user_id, question, "
+        "answer, author, created_at, updated_at) VALUES ($1, $2, $3, 'q', 'a', 'Caio', $4, $4)",
+        ticket_id,
+        number,
+        uid,
+        at,
+    )
+
+
+async def test_sugestoes_seguem_a_retencao(
+    db_conn: asyncpg.Connection, uid: int, clock: FakeClock
+) -> None:
+    await _suggestion(db_conn, uid, OLD)
+    await _suggestion(db_conn, uid, RECENT)
+    result = await retention.purge(db_conn, make_settings(), clock)
+    assert result.counts["faq_suggestions"] == 1
+    assert result.counts["tickets"] == 1
+    assert await db_conn.fetchval("SELECT count(*) FROM content.faq_suggestions") == 1
+
+
+async def test_sugestao_sai_antes_do_ticket() -> None:
+    names = [t.name for t in retention.TARGETS]
+    assert names.index("faq_suggestions") < names.index("tickets")

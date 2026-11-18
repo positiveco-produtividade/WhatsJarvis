@@ -44,7 +44,7 @@ NOT_FOUND = "not_found"
 NOOP = "noop"
 
 _ACTOR_TYPE = "panel"
-_ORIGINS = ("manual", "import", "seed", "nielsen", "gmr")
+_ORIGINS = ("manual", "import", "seed", "nielsen", "gmr", "sugestao")
 _CREATE_KINDS = ("create", "import", "seed")
 
 _COLUMNS = (

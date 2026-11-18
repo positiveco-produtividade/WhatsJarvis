@@ -86,6 +86,9 @@ class Target:
 
 # Ordem das chaves estrangeiras: quem referencia message_trace sai antes dela.
 TARGETS: tuple[Target, ...] = (
+    # Sugestoes de FAQ (retorno-humano.1, RH-20): mesma retencao das conversas; a FK para o
+    # ticket e ON DELETE SET NULL, mas saem antes dele para a ordem ficar obvia.
+    Target("faq_suggestions", True, "t.created_at < $1", "content.faq_suggestions"),
     Target("tickets", True, "t.created_at < $1", "chat.tickets"),
     Target("outbound_messages", True, "t.created_at < $1", "chat.outbound_messages"),
     Target(

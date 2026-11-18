@@ -2,6 +2,7 @@
 
 - ``GET  /dashboard/tickets/{n}``              fragmento do drawer (HTMX -> ``#drawer-body``)
 - ``POST /dashboard/tickets/{n}/concluir``     registra quem concluiu; NADA e enviado ao vendedor
+  (responder ao vendedor e ``POST /dashboard/tickets/{n}/responder``, em ``tickets_reply``)
 - ``POST /dashboard/tickets/{n}/reclassificar`` troca a classificacao (numero do ticket nao muda)
 - ``POST /dashboard/tickets/{n}/urgencia``     troca a urgencia (ticket escalado)
 
@@ -31,11 +32,13 @@ from app.panel.deps import (
     csrf_token_for,
     current_admin,
     get_clock,
+    get_settings,
     require_csrf,
     templates_for,
 )
 from app.panel.services import tickets_admin
 from app.panel.services.formatting import format_datetime, format_time, to_sp
+from app.panel.services.human_replies import ReplyBox, load_reply_box
 from app.panel.services.mask import mask_phone_display
 from app.panel.values import (
     CLASSIFICATIONS,
@@ -48,6 +51,7 @@ from app.panel.values import (
 
 __all__ = [
     "TicketView",
+    "load_reply",
     "load_ticket_view",
     "render_ticket_drawer",
     "router",
@@ -179,10 +183,17 @@ def render_ticket_drawer(
     errors: list[str] | None = None,
     status_code: int = 200,
     trigger: dict[str, Any] | None = None,
+    reply: ReplyBox | None = None,
+    reply_text: str = "",
 ) -> Response:
-    """Fragmento do drawer. ``trigger`` vira ``HX-Trigger`` (JSON ASCII; ex.: toast)."""
+    """Fragmento do drawer. ``trigger`` vira ``HX-Trigger`` (JSON ASCII; ex.: toast).
+
+    ``reply``: caixa de resposta ao vendedor (retorno-humano.1); ``reply_text`` repoe o texto
+    digitado quando o envio e recusado."""
     context = {
         "ticket": ticket,
+        "reply": reply,
+        "reply_text": reply_text,
         "admin_name": admin.name,
         "csrf_token": csrf_token_for(request, admin),
         "notice": notice,
@@ -194,6 +205,14 @@ def render_ticket_drawer(
     if trigger:
         response.headers["HX-Trigger"] = json.dumps(trigger)
     return response
+
+
+async def load_reply(request: Request, conn: asyncpg.Connection, number: str) -> ReplyBox | None:
+    """Caixa de resposta do ticket para o drawer (retorno-humano.1, RH-6)."""
+    settings = get_settings(request)
+    return await load_reply_box(
+        conn, number, now=get_clock(request).now(), max_chars=settings.human_reply_max_chars
+    )
 
 
 def _toast(message: str, kind: str, number: str) -> dict[str, Any]:
@@ -250,7 +269,10 @@ async def _respond(
         return _not_found(request, admin)
     kind = notice["kind"]
     trigger = _toast(notice["text"], kind, number) if changed or kind != "ok" else None
-    return render_ticket_drawer(request, admin, ticket, notice=notice, trigger=trigger)
+    reply = await load_reply(request, conn, number)
+    return render_ticket_drawer(
+        request, admin, ticket, notice=notice, trigger=trigger, reply=reply
+    )
 
 
 @router.get("/dashboard/tickets/{number}", include_in_schema=False)
@@ -259,9 +281,10 @@ async def ticket_drawer(
 ) -> Response:
     async with request.app.state.pool.acquire() as conn:
         ticket = await load_ticket_view(conn, number)
+        reply = await load_reply(request, conn, number) if ticket is not None else None
     if ticket is None:
         return _not_found(request, admin)
-    return render_ticket_drawer(request, admin, ticket)
+    return render_ticket_drawer(request, admin, ticket, reply=reply)
 
 
 @router.post(

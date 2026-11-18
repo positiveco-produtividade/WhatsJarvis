@@ -2,7 +2,10 @@
 
 - ``GET /dashboard/relatorios?periodo=7|14|30|60|365``  tres listas do campo (top perguntas,
   objecoes, sem resposta na base), escopadas pela marca do cookie;
-- ``GET /dashboard/relatorios/mensal.pdf?mes=YYYY-MM``  PDF do mes (``application/pdf``).
+- ``GET /dashboard/relatorios/mensal.pdf?mes=YYYY-MM``  PDF do mes (``application/pdf``);
+- ``GET /dashboard/relatorios/sugestoes?status=pendentes|todas``  card "Sugestoes para a FAQ"
+  (retorno-humano.1, RH-17), recarregado por HTMX;
+- ``POST /dashboard/relatorios/sugestoes/{id}/descartar``  descarta a sugestao (RH-19).
 
 "Criar na FAQ" abre ``/dashboard/faq/nova?ticket=J-nnnn``: o numero vem de
 ``ReportItem.ticket_id`` (uma consulta por pagina), nunca o texto da pergunta. Uma conexao do
@@ -14,9 +17,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Annotated, Final
+from typing import Annotated, Any, Final
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Form, Request, Response
 
 from app.panel.auth.sessions import PanelSession
 from app.panel.deps import (
@@ -25,8 +28,10 @@ from app.panel.deps import (
     csrf_token_for,
     current_admin,
     get_clock,
+    require_csrf,
     templates_for,
 )
+from app.panel.services import faq_suggestions
 from app.panel.services.formatting import SP_TZ, format_int
 from app.panel.services.report_pdf import PDF_FILENAME_FORMAT, month_title, render_monthly_pdf
 from app.panel.services.reports import (
@@ -46,6 +51,9 @@ router = APIRouter(route_class=PanelRoute)
 
 PATH: Final = "/dashboard/relatorios"
 PDF_PATH: Final = PATH + "/mensal.pdf"
+SUG_PATH: Final = PATH + "/sugestoes"
+SUG_TEMPLATE: Final = "_faq_sugestoes.html"
+DECIDED_TEXT: Final = "Esta sugestão já tinha sido decidida."
 FAQ_NEW_PATH: Final = "/dashboard/faq/nova"
 PERIOD_LABELS: Final = {
     7: "Últimos 7 dias",
@@ -115,6 +123,17 @@ async def _load(
     return report, {int(r["id"]): str(r["ticket_number"]) for r in records}
 
 
+async def _suggestions_context(
+    conn: Any, scope: Scope, sug_filter: str
+) -> dict[str, Any]:
+    return {
+        "suggestions": await faq_suggestions.list_suggestions(conn, scope, status=sug_filter),
+        "pending_count": await faq_suggestions.count_pending(conn, scope),
+        "sug_filter": sug_filter,
+        "sug_path": SUG_PATH,
+    }
+
+
 @router.get(PATH, include_in_schema=False)
 async def relatorios(
     request: Request,
@@ -126,7 +145,10 @@ async def relatorios(
     now = get_clock(request).now()
     days = parse_days(periodo)
     report, numbers = await _load(request, scope, now, days)
+    async with request.app.state.pool.acquire() as conn:
+        sug_context = await _suggestions_context(conn, scope, faq_suggestions.FILTER_PENDING)
     context = {
+        **sug_context,
         "active": "relatorios",
         "brand": scope.cookie_value,
         "csrf_token": csrf_token_for(request, admin),
@@ -145,6 +167,44 @@ async def relatorios(
     response = templates_for(request).TemplateResponse(request, "relatorios.html", context)
     response.headers["Vary"] = "HX-Request"
     return response
+
+
+@router.get(SUG_PATH, include_in_schema=False)
+async def sugestoes(
+    request: Request,
+    admin: Annotated[PanelSession, Depends(current_admin)],
+    scope: Annotated[Scope, Depends(brand_scope)],
+    status: str | None = None,
+) -> Response:
+    async with request.app.state.pool.acquire() as conn:
+        context = await _suggestions_context(conn, scope, faq_suggestions.parse_filter(status))
+    context["csrf_token"] = csrf_token_for(request, admin)
+    return templates_for(request).TemplateResponse(request, SUG_TEMPLATE, context)
+
+
+@router.post(
+    SUG_PATH + "/{suggestion_id}/descartar",
+    include_in_schema=False,
+    dependencies=[Depends(require_csrf)],
+)
+async def descartar(
+    request: Request,
+    suggestion_id: int,
+    admin: Annotated[PanelSession, Depends(current_admin)],
+    scope: Annotated[Scope, Depends(brand_scope)],
+    status: Annotated[str, Form()] = faq_suggestions.FILTER_PENDING,
+) -> Response:
+    async with request.app.state.pool.acquire() as conn:
+        done = await faq_suggestions.discard(
+            conn, suggestion_id, actor=admin.email, clock=get_clock(request)
+        )
+        context = await _suggestions_context(conn, scope, faq_suggestions.parse_filter(status))
+    context["csrf_token"] = csrf_token_for(request, admin)
+    if done:
+        context["notice"] = {"kind": "ok", "text": "Sugestão descartada."}
+    else:
+        context["notice"] = {"kind": "erro", "text": DECIDED_TEXT}
+    return templates_for(request).TemplateResponse(request, SUG_TEMPLATE, context)
 
 
 @router.get(PDF_PATH, include_in_schema=False)

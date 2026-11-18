@@ -4,7 +4,7 @@
   "story": "docs/stories/retorno-humano.1.md",
   "epic": "docs/epics/retorno-humano.md",
   "phase": "3-tasks",
-  "status": "draft",
+  "status": "implemented",
   "revision": "2026-11-17 - A + C + D do Caio, revisto no mesmo dia: grupo so aviso, resposta so pelo Inbox (link do aviso); D1-D4 decididas, D5-D8 em aberto",
   "user_story": {
     "as_a": "pessoa da equipe comercial que acompanha os escalados",

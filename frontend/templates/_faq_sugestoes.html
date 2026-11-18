@@ -1,0 +1,64 @@
+{# Sugestoes para a FAQ (retorno-humano.1; RH-17 a RH-19). Fragmento do card em Relatorios,
+   recarregado por HTMX (abas e evento suggestionsChanged). Contexto: suggestions (Suggestion),
+   pending_count, sug_filter (pendentes|todas), sug_path, csrf_token, notice {kind, text}.
+   "Criar item" abre o formulario da FAQ pelo id da sugestao (nunca o texto na URL). #}
+{% from "_macros.html" import brand_chip, csrf_field, empty_box %}
+<div id="sugestoes-card" class="bg-white rounded-2xl border border-ink-200 p-4 mb-4"
+     hx-get="{{ sug_path }}?status={{ sug_filter }}" hx-trigger="suggestionsChanged from:body"
+     hx-target="#sugestoes-card" hx-swap="outerHTML">
+  <div class="flex items-start justify-between gap-3 flex-wrap mb-3">
+    <div>
+      <h2 class="font-semibold">Sugestões para a FAQ <span class="text-sm font-normal text-ink-500">({{ pending_count }} {{ 'pendente' if pending_count == 1 else 'pendentes' }})</span></h2>
+      <p class="text-xs text-ink-500 mt-1">Respostas da equipe aos vendedores. Aprove para virar item da FAQ, ou descarte.</p>
+    </div>
+    <div class="flex items-center gap-2" role="group" aria-label="Filtrar sugestões">
+      {% for key, label in [('pendentes', 'Pendentes'), ('todas', 'Todas')] %}
+      <button type="button" hx-get="{{ sug_path }}?status={{ key }}" hx-target="#sugestoes-card" hx-swap="outerHTML"
+              aria-pressed="{{ 'true' if sug_filter == key else 'false' }}"
+              class="rounded-lg border px-3 py-1 text-xs {{ 'border-ink-900 bg-ink-900 text-white' if sug_filter == key else 'border-ink-300 bg-white text-ink-700 hover:bg-ink-50' }}">{{ label }}</button>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if notice and notice.text %}
+  <div role="status" class="mb-3 rounded-lg border px-4 py-3 text-sm {{ 'border-red-200 bg-red-50 text-red-800' if notice.kind == 'erro' else 'border-mint-200 bg-mint-50 text-mint-900' }}">{{ notice.text }}</div>
+  {% endif %}
+
+  {% if suggestions %}
+  <ul class="space-y-3">
+    {% for s in suggestions %}
+    <li class="border border-ink-200 rounded-xl p-3" data-suggestion="{{ s.id }}">
+      <div class="flex items-start justify-between gap-3 flex-wrap">
+        <div class="min-w-0 flex-1">
+          <div class="text-sm font-medium break-words">{{ s.question }}</div>
+          <details class="mt-1">
+            <summary class="cursor-pointer text-xs text-ink-500">Resposta da equipe</summary>
+            <div class="mt-1 text-sm whitespace-pre-wrap break-words bg-mint-50 border border-mint-200 rounded-lg p-2">{{ s.answer }}</div>
+          </details>
+          <div class="text-xs text-ink-500 mt-1 flex items-center gap-2 flex-wrap">
+            {{ brand_chip(s.brand) }}
+            <button type="button" hx-get="/dashboard/tickets/{{ s.ticket_number }}" hx-target="#drawer-body" hx-swap="innerHTML" class="font-mono underline text-ink-700 hover:text-ink-900">{{ s.ticket_number }}</button>
+            <span>por {{ s.author }}</span>
+            {% if not s.pending %}<span class="font-semibold {{ 'text-mint-700' if s.status == 'aprovada' else 'text-ink-500' }}">{{ 'Aprovada' if s.status == 'aprovada' else 'Descartada' }}{% if s.decided_by %} por {{ s.decided_by }}{% endif %}</span>{% endif %}
+          </div>
+        </div>
+        {% if s.pending %}
+        <div class="shrink-0 flex items-center gap-2">
+          <button type="button" hx-get="/dashboard/faq/nova?sugestao={{ s.id }}" hx-target="#modal-body" hx-swap="innerHTML"
+                  class="bg-mint-600 hover:bg-mint-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg">Criar item</button>
+          <form method="post" action="{{ sug_path }}/{{ s.id }}/descartar" hx-post="{{ sug_path }}/{{ s.id }}/descartar"
+                hx-target="#sugestoes-card" hx-swap="outerHTML" hx-disabled-elt="find button">
+            {{ csrf_field(csrf_token) }}
+            <input type="hidden" name="status" value="{{ sug_filter }}">
+            <button type="submit" class="border border-ink-300 bg-white rounded-lg px-3 py-1.5 text-xs hover:bg-ink-50">Descartar</button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  {{ empty_box('Nenhuma sugestão pendente. Quando a equipe responder um vendedor, a pergunta e a resposta aparecem aqui.' if sug_filter == 'pendentes' else 'Nenhuma sugestão ainda.') }}
+  {% endif %}
+</div>

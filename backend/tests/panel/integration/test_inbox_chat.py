@@ -94,15 +94,18 @@ def test_conversa_inexistente_da_404_sem_dados(env: Env, world: factories.PanelW
 # ---- PN-12 / PN-13: conteudo ----------------------------------------------------------
 
 
-def test_chat_sem_caixa_de_resposta_e_grupo_desativado(
+def test_chat_com_caixa_de_resposta_e_grupo_desativado(
     env: Env, world: factories.PanelWorld
 ) -> None:
     with env.client() as c:
         login(c)
         html = _open(c, world.sellers.one_brand)
     assert "<html" not in html
-    assert "<textarea" not in html and "esponder ao vendedor" not in html
-    assert "Responder em" in html and "Grupo da equipe desativado" in html
+    # retorno-humano.1 (RH-6): a conversa com ticket aguardando tem a caixa de resposta; a barra
+    # do grupo passa a ser so o indicador do aviso.
+    assert "<textarea" in html and "Responder ao vendedor" in html
+    assert 'name="origem" value="inbox"' in html
+    assert "Aviso no grupo" in html and "Grupo da equipe desativado" in html
     assert 'data-team-group="off"' in html and "Grupo da equipe (WhatsApp)" not in html
     assert "Vendedor Uma Marca" in html and "Vendedor · SP" in html
     assert "+55 11 9" in html and "+5511900000001" not in html  # telefone mascarado

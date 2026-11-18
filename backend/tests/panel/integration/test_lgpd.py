@@ -237,3 +237,51 @@ async def test_delete_duas_vezes_e_inexistente(
         "SELECT count(*) FROM ops.audit_log WHERE action = 'lgpd.delete'"
     )
     assert deletes == 1
+
+
+# --- Sugestoes de FAQ (retorno-humano.1, RH-20) ---------------------------------------------
+
+
+async def _suggestion(
+    conn: asyncpg.Connection, clock: FakeClock, user_id: int, number: str, status: str
+) -> None:
+    item_id = None
+    if status == "aprovada":
+        item_id = await conn.fetchval(
+            "INSERT INTO content.faq_items (brand, category, question, question_key, answer, "
+            "bot_responde, origin, origin_ref, created_at, created_by, updated_at, updated_by) "
+            "VALUES ('jungle', 'PRODUTO', 'Item revisado', $2, 'Resposta revisada', true, "
+            "'sugestao', $1, $3, 'admin', $3, 'admin') RETURNING id",
+            number, f"item revisado {number}", clock.now(),
+        )  # fmt: skip
+    decided = None if status == "pendente" else clock.now()
+    await conn.execute(
+        "INSERT INTO content.faq_suggestions (ticket_number, user_id, brand, question, answer, "
+        "status, author, decided_by, decided_at, faq_item_id, created_at, updated_at) "
+        "VALUES ($1, $2, 'jungle', 'pergunta dela', 'resposta da equipe', $3, 'Caio', "
+        "CASE WHEN $4::timestamptz IS NULL THEN NULL ELSE 'admin' END, $4, $5, $6, $6)",
+        number, user_id, status, decided, item_id, clock.now(),
+    )  # fmt: skip
+
+
+async def test_delete_apaga_sugestoes_e_limpa_as_aprovadas(
+    db_conn: asyncpg.Connection, clock: FakeClock
+) -> None:
+    uid, other = await _scenario(db_conn, clock)
+    await _suggestion(db_conn, clock, uid, "J-8001", "pendente")
+    await _suggestion(db_conn, clock, uid, "J-8002", "descartada")
+    await _suggestion(db_conn, clock, uid, "J-8003", "aprovada")
+    await _suggestion(db_conn, clock, other, "J-8004", "pendente")
+    res = await lgpd.delete_person(db_conn, uid, "admin@x.com", clock=clock)
+    rows = await db_conn.fetch(
+        "SELECT ticket_number, question, answer, status FROM content.faq_suggestions "
+        "ORDER BY ticket_number"
+    )
+    assert [(r["ticket_number"], r["question"], r["answer"], r["status"]) for r in rows] == [
+        ("J-8003", None, None, "aprovada"),
+        ("J-8004", "pergunta dela", "resposta da equipe", "pendente"),
+    ]
+    assert res.counts["faq_suggestions_deleted"] == 2
+    assert res.counts["faq_suggestions_cleared"] == 1
+    item = await db_conn.fetchrow("SELECT question, active FROM content.faq_items")
+    assert (item["question"], item["active"]) == ("Item revisado", True)  # item da FAQ fica

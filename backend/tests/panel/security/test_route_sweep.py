@@ -123,6 +123,27 @@ def test_varredura_enxerga_rotas_do_painel(app: FastAPI) -> None:
     assert any(m != "GET" for m, _ in targets)
 
 
+# Rotas de retorno-humano.1 (RH-T13): entram na varredura como toda rota do painel; esta lista
+# so garante que continuam la (renomear sem querer tiraria a rota do teste).
+RETORNO_HUMANO_ROUTES = (
+    ("POST", "/dashboard/tickets/{number}/responder"),
+    ("GET", "/dashboard/inbox/ticket/{number}"),
+    ("GET", "/dashboard/relatorios/sugestoes"),
+    ("POST", "/dashboard/relatorios/sugestoes/{suggestion_id}/descartar"),
+)
+
+
+def test_rotas_novas_estao_na_varredura(app: FastAPI) -> None:
+    gated = {
+        (method, route.path)
+        for route in app.routes
+        if isinstance(route, APIRoute) and not is_public(route.path)
+        for method in route.methods
+    }
+    missing = [r for r in RETORNO_HUMANO_ROUTES if r not in gated]
+    assert not missing, f"rotas fora da varredura: {missing}"
+
+
 def test_rotas_publicas_sao_so_as_da_lista(app: FastAPI) -> None:
     public = {r.path for r in app.routes if isinstance(r, APIRoute) and is_public(r.path)}
     assert "/health" in public

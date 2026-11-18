@@ -241,6 +241,23 @@ async def _clear_content(
             user_id,
         )  # fmt: skip
     )
+    # Sugestoes de FAQ (retorno-humano.1, RH-20): pendentes e descartadas saem; das aprovadas
+    # fica so o vinculo (o item da FAQ ja foi reescrito e revisado por um admin).
+    counts["faq_suggestions_deleted"] = _count(
+        await conn.execute(
+            "DELETE FROM content.faq_suggestions WHERE user_id = $1 "
+            "AND status IN ('pendente', 'descartada')",
+            user_id,
+        )  # fmt: skip
+    )
+    counts["faq_suggestions_cleared"] = _count(
+        await conn.execute(
+            "UPDATE content.faq_suggestions SET question = NULL, answer = NULL "
+            "WHERE user_id = $1 AND status = 'aprovada' "
+            "AND (question IS NOT NULL OR answer IS NOT NULL)",
+            user_id,
+        )  # fmt: skip
+    )
     counts["unknown_first_messages"] = _count(
         await conn.execute(
             "DELETE FROM access.unknown_first_messages WHERE attempt_id = ANY($1::bigint[])",

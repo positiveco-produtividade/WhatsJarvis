@@ -1,6 +1,6 @@
 ---
 task_id: RETORNO-HUMANO-1
-status: draft
+status: implemented
 phase: 4-implementation
 requirements_approved_by: Caio
 requirements_approved_at: 2026-11-17
@@ -242,7 +242,7 @@ Rotas novas (todas com `current_admin`; POST com `require_csrf`):
 | `POST /dashboard/relatorios/sugestoes/{id}/descartar` | descarta (RH-19) |
 | `GET /dashboard/faq/nova?sugestao=<id>` | formulário pré-preenchido (RH-18); `POST /dashboard/faq/nova` aceita o campo oculto `sugestao` |
 
-Configuração nova: `TEXT_HUMAN_REPLY_HEADER` / `TEXT_HUMAN_REPLY_HEADER_NO_NAME`, `TEXT_TEAM_GROUP_TICKET` (modelo do aviso), `TEAM_GROUP_MIN_INTERVAL_SECONDS=3`, `HUMAN_REPLY_MAX_CHARS=4000`. `PANEL_BASE_URL` passa a ser exigido com o grupo ligado (monta o link).
+Configuração nova: `TEXT_HUMAN_REPLY_HEADER` / `TEXT_HUMAN_REPLY_HEADER_NO_NAME`, `TEXT_TEAM_GROUP_TICKET` (modelo do aviso), `TEAM_GROUP_MIN_INTERVAL_SECONDS=3`, `HUMAN_REPLY_MAX_CHARS=4000`, `HUMAN_REPLY_IGNORE_WINDOW=true`. O link do aviso usa `PANEL_BASE_URL` ou, se vazio, `https://PANEL_PUBLIC_HOST` (`Settings.panel_link_base`; ver seção 12).
 
 ### 9.4 Fluxos
 
@@ -302,7 +302,7 @@ Eventos novos: `human_reply_queued` (ticket, partes), `human_reply_blocked` (tic
 TEAM_GROUP_ENABLED=true
 TEAM_GROUP_CHAT_ID=<id>@g.us          # grupo da equipe com o número do Jarvis
 TEAM_GROUP_MIN_INTERVAL_SECONDS=3
-PANEL_BASE_URL=https://jarvis.positiveco.com.br
+PANEL_BASE_URL=https://jarvis.positiveco.com.br   # opcional: vazio usa https://PANEL_PUBLIC_HOST
 # WAHA_BASE_URL / WAHA_API_KEY / WAHA_SESSION: não são mais lidos (o grupo usa JARVIS_WAHA_*)
 ```
 
@@ -331,3 +331,18 @@ PANEL_BASE_URL=https://jarvis.positiveco.com.br
 - Desligar o grupo: `TEAM_GROUP_ENABLED=false` (avisos voltam a `panel_only`).
 - Voltar a janela de 24 h para a resposta humana: `HUMAN_REPLY_IGNORE_WINDOW=false`.
 - A migration 401 é aditiva; reverter o código não exige desfazer o banco (colunas e tabela novas ficam sem uso).
+
+## 12. Divergências da Fase 4 (implementação, 2026-11-17 a 2026-11-18)
+
+Registradas em detalhe em `../task.md` ("Desvios do design"). Resumo do que mudou em relação às seções 9 a 11:
+
+1. **`PANEL_BASE_URL` não é obrigatório.** O link do aviso usa `PANEL_BASE_URL` ou `https://PANEL_PUBLIC_HOST`, que já existe. `WAHA_BASE_URL/WAHA_API_KEY/WAHA_SESSION` foram removidos da configuração; com o grupo ligado, a exigência é `JARVIS_WAHA_API_KEY` e `TEAM_GROUP_CHAT_ID` terminando em `@g.us` (RH-21).
+2. **Janela de 24 h:** `outbox.reply_only_for` devolve `ReplyWindow | None` com os kinds isentos; `main.py` e `workers.py` não mudaram.
+3. **Ticket respondido pelo Jarvis não vai ao grupo:** `question_tickets` grava entrega `group` também para `answered_bot`; o despacho marca essas entregas como `skipped` (`not_escalated`). Sem isso, toda pergunta iria ao grupo com a chave ligada.
+4. **Envio na hora:** a rota `/responder` entrega todas as partes ao despachante do app depois do COMMIT (a varredura de 15 s fica como reserva).
+5. **Leitura da caixa de resposta** em `app/panel/services/human_replies.py` (compartilhada pelo drawer e pelo Inbox). A caixa aparece para ticket `awaiting`, `answered_human` (complemento) ou `send_error`.
+6. **Regra de template substituída:** `test_no_reply_to_seller` (PN-13/15) virou `test_reply_to_seller_only_via_responder`. A barra "Responder em: Grupo da equipe" do Inbox virou "Aviso no grupo".
+7. **Celular:** sem o binário do Tailwind para gerar classe nova, o JS do chat troca `flex`/`hidden` abaixo de 768 px e há o botão "← Conversas". Nenhum CSS novo. Não foi testado em aparelho real.
+8. **Foco no Inbox** (destaque da pergunta e cursor na caixa) só quando o chat é aberto com `t` (link do aviso).
+9. **Mapa RH-n → teste** em `backend/tests/panel/AC_MAP.md` (seção "Retorno humano"), validado por `test_ac_coverage.py`.
+

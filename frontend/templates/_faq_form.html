@@ -1,6 +1,7 @@
 {# Formulario da FAQ (PN-T27; PN-23, PN-24, PN-26). Fragmento injetado em #modal-body (base.html);
    layout e textos vem do prototipo. Contexto: values (FormValues), editing, version, action,
-   errors, conflict (FaqRecord com o texto atual), from_ticket, was_all_brands, brand_options,
+   errors, conflict (FaqRecord com o texto atual), from_ticket, from_suggestion (id da
+   sugestao de FAQ, retorno-humano.1), was_all_brands, brand_options,
    category_options, question_max, csrf_token. Variacoes: linhas de textarea com o mesmo nome;
    js/faq_form.js so adiciona e remove linhas (o formulario funciona sem ele para salvar). #}
 {% from "_macros.html" import csrf_field, error_list, modal_head %}
@@ -10,7 +11,10 @@
   {{ csrf_field(csrf_token) }}
   {% if editing %}<input type="hidden" name="version" value="{{ version }}">{% endif %}
 
-  {% if from_ticket %}
+  {% if from_suggestion %}
+  <input type="hidden" name="sugestao" value="{{ from_suggestion }}">
+  <p role="status" class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">Sugestão a partir da resposta da equipe no ticket <strong class="font-mono">{{ from_ticket }}</strong>. Reescreva a pergunta e a resposta como devem ficar na FAQ e confira a marca e a categoria.</p>
+  {% elif from_ticket %}
   <p role="status" class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">Preenchido a partir do ticket <strong class="font-mono">{{ from_ticket }}</strong>. Escreva a resposta e confira a marca e a categoria.</p>
   {% endif %}
 

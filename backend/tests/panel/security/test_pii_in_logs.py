@@ -66,6 +66,8 @@ MESSAGES = {
     "unknown_first": "TEXTO-DESCONHECIDO-CONFIDENCIAL",
     "assistant_question": "PERGUNTA-CONFIDENCIAL-ASSISTENTE",
     "faq_import": "PERGUNTA-IMPORTADA-CONFIDENCIAL",
+    "reply_drawer": "RESPOSTA-EQUIPE-DRAWER-CONFIDENCIAL",
+    "reply_inbox": "RESPOSTA-EQUIPE-INBOX-CONFIDENCIAL",
 }
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 # +55 DD 9XXXX-XXXX em qualquer formatacao, ou 55 + 10/11 digitos colados.
@@ -82,6 +84,10 @@ EXPECTED_EVENTS = (
     "control_changed",
     "panel_attempt_dismissed",
     "assistant_call",
+    # retorno-humano.1 (RH-T13): resposta da equipe e sugestoes de FAQ
+    "panel_ticket_reply",
+    "human_reply_queued",
+    "faq_suggestion_created",
 )
 STD_ATTRS = frozenset(logging.LogRecord("n", 0, "p", 0, "m", (), None).__dict__) | {
     "message",
@@ -148,7 +154,15 @@ async def _seed(dsn: str) -> dict[str, int]:
         await set_display(conn, True, NOW)
         attempt = await add_attempt(conn, 7, NOW, count=4, body=MESSAGES["unknown_first"])
         faq = world.faq.ids[0] if world.faq.available else 0
-        return {"uid": uid, "extra": extra, "attempt": attempt, "faq": faq}
+        # retorno-humano.1: segundo vendedor com ticket aguardando (responder pelo Inbox)
+        other = await insert_user(conn, name=f"{PERSON} Tres", seq=62, brands=[BRAND_A], now=NOW)
+        await factories.insert_ticket(
+            conn, number=801, user_id=other, status="awaiting", created_at=NOW, brand=BRAND_A,
+            message=MESSAGES["ticket"] + " dois", escalated=True, urgency="urgente",
+        )
+        return {
+            "uid": uid, "extra": extra, "attempt": attempt, "faq": faq, "other_uid": other,
+        }
     finally:
         await conn.close()
 
@@ -208,6 +222,49 @@ def _get_everything(c: TestClient, ids: dict[str, int]) -> None:
             c.get(url, headers=headers)
 
 
+def _field(html: str, name: str) -> str:
+    match = re.search(rf'name="{name}" value="([^"]+)"', html)
+    return match.group(1) if match else ""
+
+
+def _reply_flows(c: TestClient, ids: dict[str, int]) -> None:
+    """retorno-humano.1: link do aviso, responder (drawer e Inbox), sugestoes (ver, aprovar,
+    descartar). Os textos de resposta sao marcadores que nao podem aparecer no log."""
+    uid, other = ids["uid"], ids["other_uid"]
+    c.get("/dashboard/inbox/ticket/J-0800")
+    c.get("/dashboard/inbox/ticket/J-9999")
+    drawer = c.get("/dashboard/tickets/J-0800", headers=HX).text
+    _post(
+        c,
+        "/dashboard/tickets/J-0800/responder",
+        {"texto": MESSAGES["reply_drawer"], "token": _field(drawer, "token"), "origem": "drawer"},
+    )
+    chat = c.get(f"/dashboard/inbox/{other}?t=J-0801", headers=HX).text
+    _post(
+        c,
+        "/dashboard/tickets/J-0801/responder",
+        {"texto": MESSAGES["reply_inbox"], "token": _field(chat, "token"), "origem": "inbox"},
+    )
+    c.get(f"/dashboard/inbox/{uid}?t=J-0800", headers=HX)
+    page = c.get("/dashboard/relatorios").text
+    # So "pendentes" na URL: o valor "todas" e o do cookie de marca (jarvis_brand) e o detector o
+    # acharia na linha de log do httpx. O filtro "Todas" e coberto em test_faq_suggestions.py.
+    c.get("/dashboard/relatorios/sugestoes?status=pendentes", headers=HX)
+    sids = re.findall(r'data-suggestion="(\d+)"', page)
+    if len(sids) >= 2:
+        c.get(f"/dashboard/faq/nova?sugestao={sids[0]}", headers=HX)
+        _post(
+            c,
+            "/dashboard/faq/nova",
+            {
+                "sugestao": sids[0], "brand": "jungle", "category": "PRODUTO",
+                "question": MESSAGES["faq_import"] + " sugerida?", "answer": FAQ_ANSWER,
+                "bot_responde": "1",
+            },
+        )
+        _post(c, f"/dashboard/relatorios/sugestoes/{sids[1]}/descartar", {"status": "pendentes"})
+
+
 def _post_everything(c: TestClient, env: Env, ids: dict[str, int]) -> None:
     uid = ids["uid"]
     faq = {"brand": "jungle", "category": "PRODUTO", "question": MESSAGES["faq_import"] + "?"}
@@ -218,6 +275,7 @@ def _post_everything(c: TestClient, env: Env, ids: dict[str, int]) -> None:
     _post(c, "/dashboard/tickets/J-0800/reclassificar", {"classification": "PRECO"})
     _post(c, "/dashboard/tickets/J-0800/urgencia", {"urgency": "urgente"})
     _post(c, "/dashboard/tickets/J-0800/concluir", {"author": "Admin Teste"})
+    _reply_flows(c, ids)  # depois do Concluir: a resposta em J-0800 vira complemento
     _post(c, "/dashboard/control/pausa", {"desired": "pause"})
     _post(c, "/dashboard/control/pausa", {"desired": "resume"})
     _post(c, f"/dashboard/pessoas/pedidos/{ids['attempt']}/ignorar")

@@ -107,7 +107,8 @@ def test_drawer_aguardando_mostra_conteudo_sem_responder(
     assert "Marcar como concluído" in html and "Nenhuma mensagem é enviada ao vendedor" in html
     assert "Quem concluiu" in html and "Reclassificar" in html
     assert "Vendedor Uma Marca" in html and "/dashboard/pessoas/" in html
-    assert "<textarea" not in html and "esponder ao vendedor" not in html
+    # retorno-humano.1 (RH-6): o ticket escalado tem a caixa "Responder ao vendedor".
+    assert "<textarea" in html and "Responder ao vendedor" in html and "Enviar e concluir" in html
     assert "<html" not in html  # fragmento, nao pagina
     assert "+55 11 9" in html and "+5511900000001" not in html  # telefone mascarado
     assert "Plant Power" in html
