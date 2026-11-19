@@ -7,7 +7,7 @@
 <article data-href="{{ inbox_path }}?u={{ t.user_id }}" data-ticket="{{ t.number }}" class="group bg-white rounded-xl p-3 space-y-2 border border-ink-200/70 shadow-sm hover:shadow-md hover:border-ink-300 transition cursor-pointer">
   <div class="flex items-start justify-between gap-2">
     <div class="flex items-center gap-1.5">
-      <button type="button" hx-get="{{ tickets_path }}/{{ t.number }}" hx-target="#drawer-body" hx-swap="innerHTML"
+      <button type="button" hx-get="{{ tickets_path }}/{{ t.number }}" hx-target="#drawer-body" hx-swap="innerHTML" hx-select="unset"
               class="font-mono text-[11px] font-medium text-ink-500 hover:text-ink-900 hover:underline" aria-label="Detalhar o ticket {{ t.number }}">{{ t.number }}</button>
       <span class="text-[10px] text-ink-400">{{ col_label }}</span>
     </div>

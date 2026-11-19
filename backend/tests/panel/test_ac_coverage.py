@@ -154,3 +154,28 @@ def test_todo_rh_tem_teste_que_existe(sections: dict[str, list[str]]) -> None:
     assert all(rh[n] for n in RH_ACTIVE)
     missing = [(n, ref) for n, refs in rh.items() for ref in refs if not _ref_exists(ref)]
     assert not missing, f"referencias inexistentes: {missing}"
+
+
+# --- cadastro.1 (CA-T05): CA-1..CA-14 -----------------------------------------------------
+
+CA_ACTIVE = list(range(1, 15))
+
+
+def _parse_ca(lines: list[str]) -> dict[int, list[str]]:
+    mapping: dict[int, list[str]] = {}
+    for line in lines:
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) < 2:
+            continue
+        match = re.fullmatch(r"CA-(\d+)", cells[0])
+        if match:
+            mapping[int(match.group(1))] = REF_RE.findall(cells[1])
+    return mapping
+
+
+def test_todo_ca_tem_teste_que_existe(sections: dict[str, list[str]]) -> None:
+    ca = _parse_ca(sections["cadastro"])
+    assert set(ca) == set(CA_ACTIVE), f"CA fora do mapa: {sorted(set(CA_ACTIVE) - set(ca))}"
+    assert all(ca[n] for n in CA_ACTIVE)
+    missing = [(n, ref) for n, refs in ca.items() for ref in refs if not _ref_exists(ref)]
+    assert not missing, f"referencias inexistentes: {missing}"

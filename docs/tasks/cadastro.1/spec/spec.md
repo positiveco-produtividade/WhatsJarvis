@@ -1,6 +1,6 @@
 ---
 task_id: CADASTRO-1
-status: draft
+status: implemented
 phase: 4-implementation
 requirements_approved_by: Caio
 requirements_approved_at: 2026-11-18
@@ -13,7 +13,7 @@ tasks_approved_at: 2026-11-18
 # Spec — Editar o cadastro e trocar o número pelo painel (CADASTRO-1)
 
 > **Story:** [cadastro.1](../../../stories/cadastro.1.md) · **Epic:** [painel](../../../epics/painel.md)
-> **Status:** Fase 1 (Requisitos, CA-1 a CA-14; decisões D1–D6 tomadas pelo Caio em 2026-11-18) **aprovada por Caio em 2026-11-18**. Fase 2 (design: seções 7 a 10, `research.json`, `complexity.json`, extensão da ADR de 2026-11-17) **aprovada por Caio em 2026-11-18**. Fase 3 (tarefas: [`../task.md`](../task.md)) **aprovada por Caio em 2026-11-18**; Fase 4 em andamento.
+> **Status:** Fase 1 (Requisitos, CA-1 a CA-14; decisões D1–D6 tomadas pelo Caio em 2026-11-18) **aprovada por Caio em 2026-11-18**. Fase 2 (design: seções 7 a 10, `research.json`, `complexity.json`, extensão da ADR de 2026-11-17) **aprovada por Caio em 2026-11-18**. Fase 3 (tarefas: [`../task.md`](../task.md)) **aprovada por Caio em 2026-11-18**; Fase 4 concluída em 2026-11-19 (seção 11).
 > Critérios completos e testáveis: `requirements.json`.
 
 ## 1. Objetivo
@@ -153,4 +153,8 @@ Reaproveita `users.swap_number` inteiro (mesma transação, revoga com `number_c
 - **Formulário compartilhado:** o modo edição muda `_pessoa_form.html`, usado pelo cadastro e pela autorização de pedido; os testes atuais do cadastro protegem esses fluxos.
 - **Mensagem automática fora da janela (D4):** aumenta um pouco o risco de restrição no WAHA; mitigado por sair só quando o próprio vendedor pediu a marca e por ser uma mensagem por marca.
 - **Corrida com o vendedor:** o vendedor pode mandar mensagem enquanto o admin edita; o `FOR UPDATE` na linha da pessoa serializa a edição com o processamento da mensagem.
+
+## 11. Divergências da Fase 4 (2026-11-19)
+
+Detalhes em `../task.md` ("Desvios do design"). Resumo: a conclusão dos pedidos e o aviso ficaram em `app/panel/services/people_edit.py` (o serviço de usuários não importa o painel); a versão do formulário sempre avança; a troca de número é feita pelo id (`users.swap_number_by_id`) e devolve a ficha nova no modal; o E2E opcional da edição (CA-T06) não foi feito.
 

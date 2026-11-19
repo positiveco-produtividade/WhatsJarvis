@@ -1,6 +1,6 @@
 # História cadastro.1 — Editar o cadastro e trocar o número pelo painel
 
-> **Épico:** [painel](../epics/painel.md) · **Status:** Draft (requisitos aguardando aprovação; D1 e D2 decididas por Caio em 2026-11-18) · **Owner:** Caio · **Criado:** 2026-11-18
+> **Épico:** [painel](../epics/painel.md) · **Status:** Implementada em 2026-11-19 (fases 1 a 3 aprovadas por Caio em 2026-11-18; suíte inteira, perf e eval palavras verdes) · **Owner:** Caio · **Criado:** 2026-11-18
 
 Fonte de verdade: `docs/tasks/cadastro.1/spec/spec.md` e `requirements.json`.
 Em caso de divergência, vale o spec.

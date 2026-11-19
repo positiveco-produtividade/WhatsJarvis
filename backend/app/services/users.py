@@ -435,10 +435,12 @@ _LOCK_FOR_EDIT = (
 )
 _UPDATE_USER = (
     "UPDATE access.users SET name = $2, profile = $3, company = $4, ufs = $5::text[], "
-    "channels = $6::text[], brands = $7::text[], manager_name = $8, updated_at = $9, "
+    "channels = $6::text[], brands = $7::text[], manager_name = $8, "
+    # A versao (updated_at) sempre avanca, mesmo com relogio parado ou repetido (CA-5).
+    "updated_at = GREATEST($9, updated_at + interval '1 microsecond'), "
     "active_brand = CASE WHEN active_brand = ANY($7::text[]) THEN active_brand END, "
     "active_brand_at = CASE WHEN active_brand = ANY($7::text[]) THEN active_brand_at END "
-    "WHERE id = $1"
+    "WHERE id = $1 RETURNING updated_at"
 )
 
 
@@ -527,7 +529,7 @@ async def update(
             return UpdateResult(
                 UPDATE_NOOP, user_status=row["status"], updated_at=row["updated_at"], current=old
             )
-        await conn.execute(
+        version = await conn.fetchval(
             _UPDATE_USER, user_id, new["name"], new["profile"], new["company"],
             list(new["ufs"]), list(new["channels"]), list(new["brands"]), new["manager_name"],
             now,
@@ -544,7 +546,7 @@ async def update(
         )  # fmt: skip
     return UpdateResult(
         UPDATE_OK, changed=changed, granted=granted, phone_e164=row["phone_e164"],
-        user_status=row["status"], updated_at=now,
+        user_status=row["status"], updated_at=version,
     )  # fmt: skip
 
 def _phone_key(raw: str, field: str) -> tuple[str, str]:
@@ -591,17 +593,58 @@ async def swap_number(
         old = await conn.fetchrow(_LOCK_BY_PHONE_KEY, from_key)
         if old is None:
             raise InvalidValue("from", "numero de origem nao cadastrado")
-        revoked = await revoke(
-            conn, old["id"], RevokeReason.NUMBER_CHANGE, actor, actor_type=actor_type, clock=clock
-        )
-        created = await register(
-            conn, _copy_for_new_number(old, to_e164, to_key), actor=actor,
-            actor_type=actor_type, settings=settings, clock=clock,
-        )  # fmt: skip
-        await audit.write(
-            conn, actor_type, actor, ACTION_NUMBER_SWAPPED, TARGET_TYPE, str(revoked.id),
-            old={"user_id": revoked.id},
-            new={"user_id": created.id},
+        return await _swap_locked(
+            conn, old, to_e164, to_key, actor, actor_type=actor_type, settings=settings,
             clock=clock,
         )  # fmt: skip
+
+
+async def swap_number_by_id(
+    conn: Any,
+    user_id: int,
+    to_phone: str,
+    actor: str,
+    *,
+    actor_type: str = "panel",
+    settings: Settings,
+    clock: Clock | None = None,
+) -> tuple[UserRow, UserRow]:
+    """Mesma regra de `swap_number` (AC-26), achando a pessoa pelo id (painel, cadastro.1
+    CA-12): o admin nunca digita o numero antigo."""
+    to_e164, to_key = _phone_key(to_phone, "to")
+    async with conn.transaction():
+        old = await conn.fetchrow(_LOCK_USER, user_id)
+        if old is None:
+            raise InvalidValue("from", "pessoa de origem nao cadastrada")
+        return await _swap_locked(
+            conn, old, to_e164, to_key, actor, actor_type=actor_type, settings=settings,
+            clock=clock,
+        )  # fmt: skip
+
+
+async def _swap_locked(
+    conn: Any,
+    old: Any,
+    to_e164: str,
+    to_key: str,
+    actor: str,
+    *,
+    actor_type: str,
+    settings: Settings,
+    clock: Clock | None,
+) -> tuple[UserRow, UserRow]:
+    """Revoga A (ja travada) e cria B com os mesmos dados, na transacao do chamador."""
+    revoked = await revoke(
+        conn, old["id"], RevokeReason.NUMBER_CHANGE, actor, actor_type=actor_type, clock=clock
+    )
+    created = await register(
+        conn, _copy_for_new_number(old, to_e164, to_key), actor=actor,
+        actor_type=actor_type, settings=settings, clock=clock,
+    )  # fmt: skip
+    await audit.write(
+        conn, actor_type, actor, ACTION_NUMBER_SWAPPED, TARGET_TYPE, str(revoked.id),
+        old={"user_id": revoked.id},
+        new={"user_id": created.id},
+        clock=clock,
+    )  # fmt: skip
     return revoked, created

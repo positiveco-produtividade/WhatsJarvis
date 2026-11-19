@@ -65,19 +65,11 @@ def test_tickets_recentes_do_inbox_abrem_o_drawer(
     expect(body.locator("[data-reply-box]")).to_have_count(0)
 
 
-# Bug do app achado por estes E2E (nao corrigido aqui; so testes): no htmx 1.9 o `hx-select`
-# e herdado. Em Escalados (#escalados-board) e em Alertas (#alerts-area) a secao tem
-# `hx-select="#escalados-board"` / `"#alerts-area"`, entao o botao que abre o ticket herda esse
-# seletor, a resposta do drawer (que nao tem o id) vira vazia e o drawer nao abre. A correcao
-# provavel e `hx-select="unset"` nesses botoes (como `#control-painel` ja faz em alerts.html).
-# `strict=True`: quando o app for corrigido, o xfail vira falha e lembra de tirar a marca.
-HX_SELECT_BUG = pytest.mark.xfail(
-    reason="hx-select herdado esvazia o drawer em Escalados/Alertas (bug do app, ver comentario)",
-    strict=True,
-)
+# Escalados e Alertas: o botao que abre o ticket tem `hx-select="unset"`; sem isso o htmx
+# herda o `hx-select` da secao (#escalados-board/#alerts-area) e o drawer fica vazio
+# (bug achado por estes E2E em 2026-11-18, corrigido em 2026-11-19).
 
 
-@HX_SELECT_BUG
 def test_cartao_de_escalados_abre_o_drawer_e_esc_fecha(
     admin_page: Page, live_server: LiveServer
 ) -> None:
@@ -93,7 +85,6 @@ def test_cartao_de_escalados_abre_o_drawer_e_esc_fecha(
     expect(page).to_have_url(live_server.url("/dashboard/escalados"))
 
 
-@HX_SELECT_BUG
 def test_alerta_ligado_a_ticket_abre_o_drawer(admin_page: Page, live_server: LiveServer) -> None:
     live_server.sql(
         "INSERT INTO ops.alerts (severity, kind, message, payload, ticket_number, created_at) "

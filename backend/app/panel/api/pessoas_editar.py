@@ -266,15 +266,15 @@ async def trocar_numero(
         return _refused(409, NOT_EDITABLE_TEXT)
     try:
         async with request.app.state.pool.acquire() as conn, conn.transaction():
-            _, created = await users.swap_number(
-                conn, record["phone_e164"], telefone, admin.email, actor_type="panel",
+            _, created = await users.swap_number_by_id(
+                conn, user_id, telefone, admin.email, actor_type="panel",
                 settings=get_settings(request), clock=get_clock(request),
             )  # fmt: skip
     except DuplicatePhone:
         logger.info("panel_person_swap_duplicate")
         return _swap_form(request, admin, record, typed=telefone, error=SWAP_DUPLICATE_TEXT)
-    except InvalidValue:
-        logger.info("panel_person_swap_invalid")
+    except InvalidValue as exc:
+        logger.info("panel_person_swap_invalid", extra={"field": exc.field})
         return _swap_form(request, admin, record, typed=telefone, error=SWAP_INVALID_TEXT)
     logger.info("panel_person_number_swapped", extra={"from_id": user_id, "to_id": created.id})
     # O modal passa a mostrar a ficha nova (pending_optin), com o aviso e a lista atualizada.

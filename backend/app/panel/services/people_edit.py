@@ -65,10 +65,10 @@ async def edit_person(
             conn, user_id, data, expected_updated_at=expected_updated_at,
             actor=admin_email, actor_type="panel", clock=clock,
         )  # fmt: skip
-        if result.status != users.UPDATE_OK or not result.granted:
+        if result.status != users.UPDATE_OK:
             return EditOutcome(result)
         author = (admin_name or "").split()[0] if (admin_name or "").split() else admin_email
-        for brand in result.granted:
+        for brand in result.granted:  # vazio: nada a concluir nem avisar
             ticket_ids = [int(r["id"]) for r in await conn.fetch(_OPEN_REQUESTS, user_id, brand)]
             if not ticket_ids:
                 continue

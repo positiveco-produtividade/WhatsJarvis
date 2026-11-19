@@ -90,6 +90,9 @@ EXPECTED_EVENTS = (
     "panel_ticket_reply",
     "human_reply_queued",
     "faq_suggestion_created",
+    # cadastro.1 (CA-14): editar e trocar numero pela ficha
+    "panel_person_updated",
+    "panel_person_number_swapped",
 )
 STD_ATTRS = frozenset(logging.LogRecord("n", 0, "p", 0, "m", (), None).__dict__) | {
     "message",
@@ -162,8 +165,12 @@ async def _seed(dsn: str) -> dict[str, int]:
             conn, number=801, user_id=other, status="awaiting", created_at=NOW, brand=BRAND_A,
             message=MESSAGES["ticket"] + " dois", escalated=True, urgency="urgente",
         )
+        # cadastro.1: pessoa que e editada e tem o numero trocado (CA-14)
+        edited = await insert_user(conn, name=f"{PERSON} Quatro", seq=63, brands=[BRAND_A],
+                                   now=NOW)  # fmt: skip
         return {
             "uid": uid, "extra": extra, "attempt": attempt, "faq": faq, "other_uid": other,
+            "edited": edited,
         }
     finally:
         await conn.close()
@@ -267,6 +274,26 @@ def _reply_flows(c: TestClient, ids: dict[str, int]) -> None:
         _post(c, f"/dashboard/relatorios/sugestoes/{sids[1]}/descartar", {"status": "pendentes"})
 
 
+SWAP_PHONE = "+5585977776666"
+
+
+def _cadastro_flows(c: TestClient, ids: dict[str, int]) -> None:
+    """cadastro.1: editar (com gestor e empresa marcadores de PII) e trocar o numero."""
+    uid = ids["edited"]
+    form = c.get(f"/dashboard/pessoas/{uid}/editar", headers=HX).text
+    _post(
+        c,
+        f"/dashboard/pessoas/{uid}/editar",
+        {
+            "nome": f"{PERSON} Quatro", "perfil": "vendedor", "empresa": COMPANY,
+            "ufs": ["CE"], "canais": ["farma"], "marcas": [BRAND_A], "gestor": MANAGER,
+            "versao": _field(form, "versao"),
+        },
+    )  # fmt: skip
+    c.get(f"/dashboard/pessoas/{uid}/trocar-numero", headers=HX)
+    _post(c, f"/dashboard/pessoas/{uid}/trocar-numero", {"telefone": SWAP_PHONE})
+
+
 def _post_everything(c: TestClient, env: Env, ids: dict[str, int]) -> None:
     uid = ids["uid"]
     faq = {"brand": "jungle", "category": "PRODUTO", "question": MESSAGES["faq_import"] + "?"}
@@ -278,6 +305,7 @@ def _post_everything(c: TestClient, env: Env, ids: dict[str, int]) -> None:
     _post(c, "/dashboard/tickets/J-0800/urgencia", {"urgency": "urgente"})
     _post(c, "/dashboard/tickets/J-0800/concluir", {"author": "Admin Teste"})
     _reply_flows(c, ids)  # depois do Concluir: a resposta em J-0800 vira complemento
+    _cadastro_flows(c, ids)
     _post(c, "/dashboard/control/pausa", {"desired": "pause"})
     _post(c, "/dashboard/control/pausa", {"desired": "resume"})
     _post(c, f"/dashboard/pessoas/pedidos/{ids['attempt']}/ignorar")

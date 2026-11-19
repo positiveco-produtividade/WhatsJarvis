@@ -3,8 +3,8 @@
   "title": "Editar o cadastro e trocar o numero pelo painel",
   "story": "docs/stories/cadastro.1.md",
   "epic": "docs/epics/painel.md",
-  "phase": "2-design",
-  "status": "draft",
+  "phase": "4-implementation",
+  "status": "implemented",
   "revision": "2026-11-18 - D1-D6 decididas pelo Caio; Fase 1 aprovada; validade fora da edicao (nunca gravada, spec 7)",
   "user_story": {
     "as_a": "admin do painel",

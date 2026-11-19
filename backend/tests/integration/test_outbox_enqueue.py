@@ -28,6 +28,7 @@ EXPECTED = {
     "brain_notice": "active",
     "brand_poll": "active",  # enquete da marca da conversa (canal-waha.1)
     "human_reply": "active",  # resposta da equipe pelo painel (retorno-humano.1)
+    "brand_access_granted": "active",  # marca liberada a pedido (cadastro.1)
 }
 
 

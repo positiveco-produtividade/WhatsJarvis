@@ -78,7 +78,7 @@ Lido por `test_ac_coverage.py`. Caminhos relativos a `backend/tests/`. Cada PN a
 
 ## Lacunas conhecidas
 
-- E2E Playwright (tarefas T65 e T66, Playwright para Python): rodam so sob demanda (`pytest tests/e2e -m e2e`), fora da suite padrao e do CI; sem Playwright/Chromium pulam com o motivo. Bug do app achado por eles: o drawer aberto por Escalados e por Alertas fica vazio no navegador (o `hx-select` da secao e herdado pelo botao), marcado xfail estrito em `e2e/test_drawer.py::test_cartao_de_escalados_abre_o_drawer_e_esc_fecha` e `e2e/test_drawer.py::test_alerta_ligado_a_ticket_abre_o_drawer`.
+- E2E Playwright (tarefas T65 e T66, Playwright para Python): rodam so sob demanda (`pytest tests/e2e -m e2e`), fora da suite padrao e do CI; sem Playwright/Chromium pulam com o motivo. O bug que eles acharam (drawer vazio ao abrir por Escalados e Alertas, `hx-select` herdado) foi corrigido em 2026-11-19 e e coberto por `e2e/test_drawer.py::test_cartao_de_escalados_abre_o_drawer_e_esc_fecha` e `e2e/test_drawer.py::test_alerta_ligado_a_ticket_abre_o_drawer`.
 
 ## Retorno humano
 
@@ -108,3 +108,25 @@ e mesmas regras dos PN: todo RH tem ao menos um teste automatizado que existe.
 | RH-19 | `panel/integration/test_faq_suggestions.py::test_descartar`; `panel/integration/test_faq_suggestions.py::test_descartar_exige_csrf` |
 | RH-20 | `integration/test_human_reply.py::test_logs_sem_texto_nome_nem_telefone`; `panel/security/test_pii_in_logs.py::test_nenhum_log_do_painel_tem_pii`; `panel/integration/test_lgpd.py::test_delete_apaga_sugestoes_e_limpa_as_aprovadas`; `panel/integration/test_retention.py::test_sugestoes_seguem_a_retencao` |
 | RH-21 | `integration/test_group_notice.py::test_sai_pelo_waha_do_jarvis_so_para_o_grupo`; `unit/test_config.py::test_waha_antigo_do_grupo_nao_e_mais_lido`; `unit/test_notifications_waha.py::test_waha_success_payload_headers_and_id` |
+
+## Cadastro
+
+Criterios CA-1..CA-14 de `docs/tasks/cadastro.1/spec/spec.md` (task CA-T05). Mesmo formato e
+mesmas regras dos PN e RH: todo CA tem ao menos um teste automatizado que existe.
+
+| CA | Testes |
+|---|---|
+| CA-1 | `panel/integration/test_pessoas_editar.py::test_ficha_tem_editar_e_trocar_numero`; `panel/integration/test_pessoas_editar.py::test_formulario_preenchido_com_telefone_so_leitura` |
+| CA-2 | `panel/integration/test_pessoas_editar.py::test_salvar_atualiza_e_audita`; `integration/test_users_update.py::test_edita_e_audita_sem_pii` |
+| CA-3 | `panel/integration/test_pessoas_editar.py::test_dados_invalidos_voltam_no_formulario` |
+| CA-4 | `panel/integration/test_pessoas_editar.py::test_sem_mudanca_avisa_e_nao_grava`; `integration/test_users_update.py::test_sem_mudanca_nao_grava` |
+| CA-5 | `panel/integration/test_pessoas_editar.py::test_edicao_concorrente_mostra_dados_atuais`; `integration/test_users_update.py::test_edicao_concorrente_recusada` |
+| CA-6 | `panel/integration/test_pessoas_editar.py::test_revogada_sem_botoes_e_post_recusado`; `integration/test_users_update.py::test_revogada_nao_edita`; `integration/test_users_update.py::test_anonimizada_e_inexistente`; `integration/test_users_update.py::test_declined_edita` |
+| CA-7 | `integration/test_users_update.py::test_edita_e_audita_sem_pii`; `panel/integration/test_pessoas_editar.py::test_telefone_do_formulario_e_ignorado` |
+| CA-8 | `integration/test_users_update.py::test_edita_e_audita_sem_pii` |
+| CA-9 | `integration/test_users_update.py::test_marca_pedida_conclui_e_avisa`; `integration/test_users_update.py::test_marca_da_conversa_retirada_e_apagada` |
+| CA-10 | `integration/test_users_update.py::test_marca_da_conversa_retirada_e_apagada` |
+| CA-11 | `integration/test_users_update.py::test_marca_pedida_conclui_e_avisa`; `integration/test_users_update.py::test_marca_sem_pedido_nao_avisa`; `integration/test_users_update.py::test_pendente_conclui_pedido_sem_mensagem`; `integration/test_outbox_dispatch.py::test_marca_liberada_sai_fora_da_janela`; `integration/test_outbox_dispatch.py::test_pausa_segura_o_aviso_de_marca_liberada`; `integration/test_migration_401.py::test_migration_idempotente` |
+| CA-12 | `panel/integration/test_pessoas_editar.py::test_trocar_numero_cria_ficha_nova_e_retira_a_antiga` |
+| CA-13 | `panel/integration/test_pessoas_editar.py::test_trocar_para_numero_ja_cadastrado_nao_muda_nada`; `panel/integration/test_pessoas_editar.py::test_trocar_para_numero_invalido`; `panel/integration/test_pessoas_editar.py::test_trocar_numero_de_revogada_recusado` |
+| CA-14 | `panel/integration/test_pessoas_editar.py::test_editar_exige_csrf`; `panel/integration/test_pessoas_editar.py::test_editar_sem_sessao_nao_grava`; `panel/integration/test_pessoas_editar.py::test_trocar_numero_exige_csrf`; `panel/security/test_route_sweep.py::test_rotas_novas_estao_na_varredura`; `panel/security/test_pii_in_logs.py::test_nenhum_log_do_painel_tem_pii` |

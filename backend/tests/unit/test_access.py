@@ -51,6 +51,8 @@ NO_TEXT_KINDS = (
     ReplyKind.BRAND_POLL,
     # resposta da equipe: texto escrito no painel (retorno-humano.1, RH-7)
     ReplyKind.HUMAN_REPLY,
+    # marca liberada: texto montado com o nome da marca (cadastro.1, CA-11)
+    ReplyKind.BRAND_ACCESS_GRANTED,
 )
 
 

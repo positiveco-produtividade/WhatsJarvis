@@ -21,7 +21,7 @@
   {% endif %}
   <div class="flex items-center gap-2 mt-3">
     {% if a.ticket_number %}
-    <button type="button" hx-get="{{ tickets_path }}/{{ a.ticket_number }}" hx-target="#drawer-body" hx-swap="innerHTML"
+    <button type="button" hx-get="{{ tickets_path }}/{{ a.ticket_number }}" hx-target="#drawer-body" hx-swap="innerHTML" hx-select="unset"
             class="text-xs text-ink-600 hover:text-ink-900 hover:underline">Abrir {{ a.ticket_number }}</button>
     {% endif %}
     {% if not a.seen %}

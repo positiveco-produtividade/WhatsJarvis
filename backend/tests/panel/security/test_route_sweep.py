@@ -131,6 +131,12 @@ RETORNO_HUMANO_ROUTES = (
     ("GET", "/dashboard/relatorios/sugestoes"),
     ("POST", "/dashboard/relatorios/sugestoes/{suggestion_id}/descartar"),
 )
+CADASTRO_ROUTES = (  # cadastro.1 (CA-14)
+    ("GET", "/dashboard/pessoas/{user_id:int}/editar"),
+    ("POST", "/dashboard/pessoas/{user_id:int}/editar"),
+    ("GET", "/dashboard/pessoas/{user_id:int}/trocar-numero"),
+    ("POST", "/dashboard/pessoas/{user_id:int}/trocar-numero"),
+)
 
 
 def test_rotas_novas_estao_na_varredura(app: FastAPI) -> None:
@@ -140,7 +146,7 @@ def test_rotas_novas_estao_na_varredura(app: FastAPI) -> None:
         if isinstance(route, APIRoute) and not is_public(route.path)
         for method in route.methods
     }
-    missing = [r for r in RETORNO_HUMANO_ROUTES if r not in gated]
+    missing = [r for r in (*RETORNO_HUMANO_ROUTES, *CADASTRO_ROUTES) if r not in gated]
     assert not missing, f"rotas fora da varredura: {missing}"
 
 
