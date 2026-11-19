@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Any
 
 from app.config import Settings
@@ -52,7 +51,7 @@ async def edit_person(
     user_id: int,
     data: users.ValidatedUser,
     *,
-    expected_updated_at: datetime | None,
+    expected_version: str | None,
     admin_email: str,
     admin_name: str | None,
     settings: Settings,
@@ -62,7 +61,7 @@ async def edit_person(
     outbound_ids: list[int] = []
     async with conn.transaction():
         result = await users.update(
-            conn, user_id, data, expected_updated_at=expected_updated_at,
+            conn, user_id, data, expected_version=expected_version,
             actor=admin_email, actor_type="panel", clock=clock,
         )  # fmt: skip
         if result.status != users.UPDATE_OK:
@@ -72,17 +71,20 @@ async def edit_person(
             ticket_ids = [int(r["id"]) for r in await conn.fetch(_OPEN_REQUESTS, user_id, brand)]
             if not ticket_ids:
                 continue
+            done = []
             for ticket_id in ticket_ids:
-                await tickets_admin.conclude(
+                outcome = await tickets_admin.conclude(
                     conn, ticket_id, author, actor=admin_email, clock=clock
                 )
-                concluded.append(ticket_id)
-            if result.user_status == "active" and result.phone_e164:
+                if outcome.concluded:  # outro admin pode ter concluido no mesmo instante
+                    done.append(ticket_id)
+            concluded.extend(done)
+            if done and result.user_status == "active" and result.phone_e164:
                 outbound_ids.append(
                     await outbox.enqueue(
                         conn, _Target(user_id, result.phone_e164),
                         OutboundKind.BRAND_ACCESS_GRANTED, body=granted_text(brand, settings),
-                        ticket_id=ticket_ids[0], clock=clock,
+                        ticket_id=done[0], clock=clock,
                     )  # fmt: skip
                 )
     logger.info(

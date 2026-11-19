@@ -11,6 +11,7 @@ import asyncpg
 import pytest
 from fastapi.testclient import TestClient
 
+from app.services import users
 from app.services.phone import normalize_phone
 from tests.panel.factories import BRAND_A, insert_user
 from tests.panel.integration.test_access import (  # noqa: F401
@@ -87,7 +88,7 @@ def _form(r: asyncpg.Record, **over: Any) -> dict[str, Any]:
         "canais": list(r["channels"]),
         "marcas": list(r["brands"]),
         "gestor": r["manager_name"],
-        "versao": r["updated_at"].isoformat(),
+        "versao": users.data_version(r),
     }
     data.update(over)
     return data
@@ -124,7 +125,7 @@ def test_formulario_preenchido_com_telefone_so_leitura(env: Env) -> None:
         login(c)
         html = c.get(f"{BASE}/{uid}/editar", headers=HX).text
     assert "Editar cadastro" in html and r["name"] in html
-    assert 'name="versao"' in html and r["updated_at"].isoformat() in html
+    assert 'name="versao"' in html and users.data_version(r) in html
     assert 'name="telefone"' not in html  # telefone so leitura, sem campo enviado
     assert r["phone_e164"] in html and "readonly" in html
 

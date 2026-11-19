@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
 from typing import Annotated, Any
 
 import asyncpg
@@ -27,7 +26,7 @@ from starlette.background import BackgroundTask
 
 from app.core.errors import DuplicatePhone, InvalidValue
 from app.panel.api import pessoas_ficha
-from app.panel.api.pessoas_cadastro import FIELD_LABELS, FormValues, render_person_form
+from app.panel.api.pessoas_cadastro import FormValues, field_problems, render_person_form
 from app.panel.auth.sessions import PanelSession
 from app.panel.deps import (
     PanelRoute,
@@ -91,8 +90,7 @@ def _refused(status: int, message: str) -> Response:
 
 
 def _editable(record: asyncpg.Record) -> bool:
-    anonymized = str(record["phone_e164"]).startswith(users.ANONYMIZED_PREFIX)
-    return record["status"] in users.EDITABLE_STATUSES and not anonymized
+    return users.is_editable(record)
 
 
 def _values(record: Any, phone: str) -> FormValues:
@@ -102,18 +100,6 @@ def _values(record: Any, phone: str) -> FormValues:
         channels=tuple(record["channels"] or ()), brands=tuple(record["brands"] or ()),
         manager=record["manager_name"],
     )  # fmt: skip
-
-
-def _version(value: datetime | None) -> str:
-    return value.isoformat() if value is not None else ""
-
-
-def _parse_version(raw: str) -> datetime | None:
-    try:
-        parsed = datetime.fromisoformat(raw.strip())
-    except ValueError:
-        return None
-    return parsed if parsed.tzinfo is not None else None
 
 
 async def _load(request: Request, user_id: int) -> asyncpg.Record | None:
@@ -127,12 +113,12 @@ def _edit_form(
     admin: PanelSession,
     user_id: int,
     values: FormValues,
-    version: datetime | None,
+    version: str | None,
     problems: tuple[str, ...] = (),
 ) -> Response:
     return render_person_form(
         request, admin, values, problems=problems,
-        action=f"/dashboard/pessoas/{user_id}/editar", editing=True, version=_version(version),
+        action=f"/dashboard/pessoas/{user_id}/editar", editing=True, version=version or "",
     )  # fmt: skip
 
 
@@ -148,7 +134,7 @@ async def editar_form(
     if not _editable(record):
         return _refused(409, NOT_EDITABLE_TEXT)
     values = _values(record, record["phone_e164"])
-    return _edit_form(request, admin, user_id, values, record["updated_at"])
+    return _edit_form(request, admin, user_id, values, users.data_version(record))
 
 
 @router.post(ITEM_PATH + "/editar", include_in_schema=False, dependencies=[Depends(require_csrf)])
@@ -176,14 +162,14 @@ async def editar(
         ufs=tuple(ufs or ()), channels=tuple(canais or ()), brands=tuple(marcas or ()),
         manager=gestor,
     )  # fmt: skip
-    expected = _parse_version(versao)
+    expected = versao.strip() or None
     checked = users.validate_row(values.as_row(), now=get_clock(request).now())
     if isinstance(checked, list):
-        problems = tuple(f"{_label(e.field)}: {e.reason}" for e in checked)
+        problems = field_problems(checked)
         return _edit_form(request, admin, user_id, values, expected, problems)
     async with request.app.state.pool.acquire() as conn:
         outcome = await people_edit.edit_person(
-            conn, user_id, checked, expected_updated_at=expected, admin_email=admin.email,
+            conn, user_id, checked, expected_version=expected, admin_email=admin.email,
             admin_name=admin.name, settings=get_settings(request), clock=get_clock(request),
         )  # fmt: skip
     status = outcome.result.status
@@ -192,16 +178,8 @@ async def editar(
     if status == users.UPDATE_NOT_EDITABLE:
         return _refused(409, NOT_EDITABLE_TEXT)
     if status == users.UPDATE_CONFLICT:
-        current = outcome.result.current or {}
-        fresh = FormValues(
-            name=current.get("name", ""), phone=record["phone_e164"],
-            profile=current.get("profile", ""), company=current.get("company", ""),
-            ufs=tuple(current.get("ufs", ())), channels=tuple(current.get("channels", ())),
-            brands=tuple(current.get("brands", ())), manager=current.get("manager_name", ""),
-        )  # fmt: skip
-        return _edit_form(
-            request, admin, user_id, fresh, outcome.result.updated_at, (CONFLICT_TEXT,)
-        )
+        fresh = _values(outcome.result.current or {}, record["phone_e164"])
+        return _edit_form(request, admin, user_id, fresh, outcome.result.version, (CONFLICT_TEXT,))
     if status == users.UPDATE_NOOP:
         return _done(NOOP_TEXT, "aviso")
     response = _done(SAVED_TEXT)
@@ -209,10 +187,6 @@ async def editar(
     if dispatcher is not None and outcome.outbound_ids:
         response.background = BackgroundTask(dispatcher, outcome.outbound_ids, ())
     return response
-
-
-def _label(field: str) -> str:
-    return FIELD_LABELS.get(field, field)
 
 
 # --- trocar numero (CA-12, CA-13) ---------------------------------------------------------
@@ -275,6 +249,8 @@ async def trocar_numero(
         return _swap_form(request, admin, record, typed=telefone, error=SWAP_DUPLICATE_TEXT)
     except InvalidValue as exc:
         logger.info("panel_person_swap_invalid", extra={"field": exc.field})
+        if exc.field == "from":  # retirada, excluida ou apagada depois que o modal abriu
+            return _refused(409, NOT_EDITABLE_TEXT)
         return _swap_form(request, admin, record, typed=telefone, error=SWAP_INVALID_TEXT)
     logger.info("panel_person_number_swapped", extra={"from_id": user_id, "to_id": created.id})
     # O modal passa a mostrar a ficha nova (pending_optin), com o aviso e a lista atualizada.

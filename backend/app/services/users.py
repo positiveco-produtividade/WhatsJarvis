@@ -9,6 +9,8 @@ Sem PII em auditoria nem em erro: so ids, status e motivo.
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
@@ -429,18 +431,15 @@ _EDITABLE_FIELDS = ("name", "profile", "company", "ufs", "channels", "brands", "
 
 _LOCK_FOR_EDIT = (
     "SELECT id, name, phone_e164, profile, company, ufs, channels, brands, manager_name, "
-    "status, active_brand, updated_at, "
-    "(name LIKE 'anon:%' OR phone_e164 LIKE 'anon:%') AS anonymized "
+    "status, active_brand, updated_at "
     "FROM access.users WHERE id = $1 FOR UPDATE"
 )
 _UPDATE_USER = (
     "UPDATE access.users SET name = $2, profile = $3, company = $4, ufs = $5::text[], "
-    "channels = $6::text[], brands = $7::text[], manager_name = $8, "
-    # A versao (updated_at) sempre avanca, mesmo com relogio parado ou repetido (CA-5).
-    "updated_at = GREATEST($9, updated_at + interval '1 microsecond'), "
+    "channels = $6::text[], brands = $7::text[], manager_name = $8, updated_at = $9, "
     "active_brand = CASE WHEN active_brand = ANY($7::text[]) THEN active_brand END, "
     "active_brand_at = CASE WHEN active_brand = ANY($7::text[]) THEN active_brand_at END "
-    "WHERE id = $1 RETURNING updated_at"
+    "WHERE id = $1"
 )
 
 
@@ -454,7 +453,7 @@ class UpdateResult:
     granted: tuple[str, ...] = ()
     phone_e164: str | None = None
     user_status: str | None = None
-    updated_at: datetime | None = None
+    version: str | None = None
     current: Mapping[str, Any] | None = None
 
 
@@ -472,6 +471,28 @@ def _current_values(row: Any) -> dict[str, Any]:
         "brands": _as_tuple(row["brands"]),
         "manager_name": row["manager_name"],
     }
+
+
+def is_anonymized(row: Any) -> bool:
+    """Excluida pela LGPD (`anon:<id>` no nome ou no telefone)."""
+    return str(row["name"]).startswith(ANONYMIZED_PREFIX) or str(row["phone_e164"]).startswith(
+        ANONYMIZED_PREFIX
+    )
+
+
+def is_editable(row: Any) -> bool:
+    """Pode ser editada ou trocar de numero (cadastro.1, CA-6): nao retirada nem excluida."""
+    return row["status"] in EDITABLE_STATUSES and not is_anonymized(row)
+
+
+def data_version(row: Any) -> str:
+    """Versao dos dados editaveis (CA-5). Muda so quando um campo do formulario muda: os
+    lacos de fundo que tocam `updated_at` (lembrete, limite, marca da conversa) nao geram
+    conflito falso."""
+    values = _current_values(row)
+    canonical = {k: sorted(v) if isinstance(v, tuple) else v for k, v in values.items()}
+    raw = json.dumps(canonical, ensure_ascii=False, sort_keys=True)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:20]
 
 
 def _new_values(data: ValidatedUser) -> dict[str, Any]:
@@ -497,7 +518,7 @@ async def update(
     user_id: int,
     data: ValidatedUser,
     *,
-    expected_updated_at: datetime | None,
+    expected_version: str | None,
     actor: str,
     actor_type: str = "panel",
     clock: Clock | None = None,
@@ -505,7 +526,7 @@ async def update(
     """Edita os dados de uma pessoa (cadastro.1). So `access.users` e a auditoria.
 
     Na transacao do chamador (subtransacao): trava a linha; recusa revogada/anonimizada
-    (CA-6) e edicao concorrente (`updated_at` diferente do lido no formulario, CA-5); nada
+    (CA-6) e edicao concorrente (`data_version` diferente da lida no formulario, CA-5); nada
     mudou = `noop` sem gravar (CA-4). Status, aceite e telefone nunca mudam (CA-7). Se a
     marca da conversa saiu das marcas, ela e apagada no mesmo UPDATE (CA-10). Concluir
     pedidos de acesso e avisar o vendedor e de quem chama (painel), com `granted`.
@@ -516,20 +537,21 @@ async def update(
         if row is None:
             return UpdateResult(UPDATE_NOT_FOUND)
         old = _current_values(row)
-        if row["status"] not in EDITABLE_STATUSES or row["anonymized"]:
+        if not is_editable(row):
             return UpdateResult(UPDATE_NOT_EDITABLE, user_status=row["status"], current=old)
-        if expected_updated_at is None or row["updated_at"] != expected_updated_at:
+        current_version = data_version(row)
+        if expected_version is None or expected_version != current_version:
             return UpdateResult(
-                UPDATE_CONFLICT, user_status=row["status"], updated_at=row["updated_at"],
+                UPDATE_CONFLICT, user_status=row["status"], version=current_version,
                 current=old,
             )  # fmt: skip
         new = _new_values(data)
         changed = tuple(f for f in _EDITABLE_FIELDS if not _same(f, old[f], new[f]))
         if not changed:
             return UpdateResult(
-                UPDATE_NOOP, user_status=row["status"], updated_at=row["updated_at"], current=old
+                UPDATE_NOOP, user_status=row["status"], version=current_version, current=old
             )
-        version = await conn.fetchval(
+        await conn.execute(
             _UPDATE_USER, user_id, new["name"], new["profile"], new["company"],
             list(new["ufs"]), list(new["channels"]), list(new["brands"]), new["manager_name"],
             now,
@@ -546,7 +568,7 @@ async def update(
         )  # fmt: skip
     return UpdateResult(
         UPDATE_OK, changed=changed, granted=granted, phone_e164=row["phone_e164"],
-        user_status=row["status"], updated_at=version,
+        user_status=row["status"],
     )  # fmt: skip
 
 def _phone_key(raw: str, field: str) -> tuple[str, str]:
@@ -616,6 +638,8 @@ async def swap_number_by_id(
         old = await conn.fetchrow(_LOCK_USER, user_id)
         if old is None:
             raise InvalidValue("from", "pessoa de origem nao cadastrada")
+        if not is_editable(old):  # retirada ou excluida depois que o modal abriu
+            raise InvalidValue("from", "pessoa de origem retirada ou excluida")
         return await _swap_locked(
             conn, old, to_e164, to_key, actor, actor_type=actor_type, settings=settings,
             clock=clock,

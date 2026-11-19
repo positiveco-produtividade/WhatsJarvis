@@ -463,7 +463,8 @@ async def dispatch(
 
     A chamada ao canal acontece SEM conexao do banco (claim e gravacao em conexoes separadas).
     `reply_only` (WA-16, ver `reply_only_for`): descarta a quem nao escreveu em 24 h, exceto os
-    kinds isentos da regra (`True` = isencao padrao, so `human_reply`).
+    kinds isentos da regra (`True` = isencao padrao: `human_reply` e `brand_access_granted`,
+    mesma chave `HUMAN_REPLY_IGNORE_WINDOW`, ADR 2026-11-17 e extensao de cadastro.1).
     """
     active_policy = policy or _policy
     time = clock or SystemClock()

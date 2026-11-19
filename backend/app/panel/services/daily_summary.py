@@ -151,15 +151,25 @@ async def run_if_due(conn: Any, deps: SummaryDeps) -> str:
     if deps.flags is None or not await deps.flags.team_group_enabled():
         return "group_off"
     summary = await read_summary(conn, now)
-    result = await deps.send(build_text(summary, deps.settings), deps.settings, deps.client)
+    # Marca "enviado" ANTES de mandar, na mesma transacao: se a auditoria falhar, nada sai;
+    # se o envio falhar, a transacao desfaz a marca e o proximo ciclo tenta de novo.
+    tx = conn.transaction()
+    await tx.start()
+    try:
+        await audit.write(
+            conn, "system", "jarvis", AUDIT_ACTION, "team_group", summary.day.isoformat(),
+            new={"awaiting": summary.awaiting, "send_errors": summary.send_errors},
+            clock=deps.clock,
+        )  # fmt: skip
+        result = await deps.send(build_text(summary, deps.settings), deps.settings, deps.client)
+    except BaseException:
+        await tx.rollback()
+        raise
     if not result.ok:
+        await tx.rollback()
         logger.warning("daily_summary_failed", extra={"detail": result.detail})
         return "failed"
-    await audit.write(
-        conn, "system", "jarvis", AUDIT_ACTION, "team_group", summary.day.isoformat(),
-        new={"awaiting": summary.awaiting, "send_errors": summary.send_errors},
-        clock=deps.clock,
-    )  # fmt: skip
+    await tx.commit()
     logger.info("daily_summary_sent", extra={"awaiting": summary.awaiting})
     return "sent"
 

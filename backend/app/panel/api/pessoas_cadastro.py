@@ -49,7 +49,7 @@ from app.panel.values import (
 )
 from app.services import audit, users
 
-__all__ = ["FIELD_LABELS", "FormValues", "render_person_form", "router"]
+__all__ = ["FIELD_LABELS", "FormValues", "field_problems", "render_person_form", "router"]
 
 logger = logging.getLogger(__name__)
 
@@ -193,7 +193,7 @@ def render_person_form(
     return templates_for(request).TemplateResponse(request, TEMPLATE, context)
 
 
-def _field_problems(errors: list[users.FieldError]) -> tuple[str, ...]:
+def field_problems(errors: list[users.FieldError]) -> tuple[str, ...]:
     return tuple(f"{FIELD_LABELS.get(e.field, e.field)}: {e.reason}" for e in errors)
 
 
@@ -270,7 +270,7 @@ async def criar(
     checked = users.validate_row(values.as_row(), now=get_clock(request).now())
     if isinstance(checked, list):
         return render_person_form(
-            request, admin, values, pedido=shown, problems=_field_problems(checked)
+            request, admin, values, pedido=shown, problems=field_problems(checked)
         )
     try:
         async with request.app.state.pool.acquire() as conn:

@@ -11,6 +11,7 @@ import pytest
 
 from app.config import Settings
 from app.core.clock import FakeClock
+from app.core.errors import InvalidValue
 from app.panel.services import people_edit
 from app.services import users
 from tests.brain import factories
@@ -69,10 +70,11 @@ def _data(row: asyncpg.Record, **over: Any) -> users.ValidatedUser:
 
 
 async def _edit(
-    conn: asyncpg.Connection, uid: int, data: users.ValidatedUser, expected: datetime | None
+    conn: asyncpg.Connection, uid: int, data: users.ValidatedUser, expected: asyncpg.Record | None
 ) -> people_edit.EditOutcome:
+    version = users.data_version(expected) if expected is not None else None
     return await people_edit.edit_person(
-        conn, uid, data, expected_updated_at=expected, admin_email=ADMIN,
+        conn, uid, data, expected_version=version, admin_email=ADMIN,
         admin_name="Caio Franco", settings=_settings(), clock=FakeClock(NOW),
     )  # fmt: skip
 
@@ -96,7 +98,7 @@ async def test_edita_e_audita_sem_pii(db_conn: asyncpg.Connection) -> None:
         users.KEY_NAME: PII_NAME, users.KEY_COMPANY: PII_COMPANY, users.KEY_MANAGER: PII_MANAGER,
         users.KEY_PROFILE: "gestor_comercial", users.KEY_UFS: ["CE", "SP"],
     })  # fmt: skip
-    out = await _edit(db_conn, uid, data, before["updated_at"])
+    out = await _edit(db_conn, uid, data, before)
     assert out.result.status == users.UPDATE_OK
     assert set(out.result.changed) == {"name", "company", "manager_name", "profile", "ufs"}
     after = await _row(db_conn, uid)
@@ -122,7 +124,7 @@ async def test_edita_e_audita_sem_pii(db_conn: asyncpg.Connection) -> None:
 async def test_sem_mudanca_nao_grava(db_conn: asyncpg.Connection) -> None:
     uid = await _user(db_conn)
     row = await _row(db_conn, uid)
-    out = await _edit(db_conn, uid, _data(row), row["updated_at"])
+    out = await _edit(db_conn, uid, _data(row), row)
     assert out.result.status == users.UPDATE_NOOP
     assert (await _row(db_conn, uid))["updated_at"] == row["updated_at"]
     assert await db_conn.fetchval("SELECT count(*) FROM ops.audit_log") == 0
@@ -131,9 +133,9 @@ async def test_sem_mudanca_nao_grava(db_conn: asyncpg.Connection) -> None:
 async def test_edicao_concorrente_recusada(db_conn: asyncpg.Connection) -> None:
     uid = await _user(db_conn)
     row = await _row(db_conn, uid)
-    first = await _edit(db_conn, uid, _data(row, **{users.KEY_UFS: ["RJ"]}), row["updated_at"])
+    first = await _edit(db_conn, uid, _data(row, **{users.KEY_UFS: ["RJ"]}), row)
     assert first.result.status == users.UPDATE_OK
-    late = await _edit(db_conn, uid, _data(row, **{users.KEY_UFS: ["MG"]}), row["updated_at"])
+    late = await _edit(db_conn, uid, _data(row, **{users.KEY_UFS: ["MG"]}), row)
     assert late.result.status == users.UPDATE_CONFLICT
     assert late.result.current is not None and late.result.current["ufs"] == ("RJ",)
     assert list((await _row(db_conn, uid))["ufs"]) == ["RJ"]
@@ -143,7 +145,7 @@ async def test_edicao_concorrente_recusada(db_conn: asyncpg.Connection) -> None:
 async def test_revogada_nao_edita(db_conn: asyncpg.Connection, status: str) -> None:
     uid = await _user(db_conn, status=status)
     row = await _row(db_conn, uid)
-    out = await _edit(db_conn, uid, _data(row, **{users.KEY_UFS: ["RJ"]}), row["updated_at"])
+    out = await _edit(db_conn, uid, _data(row, **{users.KEY_UFS: ["RJ"]}), row)
     assert out.result.status == users.UPDATE_NOT_EDITABLE
 
 
@@ -154,16 +156,16 @@ async def test_anonimizada_e_inexistente(db_conn: asyncpg.Connection) -> None:
         "UPDATE access.users SET phone_e164 = $2 WHERE id = $1", uid, f"anon:{uid}"
     )
     fresh = await _row(db_conn, uid)
-    out = await _edit(db_conn, uid, _data(row), fresh["updated_at"])
+    out = await _edit(db_conn, uid, _data(row), fresh)
     assert out.result.status == users.UPDATE_NOT_EDITABLE
-    missing = await _edit(db_conn, 999_999, _data(row), fresh["updated_at"])
+    missing = await _edit(db_conn, 999_999, _data(row), fresh)
     assert missing.result.status == users.UPDATE_NOT_FOUND
 
 
 async def test_declined_edita(db_conn: asyncpg.Connection) -> None:
     uid = await _user(db_conn, status="declined")
     row = await _row(db_conn, uid)
-    out = await _edit(db_conn, uid, _data(row, **{users.KEY_UFS: ["BA"]}), row["updated_at"])
+    out = await _edit(db_conn, uid, _data(row, **{users.KEY_UFS: ["BA"]}), row)
     assert out.result.status == users.UPDATE_OK
 
 
@@ -174,10 +176,10 @@ async def test_marca_da_conversa_retirada_e_apagada(db_conn: asyncpg.Connection)
         "active_brand_at = $2 WHERE id = $1", uid, NOW,
     )  # fmt: skip
     row = await _row(db_conn, uid)
-    await _edit(db_conn, uid, _data(row, **{users.KEY_UFS: ["CE"]}), row["updated_at"])
+    await _edit(db_conn, uid, _data(row, **{users.KEY_UFS: ["CE"]}), row)
     assert (await _row(db_conn, uid))["active_brand"] == "zaya"  # marca continua: mantida
     row = await _row(db_conn, uid)
-    await _edit(db_conn, uid, _data(row, **{users.KEY_BRANDS: ["jungle"]}), row["updated_at"])
+    await _edit(db_conn, uid, _data(row, **{users.KEY_BRANDS: ["jungle"]}), row)
     after = await _row(db_conn, uid)
     assert after["active_brand"] is None and after["active_brand_at"] is None
 
@@ -189,7 +191,7 @@ async def test_marca_pedida_conclui_e_avisa(db_conn: asyncpg.Connection) -> None
     other = await _request(db_conn, uid, "possible", "J-0903")  # marca nao liberada
     row = await _row(db_conn, uid)
     out = await _edit(
-        db_conn, uid, _data(row, **{users.KEY_BRANDS: ["jungle", "zaya"]}), row["updated_at"]
+        db_conn, uid, _data(row, **{users.KEY_BRANDS: ["jungle", "zaya"]}), row
     )
     assert out.result.granted == ("zaya",)
     assert set(out.concluded_tickets) == {t_old, t_new}
@@ -209,7 +211,7 @@ async def test_marca_sem_pedido_nao_avisa(db_conn: asyncpg.Connection) -> None:
     uid = await _user(db_conn)
     row = await _row(db_conn, uid)
     out = await _edit(
-        db_conn, uid, _data(row, **{users.KEY_BRANDS: ["jungle", "zaya"]}), row["updated_at"]
+        db_conn, uid, _data(row, **{users.KEY_BRANDS: ["jungle", "zaya"]}), row
     )
     assert out.result.granted == ("zaya",) and out.outbound_ids == ()
     assert await db_conn.fetchval("SELECT count(*) FROM chat.outbound_messages") == 0
@@ -220,6 +222,29 @@ async def test_pendente_conclui_pedido_sem_mensagem(db_conn: asyncpg.Connection)
     ticket = await _request(db_conn, uid, "zaya", "J-0904")
     row = await _row(db_conn, uid)
     out = await _edit(
-        db_conn, uid, _data(row, **{users.KEY_BRANDS: ["jungle", "zaya"]}), row["updated_at"]
+        db_conn, uid, _data(row, **{users.KEY_BRANDS: ["jungle", "zaya"]}), row
     )
     assert out.concluded_tickets == (ticket,) and out.outbound_ids == ()
+
+
+async def test_lacos_de_fundo_nao_geram_conflito(db_conn: asyncpg.Connection) -> None:
+    """Revisao 2026-11-19: lembrete/limite mexem em updated_at, nao nos dados editaveis."""
+    uid = await _user(db_conn)
+    row = await _row(db_conn, uid)
+    await db_conn.execute(
+        "UPDATE access.users SET rate_limit_notice_at = $2, updated_at = $2 WHERE id = $1",
+        uid, NOW + timedelta(minutes=5),
+    )  # fmt: skip
+    out = await _edit(db_conn, uid, _data(row, **{users.KEY_UFS: ["RJ"]}), row)
+    assert out.result.status == users.UPDATE_OK
+
+
+async def test_troca_pelo_id_recusa_quem_foi_retirado(db_conn: asyncpg.Connection) -> None:
+    """Revisao 2026-11-19: retirada depois que o modal abriu nao reativa ninguem."""
+    uid = await _user(db_conn, status="revoked")
+    with pytest.raises(InvalidValue) as exc:
+        await users.swap_number_by_id(
+            db_conn, uid, "+5585988887777", ADMIN, settings=_settings(), clock=FakeClock(NOW)
+        )
+    assert exc.value.field == "from"
+    assert await db_conn.fetchval("SELECT count(*) FROM access.users") == 1
